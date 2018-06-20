@@ -1,5 +1,5 @@
 ---
-title: "Data_cleaning_ELA"
+title: "Data cleaning for EOCELA"
 output: html_document
 ---
 
@@ -13,7 +13,6 @@ Load relevant libraries and set local environment, then get the data from AWS.
 
 ```{r, message=FALSE, results="hide"}
 library(tidyverse)
-library(plyr)
 library(aws.s3)
 
 source('/Users/kelliemacphee/Desktop/dssg2018/cred.txt')
@@ -26,12 +25,6 @@ data <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_EOCELA_
 ```
 
 ## Summarize the data
-
-Column names and data types (factors are listed as integers):
-
-```{r}
-sapply(data, typeof)
-```
 
 Overview of entries in each column:
 
@@ -56,7 +49,7 @@ for (course in levels(data$CourseFinal)){
 }
 ```
 
-Answer: yes. Let's simplify these CourseFinal names, then, to just the course name and Part 1/2 (if necessary). Note that in cases when the year isn't specified, that means the exam occurred in 2012.
+Answer: yes. Let's simplify these CourseFinal names, then, to just the course name (and Part or 2, if necessary). Note that in cases when the year isn't specified, that means the exam occurred in 2012.
 
 ```{r}
 levels(data$CourseFinal) <- gsub(" Course Final \\d{4}", "", levels(data$CourseFinal))
@@ -64,9 +57,6 @@ levels(data$CourseFinal) <- gsub(" Course Final", "", levels(data$CourseFinal))
 
 # delete any trailing white spaces
 levels(data$CourseFinal) <- gsub(" $", "", levels(data$CourseFinal))
-
-# make "Probabilty & Statistics" be "Probability and Statistics" for consistency 
-levels(data$CourseFinal) <- gsub("\\&", "and", levels(data$CourseFinal))
 
 levels(data$CourseFinal)
 ```
@@ -88,3 +78,5 @@ hist(data$PointsEarned, main="Points Earned")
 hist(data$PercentageEarned, main="Percentage Earned")
 plot(data$Proficiency, main="Proficiency")
 ```
+
+All looks good!
