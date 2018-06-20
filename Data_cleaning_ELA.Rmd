@@ -1,0 +1,90 @@
+---
+title: "Data_cleaning_ELA"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+Load relevant libraries and set local environment, then get the data from AWS.
+
+```{r, message=FALSE, results="hide"}
+library(tidyverse)
+library(plyr)
+library(aws.s3)
+
+source('/Users/kelliemacphee/Desktop/dssg2018/cred.txt')
+Sys.setenv("AWS_ACCESS_KEY_ID" = access_key,
+           "AWS_SECRET_ACCESS_KEY" = secret_key,
+           "AWS_DEFAULT_REGION" = "us-west-2")
+
+get_bucket('dssg2018')
+data <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_EOCELA_1112-1617.csv")
+```
+
+## Summarize the data
+
+Column names and data types (factors are listed as integers):
+
+```{r}
+sapply(data, typeof)
+```
+
+Overview of entries in each column:
+
+```{r}
+summary(data)
+```
+
+Change SchoolYear to be the spring year only.
+```{r}
+levels(data$SchoolYear) <- gsub("\\d{4}-", "", levels(data$SchoolYear))
+colnames(data)[1] <- "SpringYear"
+summary(data)
+```
+
+CourseFinal entries look unnecessarily complicated. Do years agree with years in the other column? 
+
+```{r}
+for (course in levels(data$CourseFinal)){
+  temp <- data[data$CourseFinal==course,]
+  years <- unique(temp$SpringYear)
+  print(paste(course, "happened in", years))
+}
+```
+
+Answer: yes. Let's simplify these CourseFinal names, then, to just the course name and Part 1/2 (if necessary). Note that in cases when the year isn't specified, that means the exam occurred in 2012.
+
+```{r}
+levels(data$CourseFinal) <- gsub(" Course Final \\d{4}", "", levels(data$CourseFinal))
+levels(data$CourseFinal) <- gsub(" Course Final", "", levels(data$CourseFinal))
+
+# delete any trailing white spaces
+levels(data$CourseFinal) <- gsub(" $", "", levels(data$CourseFinal))
+
+# make "Probabilty & Statistics" be "Probability and Statistics" for consistency 
+levels(data$CourseFinal) <- gsub("\\&", "and", levels(data$CourseFinal))
+
+levels(data$CourseFinal)
+```
+
+Finally, look for missing or absurd values.
+
+```{r}
+sapply(data, function(x) sum( is.na(x) | x=="" | x==" " ))
+summary(data)
+```
+
+Make some plots, too, to see if distributions make sense or if there are any strange outliers.
+
+```{r, echo=FALSE}
+plot(data$SpringYear, main="Years")
+plot(data$CourseFinal, main="ELA Subjects")
+plot(data$StudentNumber, main="Student Numbers")
+hist(data$PointsEarned, main="Points Earned")
+hist(data$PercentageEarned, main="Percentage Earned")
+plot(data$Proficiency, main="Proficiency")
+```
