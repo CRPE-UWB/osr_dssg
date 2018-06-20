@@ -6,11 +6,6 @@ library(tidyverse)
 source('/Volumes/GoogleDrive/My Drive/eScience/projects/dssg2018/cred.txt')
 #Might need to set systemenv
 
-#Sys.setenv("AWS_ACCESS_KEY_ID" = access_key,
-#          "AWS_SECRET_ACCESS_KEY" = secret_key,
-#           "AWS_DEFAULT_REGION" = "us-west-2")
-
-
 #data <- s3read_using(FUN = read.csv, object = "s3://data.all/City/Denver/DPS/CSVs/DPS_Choice_1314-1718.csv")
 
 rawAWSdata <- function(filename) {
@@ -31,7 +26,7 @@ geo_data <- data %>%
   distinct(.) %>%
   filter(!is.na(Address)) %>%
   unite(Address,Address, CityStateZip, sep = " ", remove = FALSE) %>%
-  slice(1:3)
+  slice(1:10)
 #test$comb <- full <- paste(test$Address, test$CityStateZip, sep=" ")
 
 geo_data$Address <- as.character(geo_data$Address)
@@ -58,8 +53,8 @@ geocodeAddress <- function(address) {
 #Initialize
 geo_data$LAT<-NA
 geo_data$LON<-NA
-
 g_add=list()
+
 for (i in 1:nrow(geo_data)) {
   g_add <- geocodeAddress(geo_data$Address[i])
   geo_data$LAT[i] <- g_add[1]
