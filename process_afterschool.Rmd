@@ -1,0 +1,35 @@
+---
+title: "Processing After-School Program Data from Denver Open Data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Get data
+
+```{r, message=FALSE, results="hide"}
+library(tidyverse)
+library(rgdal)
+
+# Specify the data set to download (zip file name)
+name <- "afterschool_programs"
+
+# Download .zip to temporary directory, unzip, and get data.
+url <- paste("https://www.denvergov.org/media/gis/DataCatalog/", name, "/shape/", name, ".zip", sep="")
+tempDir <- tempdir()
+file <- basename(url)
+download.file(url, file)
+unzip(file, exdir = tempDir)
+
+data <- readOGR(dsn = tempDir, name)
+```
+
+## Summarize the data
+
+Overview of entries in each column:
+
+```{r}
+summary(data)
+```
