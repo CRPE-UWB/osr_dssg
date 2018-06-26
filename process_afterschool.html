@@ -203,70 +203,36 @@ head(a)</code></pre>
 ## 4             NA     NA -104.9871 39.74169
 ## 5             NA     NA -104.9574 39.72201
 ## 6             NA     NA -104.9574 39.72201</code></pre>
-<pre class="r"><code># Replace NA's by 0's in Andrew's added columns.
-for (colnum in 14:29) {
-  a[is.na(a[,colnum]),colnum] &lt;- 0
-}
-
-# Now merge the annotations into the original data
+<pre class="r"><code># Merge the annotations into the original data
 dataAnnotated &lt;- merge(x = spdf, y = a)
-head(dataAnnotated)</code></pre>
-<pre><code>##               coordinates POINT_X POINT_Y ADDRESS_ID         NEIGHBORHO
-## 183 (-105.0162, 39.75421) 3136021 1699964      52170     Jefferson Park
-## 306  (-104.9727, 39.7526) 3148272 1699446      56698           Whittier
-## 307  (-104.9727, 39.7526) 3148272 1699446      56698           Whittier
-## 262 (-104.9871, 39.74169) 3144243 1695447     220860 North Capitol Hill
-## 352 (-104.9574, 39.72201) 3152634 1688329     182637       Cherry Creek
-## 353 (-104.9574, 39.72201) 3152634 1688329     182637       Cherry Creek
-##                   LOC_NAME                                     ORGANIZATI
-## 183                   &lt;NA&gt;                     Colorado Childrens Chorale
-## 306           Whittier K-8  Lights on After School (LOAS) at Whittier K-8
-## 307           Whittier K-8                Summer Scholars at Whittier K-8
-## 262 YMCA - Downtown Branch                         YMCA - Downtown Branch
-## 352    Bromwell Elementary Girl Scouts of Colorado at Bromwell Elementary
-## 353    Bromwell Elementary        Girls on the Run at Bromwell Elementary
-##     FIRST_NAME LAST_NAME        FULL_ADDRE                        EMAIL
-## 183      Emily     Crile   2420 W 26th Ave    mail@childrenschorale.org
-## 306  Catherine      Wise 2480 N Downing St    catherine_wise@dpsk12.org
-## 307    Erienne    Massie 2480 N Downing St   emassie@summerscholars.org
-## 262        Kim    Schulz     25 E 16th Ave        kshulz@denverymca.org
-## 352        Joy    Henika    2500 E 4th Ave    joy.henika@gscolorado.org
-## 353       Lisa   Johnson    2500 E 4th Ave info@girlsontherundenver.org
-##                              URL          PHONE
-## 183     www.childrenschorale.org (303)-892-5600
-## 306               www.dpsk12.org (720)-424-8256
-## 307       www.summerscholars.org (720)-424-3075
-## 262           www.denverymca.org (303)-861-8300
-## 352 www.girlscoutsofcolorado.org (303)-778-8774
-## 353  www.girlsontherundenver.org (720)-530-1064
-##                                                                                                               DESCRIPTIO
-## 183                                                   Participants receive instruction in choral singing and performing.
-## 306                                                             Various activities supported through the LOAS Initiative
-## 307                       Free afterschool tutoring| homework help| and enrichment activities| 5 days/wk for grades 1-5.
-## 262                                                                                                 Summer Day Camp Only
-## 352                                    Builds girls of courage| confidence and caring who make the world a better place.
-## 353 Emotional| social| mental| spiritual| and physical development for girls ages 8-13 as they train for a 3.1 mile run.
-##     mAcademic mArts mCooking mDance mDrama mMusic mNature mSports mStem
-## 183         0     1        0      0      0      0       0       0     0
-## 306         0     0        0      0      0      0       0       0     0
-## 307         1     0        0      0      0      0       0       0     0
-## 262        NA    NA       NA     NA     NA     NA      NA      NA    NA
-## 352         0     0        0      0      0      0       0       0     0
-## 353         0     0        0      0      0      0       0       1     0
-##     mGLBT mGirls.Program mMental.Health mCommunity.Service mLeadership
-## 183     0              0              0                  0           0
-## 306     0              0              0                  0           0
-## 307     0              0              0                  0           0
-## 262    NA             NA             NA                 NA          NA
-## 352     0              1              0                  0           1
-## 353     0              1              1                  0           0
-##     mNoDescription mOther    xcoord   ycoord
-## 183              0      0 -105.0162 39.75421
-## 306              0      1 -104.9727 39.75260
-## 307              0      0 -104.9727 39.75260
-## 262             NA     NA        NA       NA
-## 352              0      0 -104.9574 39.72201
-## 353              0      0 -104.9574 39.72201</code></pre>
+
+# Replace NA's by 0's in Andrew's added columns.
+for (colnum in 14:29) {
+  dataAnnotated@data[is.na(dataAnnotated@data[,colnum]),colnum] &lt;- 0
+}
+colSums(is.na(dataAnnotated@data)) # check for any leftover NAs</code></pre>
+<pre><code>##            POINT_X            POINT_Y         ADDRESS_ID 
+##                  0                  0                  0 
+##         NEIGHBORHO           LOC_NAME         ORGANIZATI 
+##                  0                 97                  0 
+##         FIRST_NAME          LAST_NAME         FULL_ADDRE 
+##                  2                  2                  0 
+##              EMAIL                URL              PHONE 
+##                  1                  1                  1 
+##         DESCRIPTIO          mAcademic              mArts 
+##                  8                  0                  0 
+##           mCooking             mDance             mDrama 
+##                  0                  0                  0 
+##             mMusic            mNature            mSports 
+##                  0                  0                  0 
+##              mStem              mGLBT     mGirls Program 
+##                  0                  0                  0 
+##     mMental Health mCommunity Service        mLeadership 
+##                  0                  0                  0 
+##     mNoDescription             mOther             xcoord 
+##                  0                  0                 86 
+##             ycoord 
+##                 86</code></pre>
 <p>Keep only the coordinates and useful data variables that are consistent with the ones in the Blueprint4Summer data. Rename columns to not be cut off.</p>
 <pre class="r"><code>dataSmall &lt;- dataAnnotated[, c('LOC_NAME', 'ORGANIZATI', 'mAcademic', 'mArts', 'mCooking', 'mDance', 'mDrama', 'mMusic', 'mNature', 'mSports', 'mStem', 'mGirls Program', 'DESCRIPTIO')]
 
@@ -284,14 +250,14 @@ head(dataSmall)</code></pre>
 ## 183                     Colorado Childrens Chorale        0    1       0
 ## 306  Lights on After School (LOAS) at Whittier K-8        0    0       0
 ## 307                Summer Scholars at Whittier K-8        1    0       0
-## 262                         YMCA - Downtown Branch       NA   NA      NA
+## 262                         YMCA - Downtown Branch        0    0       0
 ## 352 Girl Scouts of Colorado at Bromwell Elementary        0    0       0
 ## 353        Girls on the Run at Bromwell Elementary        0    0       0
 ##     dance drama music nature sports stem girls_only
 ## 183     0     0     0      0      0    0          0
 ## 306     0     0     0      0      0    0          0
 ## 307     0     0     0      0      0    0          0
-## 262    NA    NA    NA     NA     NA   NA         NA
+## 262     0     0     0      0      0    0          0
 ## 352     0     0     0      0      0    0          1
 ## 353     0     0     0      0      1    0          1
 ##                                                                                                              DESCRIPTION

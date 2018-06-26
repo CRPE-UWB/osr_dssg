@@ -37,15 +37,14 @@ gurl <- construct_download_url('https://docs.google.com/spreadsheets/d/1N8Mj_OzM
 a <- as.data.frame(gsheet2tbl(gurl))
 head(a)
 
+# Merge the annotations into the original data
+dataAnnotated <- merge(x = spdf, y = a)
+
 # Replace NA's by 0's in Andrew's added columns.
 for (colnum in 14:29) {
-  a[is.na(a[,colnum]),colnum] <- 0
+  dataAnnotated@data[is.na(dataAnnotated@data[,colnum]),colnum] <- 0
 }
-
-# Now merge the annotations into the original data
-dataAnnotated <- merge(x = spdf, y = a)
-head(dataAnnotated)
-
+colSums(is.na(dataAnnotated@data)) # check for any leftover NAs
 ```
 
 Keep only the coordinates and useful data variables that are consistent with the ones in the Blueprint4Summer data. Rename columns to not be cut off.
