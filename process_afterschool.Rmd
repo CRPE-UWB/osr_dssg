@@ -14,17 +14,23 @@ library(tidyverse)
 library(rgdal)
 library(gsheet)
 
-# Specify the data set to download (zip file name)
-name <- "afterschool_programs"
+# Function to load data from Denver Open Data shapefiles
+#     input:   name of zip file (see url where data resides)
+#     output:  SpatialPointsDataFrame containing the data
+getOpenData <- function(zipname) {
+  # Download .zip to temporary directory, then unzip.
+  url <- paste("https://www.denvergov.org/media/gis/DataCatalog/", zipname, "/shape/", zipname, ".zip", sep="")
+  tempDir <- tempdir()
+  file <- basename(url)
+  download.file(url, file)
+  unzip(file, exdir = tempDir)
+  
+  # Read shapefile into SpatialPointsDataFrame.
+  spdf <- readOGR(dsn = tempDir, zipname)
+  return(spdf)
+}
 
-# Download .zip to temporary directory, unzip, and get data.
-url <- paste("https://www.denvergov.org/media/gis/DataCatalog/", name, "/shape/", name, ".zip", sep="")
-tempDir <- tempdir()
-file <- basename(url)
-download.file(url, file)
-unzip(file, exdir = tempDir)
-
-spdf <- readOGR(dsn = tempDir, name)  # as spatial points data frame
+spdf <- getOpenData("afterschool_programs")
 head(spdf)
 ```
 

@@ -130,17 +130,23 @@ $(document).ready(function () {
 library(rgdal)
 library(gsheet)
 
-# Specify the data set to download (zip file name)
-name &lt;- &quot;afterschool_programs&quot;
+# Function to load data from Denver Open Data shapefiles
+#     input:   name of zip file (see url where data resides)
+#     output:  SpatialPointsDataFrame containing the data
+getOpenData &lt;- function(zipname) {
+  # Download .zip to temporary directory, then unzip.
+  url &lt;- paste(&quot;https://www.denvergov.org/media/gis/DataCatalog/&quot;, zipname, &quot;/shape/&quot;, zipname, &quot;.zip&quot;, sep=&quot;&quot;)
+  tempDir &lt;- tempdir()
+  file &lt;- basename(url)
+  download.file(url, file)
+  unzip(file, exdir = tempDir)
+  
+  # Read shapefile into SpatialPointsDataFrame.
+  spdf &lt;- readOGR(dsn = tempDir, zipname)
+  return(spdf)
+}
 
-# Download .zip to temporary directory, unzip, and get data.
-url &lt;- paste(&quot;https://www.denvergov.org/media/gis/DataCatalog/&quot;, name, &quot;/shape/&quot;, name, &quot;.zip&quot;, sep=&quot;&quot;)
-tempDir &lt;- tempdir()
-file &lt;- basename(url)
-download.file(url, file)
-unzip(file, exdir = tempDir)
-
-spdf &lt;- readOGR(dsn = tempDir, name)  # as spatial points data frame
+spdf &lt;- getOpenData(&quot;afterschool_programs&quot;)
 head(spdf)</code></pre>
 <p>Merge with manual annotations of program type (done in Google Sheets). Includes the same categories as Blueprint4Summer, as well as additional annotations.</p>
 <pre class="r"><code># First get the data from the google sheet:
