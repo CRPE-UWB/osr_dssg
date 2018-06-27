@@ -45,7 +45,9 @@ getOpenData <- function(zipname) {
 }
 ```
 
-We first will look at the data on libraries. A lot of this info is redundant, such as abbreviations, address/state/zip (which is contained in the shapefile metadata). Other info is unnecessary, such as the status (whether under construction, temporary construction, etc). We also will rename the columns to understandable names. 
+##Libraries##
+
+A lot of this info is redundant, such as abbreviations, address/state/zip (which is contained in the shapefile metadata). Other info is unnecessary, such as the status (whether under construction, temporary construction, etc). We also will rename the columns to understandable names. 
 
 ```{r message=FALSE}
 libraries <- getOpenData("libraries")
@@ -53,9 +55,9 @@ libraries <- getOpenData("libraries")
 libraries = libraries[,c(1,9,10,11)]
 names(libraries) = c("name","patron_count","circulation_volume","sqr_feet")
 libraries[["name"]] = as.character(libraries[["name"]])
-libraries[["patron_count"]] = as.numeric(libraries[["patron_count"]])
-libraries[["circulation_volume"]] = as.numeric(libraries[["circulation_volume"]])
-libraries[["sqr_feet"]] = as.numeric(libraries[["sqr_feet"]])
+libraries[["patron_count"]] = as.numeric(as.character(libraries[["patron_count"]]))
+libraries[["circulation_volume"]] = as.numeric(as.character(libraries[["circulation_volume"]]))
+libraries[["sqr_feet"]] = as.numeric(as.character(libraries[["sqr_feet"]]))
 ```
 
 We can look at library locations and visualize their use by the area of the dots on their locations (hence the radius should be proportional to the square root). In particular, we can compare number of patrons to number of square feet. First, we notice that size of libraries (except for the Central Library) isn't too different across the city, but along the southwest to northeast line we see much heavier use.  
@@ -75,12 +77,14 @@ leaflet(libraries) %>%
   ) %>% addLegend(labels=c("Square Feet","Number of Patrons"),colors=c("red","green"))
 ```
 
-We now move on to parks, going through the same workflow. 
+##Parks## 
 
 ```{r message=FALSE}
 parks <- getOpenData("parks")
 parks = parks[c(2,5,6,23)]
 names(parks) = c("name","class","acres","facilities")
+parks[["name"]] = as.character(parks[["name"]])
+parks[["acres"]] = as.numeric(as.character(parks[["acres"]]))
 ```
 We need more info on how they labeled the parks to say anything meaningful, but looking at just "Rec Centers", "Athletic Complexes", and "Community" parks seems to show a hole in the central North area. also, all rec centers are localized to a crescent in the north end. 
 
@@ -93,34 +97,84 @@ leaflet() %>%
   addLegend(labels=c("Recreation Center","Athletic Complex","Community"),colors=c("red","green","blue"))
 ```
 
-Now we move on to crime data. 
+##Crime##
 
 ```{r}
 crime <- getOpenData("crime")
+# ~200 of the ~400,000 crime locations have 0 as one or both of the coordinates
+crime = crime[abs(crime@coords[,1])>.01 & abs(crime@coords[,2])>.01,]
+crime = crime[c(5,6)]
+names(crime) <- c("crime_details","crime_type")
 ```
 
-Here we need metadata about what the different offense codes signify. 
+When we plot aggravated assault crimes we see again a pattern along the southwest to northeast line, along with with concentrations along main streets. There is of course also a concentration in the city center. 
 
 ```{r}
-url <- "https://www.denvergov.org/media/gis/DataCatalog/crime/csv/offense_codes.csv"
-file <- basename(url)
-download.file(url, file)
-crime_codes <- read.csv(file) 
-unlink(file)
-```
-
-```{r}
-#relevant_codes = crime_codes$OFFENSE_CODE[crime_codes$OFFENSE_CATEGORY_NAME=="Aggravated Assault"]
-binpal <- colorBin("YlOrRd", tracts$POPULATION, 8)
-l <- leaflet() %>% 
+leaflet() %>% 
   addProviderTiles("CartoDB.Positron") %>%
-  addPolygons(data=tracts,
-              weight=1,
-              color=~binpal(tracts$POPULATION)) %>%
-  addHeatmap(data=police_stops[police_stops$PRIORITY_D=="P2 Urgent"],r=8)
-  #addHeatmap(data=crime[crime$OFFENSE_CO %in% relevant_codes,],r=8) #%>%
-  #addMarkers(data=libraries) %>%
-  #addPolygons(data=parks, weight=1, color="red") #%>%
-  #addHeatmap(data=art, r=10) 
-l
+  addCircleMarkers(data=crime[crime$crime_type=="aggravated-assault",],
+    stroke = FALSE, fillOpacity = .1, radius=2,
+    color="red"
+  )
 ```
+
+##Foreclosures##
+
+```{r}
+foreclosures <- getOpenData("foreclosures")
+foreclosures = foreclosures[c(4)]
+names(foreclosures) = c("year")
+foreclosures[["year"]]=as.numeric(as.character(foreclosures[["year"]]))
+```
+
+We can look at foreclosures by year - here they are plotted for 2011 and on. 
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircleMarkers(data=foreclosures[foreclosures[["year"]]>2010,],
+    stroke = FALSE, fillOpacity = .1, radius=2,
+    color="red"
+  )
+```
+
+##Child Care Facilities##
+
+```{r}
+child_care <- getOpenData("licensed_child_care_facilities")
+child_care = child_care[c(2)]
+names(child_care) = c("name")
+child_care[["name"]] = as.character(child_care[["name"]])
+```
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircleMarkers(data=child_care,
+    stroke = FALSE, fillOpacity = .3, radius=3,
+    color="red"
+  )
+```
+
+##Police Shootings##
+
+```{r}
+police_shootings <- getOpenData("denver_police_officer_involved_shootings")
+# one super big entry for no reason
+police_shootings = police_shootings[abs(police_shootings@coords[,1])<1000 & abs(police_shootings@coords[,2])<1000,]
+police_shootings = police_shootings[c(5,6,15,16,17,18,19,20,21)]
+names(police_shootings) = c("contact_by_whom","contact_basis","gender","age","race","ethnicity","armed_with","discharged","casualty")
+police_shootings[["age"]] = as.numeric(as.character(police_shootings[["age"]]))
+```
+
+Again, southwest to northeast line. 
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircleMarkers(data=police_shootings,
+    stroke = FALSE, fillOpacity = 1, radius=3,
+    color="red"
+  )
+```
+
