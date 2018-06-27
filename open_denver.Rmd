@@ -9,14 +9,12 @@ output: html_document
 install.packages('rgdal')
 install.packages('leaflet')
 install.packages('leaflet.extras')
-install.packages('ggmap')
 ```
 
 
 
 ```{r}
 library("rgdal")
-library("ggplot2")
 library("leaflet")
 library("tidyverse")
 library("leaflet.extras")
@@ -178,3 +176,25 @@ leaflet() %>%
   )
 ```
 
+##Police Stations##
+
+```{r}
+police_stations <- getOpenData("police_stations")
+police_stations = police_stations[,c(3,15)]
+names(police_stations) = c("name","publicly_accessible")
+police_shootings[["name"]]=as.character(police_shootings[["name"]])
+```
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircleMarkers(data=police_stations[police_stations[["publicly_accessible"]]=="NO",],
+    stroke = FALSE, fillOpacity = 1, radius=3,
+    color="red"
+  ) %>%
+  addCircleMarkers(data=police_stations[police_stations[["publicly_accessible"]]=="YES",],
+    stroke = FALSE, fillOpacity = 1, radius=3,
+    color="blue"
+  ) %>%
+  addLegend(labels=c("Publicly Accessible","Not Publicly Accessible"),colors=c("blue","red"))
+```
