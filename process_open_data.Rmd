@@ -1,0 +1,120 @@
+---
+title: "Processing Denver Open Data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+First, some code for downloading shapefiles from the Denver Open Data site.
+
+```{r, message=FALSE, results="hide"}
+library(tidyverse)
+library(rgdal)
+library(gsheet)  # only needed for the afterschool programs, to merge with annotated data
+library(splitstackshape)  # for splitting strings and turning into binary columns
+
+# Function to load data from Denver Open Data shapefiles
+#     input:   name of zip file (see url where data resides)
+#     output:  SpatialPointsDataFrame containing the shapefile data
+getOpenData <- function(zipname) {
+  # Download .zip to current directory, then unzip in temporary directory.
+  url <- paste("https://www.denvergov.org/media/gis/DataCatalog/", zipname, "/shape/", zipname, ".zip", sep="")
+  tempDir <- tempdir()
+  file <- basename(url)
+  download.file(url, file)
+  unzip(file, exdir = tempDir)
+  
+  # Read shapefile into SpatialPointsDataFrame.
+  spdf <- readOGR(dsn = tempDir, zipname)
+  return(spdf)
+}
+```
+
+## Afterschool Programs
+
+Get the data:
+
+```{r, results="hide"}
+afterSchool <- getOpenData("afterschool_programs")
+```
+
+Preview the data:
+
+```{r}
+head(afterSchool)
+```
+
+Merge with manual annotations of program type (done in Google Sheets). 
+Includes the same categories as Blueprint4Summer, as well as additional annotations.
+
+```{r}
+# Get the data from the google sheet
+gurl <- construct_download_url('https://docs.google.com/spreadsheets/d/1N8Mj_OzM9ogRzZtv58lBsUxFtCqLWoM7VBB25GOUxaw/edit#gid=1653444852')
+gsheetData <- as.data.frame(gsheet2tbl(gurl))
+
+# Merge the annotations into the original data
+afterSchoolFull <- merge(x = afterSchool, y = gsheetData)
+
+# Replace NA's by 0's in annotated columns.
+for (colnum in 14:29) {
+  afterSchoolFull@data[is.na(afterSchoolFull@data[,colnum]),colnum] <- 0
+}
+colSums(is.na(afterSchoolFull@data)) # check for any leftover NAs
+```
+
+Subset to useful data variables (consistent with the ones in the Blueprint4Summer data) and rename columns to simplify interpretations.
+
+```{r}
+dataSmall <- afterSchoolFull[, c('LOC_NAME', 'ORGANIZATI', 'mAcademic', 'mArts', 'mCooking', 'mDance', 'mDrama', 'mMusic', 'mNature', 'mSports', 'mStem', 'mGirls Program', 'DESCRIPTIO')]
+
+# Rename columns to be simpler, full words.
+colnames(dataSmall@data) <- c('LOC_NAME', 'ORGANIZATION', 'academic', 'arts', 'cooking', 'dance', 'drama', 'music', 'nature', 'sports', 'stem', 'girls_only', 'DESCRIPTION')
+head(dataSmall)
+```
+
+## Rec Centers
+
+Get and look at the data.
+
+```{r, results="hide"}
+recCenters <- getOpenData("recreation_centers")
+```
+
+```{r}
+colnames(recCenters@data)
+head(recCenters)
+```
+
+Subset to useful data. (Note: 'FACILITIES' is an old version of marketed facilities.)
+
+```{r}
+recSmall <- recCenters[, c('REC_NAME', 'REC_TYPE', 'MARKETED_F', 'MARKETED_P', 'YEAR_BUILT', 'YEAR_REMOD', 'BLDG_SQFT', 'LABEL')]
+colnames(recSmall@data) <- c('REC_NAME', 'REC_TYPE', 'FACILITIES', 'PROGRAMS', 'YEAR_BUILT', 'YEAR_REMOD', 'BLDG_SQFT', 'NAME_SHORT')
+head(recSmall)
+```
+
+Split up the facility categories into separate, binary columns.
+
+```{r}
+# Find unique facility types
+recSmall@data$FACILITIES <- as.character(recSmall@data$FACILITIES)  # needs to be character type for splitting
+facilityStrings <- strsplit(recSmall@data$FACILITIES, split = ",")
+facilityTypes <- sort(unique(trimws(unlist(facilityTypes))))
+
+# Turn each facility type into a column
+recSmall <- cSplit_e(recSmall, "FACILITIES", sep = ",", mode = "binary", 
+         type = "character", fill = 0, drop = TRUE)
+colnames(recSmall@data)
+
+# Rename columns to be more reasonable
+recSmall@data$cardio <- pmax(recSmall@data$FACILITIES_Aerobics, recSmall@data$FACILITIES_Cardio.Eqpmnt, recSmall@data$FACILITIES_Cardio.Eqpmt)
+
+# Do we really want all of these features in the data? Maybe?
+pools <- recSmall[(recSmall@data$FACILITIES_Pool..Indoor.==1 | recSmall@data$FACILITIES_Pool..Outdoor.==1),]  # where are the pools
+plot(pools)
+
+
+```
+
