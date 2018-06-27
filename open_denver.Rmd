@@ -6,9 +6,7 @@ output: html_document
 ---
 
 ```{r eval=FALSE}
-install.packages('sp')
 install.packages('rgdal')
-install.packages('raster')
 install.packages('leaflet')
 install.packages('leaflet.extras')
 install.packages('ggmap')
@@ -20,61 +18,96 @@ install.packages('ggmap')
 library("rgdal")
 library("ggplot2")
 library("leaflet")
-library("ggmap")
 library("tidyverse")
 library("leaflet.extras")
 ```
 
 
 ```{r}
-tracts <- readOGR(dsn = "census_tracts_2010", layer="census_tracts_2010")
-```
-
-```{r}
-blocks <- readOGR(dsn = "census_blocks_2010", layer="census_blocks_2010")
-```
-
-```{r message=FALSE}
-name <- "libraries"
-df <- readOGR(dsn = name, layer=name)
-
-
-df$FULL_ADDRESS = paste(df$ADDRESS_LI, df$CITY, df$STATE, sep=", ")
-
-for(i in 1:nrow(df)) {
-  result <- geocode(df$FULL_ADDRESS[i], output="latlona", source="google")
-  df$lon[i] <- as.numeric(result[1])
-  df$lat[i] <- as.numeric(result[2])
+# Function to load data from Denver Open Data shapefiles
+#     input:   name of zip file (see url where data resides)
+#     output:  SpatialPointsDataFrame containing the shapefile data
+getOpenData <- function(zipname) {
+  # Download .zip to current directory, then unzip in temporary directory.
+  url <- paste("https://www.denvergov.org/media/gis/DataCatalog/", zipname, "/shape/", zipname, ".zip", sep="")
+  file <- basename(url)
+  download.file(url, file)
+  unzip(file, exdir=zipname)
+  
+  # Read shapefile into SpatialPointsDataFrame.
+  spdf <- readOGR(dsn = zipname, zipname)
+  
+  # Cleanup
+  unlink(zipname,recursive=TRUE)
+  unlink(paste(zipname,".zip",sep=""),recursive=TRUE)
+  
+  return(spdf)
 }
 ```
 
-```{r}
-parks <- readOGR(dsn = "parks", layer="parks")
-```
-```{r}
-afterschool <- readOGR(dsn = "afterschool_programs", layer="afterschool_programs")
+We first will look at the data on libraries. A lot of this info is redundant, such as abbreviations, address/state/zip (which is contained in the shapefile metadata). Other info is unnecessary, such as the status (whether under construction, temporary construction, etc). We also will rename the columns to understandable names. 
+
+```{r message=FALSE}
+libraries <- getOpenData("libraries")
+# only keep relevant 
+libraries = libraries[,c(1,9,10,11)]
+names(libraries) = c("name","patron_count","circulation_volume","sqr_feet")
+libraries[["name"]] = as.character(libraries[["name"]])
+libraries[["patron_count"]] = as.numeric(libraries[["patron_count"]])
+libraries[["circulation_volume"]] = as.numeric(libraries[["circulation_volume"]])
+libraries[["sqr_feet"]] = as.numeric(libraries[["sqr_feet"]])
 ```
 
+We can look at library locations and visualize their use by the area of the dots on their locations (hence the radius should be proportional to the square root). In particular, we can compare number of patrons to number of square feet. First, we notice that size of libraries (except for the Central Library) isn't too different across the city, but along the southwest to northeast line we see much heavier use.  
+
 ```{r}
-name <- "police_pedestrian_stops_and_vehicle_stops"
-
-# Download .zip to temporary directory, unzip, and get data.
-url <- paste("https://www.denvergov.org/media/gis/DataCatalog/", name, "/shape/", name, ".zip", sep="")
-file <- basename(url)
-download.file(url, file)
-unzip(file, exdir = name)
-
-police_stops <- readOGR(dsn = name, layer=name) 
+leaflet(libraries) %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircleMarkers(
+    radius = ~ sqrt(libraries$sqr_feet)/50,
+    stroke = FALSE, fillOpacity = .5,
+    color="red"
+  ) %>%
+  addCircleMarkers(
+    radius = ~ sqrt(libraries$patron_count),
+    stroke = FALSE, fillOpacity = .5,
+    color="green"
+  ) %>% addLegend(labels=c("Square Feet","Number of Patrons"),colors=c("red","green"))
 ```
+
+We now move on to parks, going through the same workflow. 
+
+```{r message=FALSE}
+parks <- getOpenData("parks")
+parks = parks[c(2,5,6,23)]
+names(parks) = c("name","class","acres","facilities")
+```
+We need more info on how they labeled the parks to say anything meaningful, but looking at just "Rec Centers", "Athletic Complexes", and "Community" parks seems to show a hole in the central North area. also, all rec centers are localized to a crescent in the north end. 
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=parks[parks[["class"]] %in% "Recreation Center",],color="red") %>%
+  addPolygons(data=parks[parks[["class"]] %in% "Athletic Complex",],color="green") %>%
+  addPolygons(data=parks[parks[["class"]] %in% "Community",],color="blue") %>%
+  addLegend(labels=c("Recreation Center","Athletic Complex","Community"),colors=c("red","green","blue"))
+```
+
+Now we move on to crime data. 
+
+```{r}
+crime <- getOpenData("crime")
+```
+
+Here we need metadata about what the different offense codes signify. 
 
 ```{r}
 url <- "https://www.denvergov.org/media/gis/DataCatalog/crime/csv/offense_codes.csv"
 file <- basename(url)
 download.file(url, file)
-
 crime_codes <- read.csv(file) 
+unlink(file)
 ```
-
 
 ```{r}
 #relevant_codes = crime_codes$OFFENSE_CODE[crime_codes$OFFENSE_CATEGORY_NAME=="Aggravated Assault"]
