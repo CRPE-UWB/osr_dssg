@@ -13,7 +13,7 @@ install.packages('leaflet.extras')
 
 
 
-```{r}
+```{r message=FALSE, error=FALSE}
 library("rgdal")
 library("leaflet")
 library("tidyverse")
@@ -58,21 +58,28 @@ libraries[["circulation_volume"]] = as.numeric(as.character(libraries[["circulat
 libraries[["sqr_feet"]] = as.numeric(as.character(libraries[["sqr_feet"]]))
 ```
 
-We can look at library locations and visualize their use by the area of the dots on their locations (hence the radius should be proportional to the square root). In particular, we can compare number of patrons to number of square feet. First, we notice that size of libraries (except for the Central Library) isn't too different across the city, but along the southwest to northeast line we see much heavier use.  
+We can look at library locations and visualize their use by the area of the dots on their locations (hence the radius should be proportional to the square root). We can compare number of patrons to number of square feet.  
+
+```{r}
+normalize <- function(vec) {
+  new_vec = (vec-min(vec))/(max(vec)-min(vec))
+  return(new_vec)
+}
+```
 
 ```{r}
 leaflet(libraries) %>% 
   addProviderTiles("CartoDB.Positron") %>%
   addCircleMarkers(
-    radius = ~ sqrt(libraries$sqr_feet)/50,
-    stroke = FALSE, fillOpacity = .5,
-    color="red"
+    radius = ~ 50*sqrt(normalize(libraries$sqr_feet)+.1),
+    stroke = FALSE, fillOpacity = 1,
+    color="yellow"
   ) %>%
   addCircleMarkers(
-    radius = ~ sqrt(libraries$patron_count),
+    radius = ~ 50*sqrt(normalize(libraries$patron_count)+.1),
     stroke = FALSE, fillOpacity = .5,
-    color="green"
-  ) %>% addLegend(labels=c("Square Feet","Number of Patrons"),colors=c("red","green"))
+    color="blue"
+  ) %>% addLegend(labels=c("Square Feet","Number of Patrons"),colors=c("yellow","blue"))
 ```
 
 ##Parks## 
@@ -182,7 +189,7 @@ leaflet() %>%
 police_stations <- getOpenData("police_stations")
 police_stations = police_stations[,c(3,15)]
 names(police_stations) = c("name","publicly_accessible")
-police_shootings[["name"]]=as.character(police_shootings[["name"]])
+police_stations[["name"]]=as.character(police_stations[["name"]])
 ```
 
 ```{r}
@@ -198,3 +205,39 @@ leaflet() %>%
   ) %>%
   addLegend(labels=c("Publicly Accessible","Not Publicly Accessible"),colors=c("blue","red"))
 ```
+
+##Hate Crimes##
+```{r}
+  url <- "https://www.denvergov.org/media/gis/DataCatalog/hate_crimes/BiasMotivatedCrimes.csv"
+  file <- basename(url)
+  download.file(url, file)
+  hate_crimes <- read.csv(file)
+  # Cleanup
+  unlink(file)
+```
+```{r}
+hate_crimes = hate_crimes[,c(2,4,8,10,11)]
+names(hate_crimes) = c("date","case_status","bias_type","location_description","address")
+hate_crimes$date=as.Date(gsub(" .*","",hate_crimes$date),"%m/%d/%Y")
+```
+
+We have to geocode these addresses, which themselves are already deidentified. 
+
+```{r}
+library(ggmap)
+hate_crimes$address = paste(hate_crimes$address, "denver", "colorado", sep=", ")
+
+for(i in 1:nrow(df)) {
+  result <- geocode(hate_crimes$address[i], output="latlona", source="google")
+  hate_crimes$lon[i] <- as.numeric(result[1])
+  hate_crimes$lat[i] <- as.numeric(result[2])
+}
+```
+
+
+```{r}
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircleMarkers(data=hate_crimes)
+```
+
