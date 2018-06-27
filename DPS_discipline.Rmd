@@ -1,0 +1,108 @@
+---
+title: "Discipline Data Cleaning"
+author: "Joe"
+date: "6/20/2018"
+output: html_document
+---
+
+First we install the necessary packages.
+
+```{r eval=FALSE}
+install.packages("aws.s3", repos = c("cloudyr" = "http://cloudyr.github.io/drat"))
+install.packages('tidyverse')
+install.packages('gridExtra')
+```
+
+```{r message=FALSE}
+library(aws.s3)
+library(tidyverse)
+library(gridExtra)
+```
+
+Now we set up to retrieve the data from AWS. 
+
+```{r message=FALSE}
+source('/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/keys/cred.txt')
+
+Sys.setenv("AWS_ACCESS_KEY_ID" = access_key,
+           "AWS_SECRET_ACCESS_KEY" = secret_key,
+           "AWS_DEFAULT_REGION" = "us-west-2")
+```
+
+We will read in data as a tibble using the read_csv (NOT read.csv) function. 
+
+```{r message=FALSE, warning=FALSE}
+raw_df <- s3read_using(FUN = read_csv, object = "s3://dssg2018/rawdata/DPS_Discipline_1112-1617.csv")
+
+glimpse(raw_df)
+```
+
+As we can see, the data is currently wide. We would like to go from the 19 
+columns to just 4: "StudentNumber" (an int), "DisciplineType" (a factor), "AcademicYear" (a year), and "NumberOffenses" (an int). In other words, we want the data to be "tidy".
+
+```{r}
+#in school suspensions
+iSS_inds=1:7
+iSS = raw_df[iSS_inds]
+colnames(iSS) = iSS[1,]
+iSS = iSS[-1,]
+iSS = iSS %>% gather('2011-2012','2012-2013','2013-2014','2014-2015','2015-2016','2016-2017',key = 'AcademicYear' ,value='NumberOffenses')
+iSS = add_column(iSS, DisciplineType = 'In School Suspension')
+
+#out of school suspensions
+oSS_inds=c(1,8:13)
+oSS = raw_df[oSS_inds]
+colnames(oSS) = oSS[1,]
+oSS = oSS[-1,]
+oSS = oSS %>% gather('2011-2012','2012-2013','2013-2014','2014-2015','2015-2016','2016-2017',key = 'AcademicYear' ,value='NumberOffenses')
+oSS = add_column(oSS, DisciplineType = 'Out of School Suspension')
+
+#expulsions
+expulsion_inds=c(1,14:19)
+expulsion = raw_df[expulsion_inds]
+colnames(expulsion) = expulsion[1,]
+expulsion = expulsion[-1,]
+expulsion = expulsion %>% gather('2011-2012','2012-2013','2013-2014','2014-2015','2015-2016','2016-2017',key = 'AcademicYear' ,value='NumberOffenses')
+expulsion = add_column(expulsion, DisciplineType = 'Expulsion')
+
+final_df = bind_rows(iSS, oSS, expulsion)
+glimpse(final_df)
+```
+
+Finally, we do simple touch-ups like type conversions and dealing with NA.
+
+```{r}
+final_df$AcademicYear = sub("-20\\d\\d","",final_df$AcademicYear)
+final_df$AcademicYear = as.integer(final_df$AcademicYear)
+
+final_df$DisciplineType = as.factor(final_df$DisciplineType)
+
+final_df = final_df %>% replace_na(list(NumberOffenses=0))
+final_df$NumberOffenses = as.integer(final_df$NumberOffenses)
+
+final_df$StudentNumber = as.integer(final_df$StudentNumber)
+final_df %>% arrange(StudentNumber)
+```
+
+Now that the data is tidy, we can begin to do some data exploration. 
+
+```{r message=FALSE}
+iss_plot = ggplot(data = final_df %>% filter(DisciplineType=='In School Suspension')) +
+  geom_bar(mapping = aes(x = NumberOffenses)) +
+  ggtitle('In School Suspension')
+
+oss_plot = ggplot(data = final_df %>% filter(DisciplineType=='Out of School Suspension')) +
+  geom_bar(mapping = aes(x = NumberOffenses)) +
+  ggtitle('Out of School Suspension')
+
+exp_plot = ggplot(data = final_df %>% filter(DisciplineType=='Expulsion')) +
+  geom_bar(mapping = aes(x = NumberOffenses)) +
+  ggtitle('Expulsions')
+
+grid.arrange(iss_plot, oss_plot, exp_plot)
+```
+
+
+
+
+

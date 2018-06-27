@@ -1,0 +1,93 @@
+---
+title: "Census"
+author: "Joe"
+date: "6/25/2018"
+output: html_document
+---
+
+```{r eval=FALSE}
+install.packages('sp')
+install.packages('rgdal')
+install.packages('raster')
+install.packages('leaflet')
+install.packages('leaflet.extras')
+install.packages('ggmap')
+```
+
+
+
+```{r}
+library("rgdal")
+library("ggplot2")
+library("leaflet")
+library("ggmap")
+library("tidyverse")
+library("leaflet.extras")
+```
+
+
+```{r}
+tracts <- readOGR(dsn = "census_tracts_2010", layer="census_tracts_2010")
+```
+
+```{r}
+blocks <- readOGR(dsn = "census_blocks_2010", layer="census_blocks_2010")
+```
+
+```{r message=FALSE}
+name <- "libraries"
+df <- readOGR(dsn = name, layer=name)
+
+
+df$FULL_ADDRESS = paste(df$ADDRESS_LI, df$CITY, df$STATE, sep=", ")
+
+for(i in 1:nrow(df)) {
+  result <- geocode(df$FULL_ADDRESS[i], output="latlona", source="google")
+  df$lon[i] <- as.numeric(result[1])
+  df$lat[i] <- as.numeric(result[2])
+}
+```
+
+```{r}
+parks <- readOGR(dsn = "parks", layer="parks")
+```
+```{r}
+afterschool <- readOGR(dsn = "afterschool_programs", layer="afterschool_programs")
+```
+
+```{r}
+name <- "police_pedestrian_stops_and_vehicle_stops"
+
+# Download .zip to temporary directory, unzip, and get data.
+url <- paste("https://www.denvergov.org/media/gis/DataCatalog/", name, "/shape/", name, ".zip", sep="")
+file <- basename(url)
+download.file(url, file)
+unzip(file, exdir = name)
+
+police_stops <- readOGR(dsn = name, layer=name) 
+```
+
+```{r}
+url <- "https://www.denvergov.org/media/gis/DataCatalog/crime/csv/offense_codes.csv"
+file <- basename(url)
+download.file(url, file)
+
+crime_codes <- read.csv(file) 
+```
+
+
+```{r}
+#relevant_codes = crime_codes$OFFENSE_CODE[crime_codes$OFFENSE_CATEGORY_NAME=="Aggravated Assault"]
+binpal <- colorBin("YlOrRd", tracts$POPULATION, 8)
+l <- leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=tracts,
+              weight=1,
+              color=~binpal(tracts$POPULATION)) %>%
+  addHeatmap(data=police_stops[police_stops$PRIORITY_D=="P2 Urgent"],r=8)
+  #addHeatmap(data=crime[crime$OFFENSE_CO %in% relevant_codes,],r=8) #%>%
+  #addMarkers(data=libraries) %>%
+  #addPolygons(data=parks, weight=1, color="red") #%>%
+  #addHeatmap(data=art, r=10) 
+l
+```
