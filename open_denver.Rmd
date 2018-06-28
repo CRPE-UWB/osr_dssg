@@ -221,13 +221,13 @@ names(hate_crimes) = c("date","case_status","bias_type","location_description","
 hate_crimes$date=as.Date(gsub(" .*","",hate_crimes$date),"%m/%d/%Y")
 ```
 
-We have to geocode these addresses, which themselves are already deidentified. 
+We have to geocode these addresses, which themselves are already deidentified. Note that this may take around 1-10 minutes. 
 
-```{r}
+```{r eval=FALSE}
 library(ggmap)
 hate_crimes$address = paste(hate_crimes$address, "denver", "colorado", sep=", ")
 
-for(i in 1:nrow(df)) {
+for(i in 1:nrow(hate_crimes)) {
   result <- geocode(hate_crimes$address[i], output="latlona", source="google")
   hate_crimes$lon[i] <- as.numeric(result[1])
   hate_crimes$lat[i] <- as.numeric(result[2])
@@ -238,6 +238,9 @@ for(i in 1:nrow(df)) {
 ```{r}
 leaflet() %>% 
   addProviderTiles("CartoDB.Positron") %>%
-  addCircleMarkers(data=hate_crimes)
+  addCircleMarkers(data=hate_crimes, 
+                   stroke = FALSE, fillOpacity = .3, radius=3,
+                   color="blue"
+  )
 ```
 
