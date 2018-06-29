@@ -7,10 +7,10 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-I'll sssume you're opening this in RStudio, so we set the working directory as follows. (Note that you'll need to change this if you're not using RStudio - the point is to set the working directory to where this file lives, so that data files are stored there too instead of somewhere random on your computer.)
-
 ```{r}
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))  # works for RStudio only
+# Uncomment the line below if you're using RStudio to run the file
+# (don't use if you're running knitr)
+# setwd(dirname(rstudioapi::getActiveDocumentContext()$path))  # makes sure data files are saved in same location as this file
 ```
 
 Load the necessary libraries. 
@@ -137,7 +137,7 @@ Next, subset to only the variables existing in the Blueprint4Summer data, and re
 ```{r, ASfinal}
 afterSchoolFinal <- afterSchoolFull[, c('LOC_NAME', 'ORGANIZATI', 'mAcademic', 'mArts', 'mCooking', 'mDance', 'mDrama', 'mMusic', 'mNature', 'mSports', 'mStem', 'mGirls Program', 'DESCRIPTIO')]
 
-colnames(afterSchoolFinal@data) <- c('location', 'organization', 'academic', 'arts', 'cooking', 'dance', 'drama', 'music', 'nature', 'sports', 'stem', 'girls_only', 'description')
+colnames(afterSchoolFinal@data) <- c('location', 'organization', 'has_academic', 'has_arts', 'has_cooking', 'has_dance', 'has_drama', 'has_music', 'has_nature', 'has_sports', 'has_stem', 'girls_only', 'description')
 
 head(afterSchoolFinal)
 ```
@@ -165,7 +165,7 @@ Delete unuseful columns (urls, links to pdfs and photos, address info, contact i
 
 ```{r}
 recSmall <- recCenters[, c('REC_NAME', 'REC_TYPE', 'MARKETED_F', 'MARKETED_P', 'YEAR_BUILT', 'YEAR_REMOD', 'BLDG_SQFT', 'LABEL')]
-colnames(recSmall@data) <- c('name', 'rec_type', 'FACILITIES', 'PROGRAMS', 'year_built', 'year_remodeled', 'bldg_sqft', 'short_name')
+colnames(recSmall@data) <- c('name', 'type', 'FACILITIES', 'PROGRAMS', 'year_built', 'year_remodeled', 'bldg_sqft', 'short_name')
 head(recSmall)
 ```
 
@@ -199,10 +199,10 @@ colnames(recFinal@data)
 
 # Combine aquatics programs into one column
 recFinal@data$has_aquatics <- pmax(recFinal@data$PROGRAMS_Aquatics, recFinal@data$PROGRAMS_Aquatics..using.Wash.Park.Pool.)
-recFinal@data[,11:12] <- NULL
+recFinal@data[,10:11] <- NULL
 
 # Rename the rest of the binary columns
-colnames(recFinal@data)[11:18] <- c("has_arts_culture", "has_day_camps", "has_educ_programs", "has_fitness_health_programs", "has_senior_programs", "has_social_enrich_clubs", "has_special_events", "has_sports")
+colnames(recFinal@data)[10:17] <- c("has_arts_culture", "has_day_camps", "has_educ_programs", "has_fitness_health_programs", "has_senior_programs", "has_social_enrich_clubs", "has_special_events", "has_sports")
 
 head(recFinal)
 ```
@@ -285,7 +285,7 @@ colnames(skateParks@data) <- c('location', 'size')
 levels(skateParks@data$size) <- c("large", "small")
 head(skateParks@data)
 
-SavePolygonsAsCSV(skateParks, "skateParks.csv")
+SavePolygonsAsCSV(skateParks, "skate_parks.csv")
 ```
 
 ## Rec Court Surfaces
@@ -302,7 +302,7 @@ Look at data and subset to useful values, then save the result.
 head(courts@data)
 
 courtsSmall <- courts[,c(1,2,7,8)]
-colnames(courtsSmall@data) <- c('type', 'location', 'year_built', 'year_resurfaced')
+colnames(courtsSmall@data) <- c('sport', 'location', 'year_built', 'year_resurfaced')
 
 SavePolygonsAsCSV(courtsSmall, "courts.csv")
 ```
@@ -378,14 +378,6 @@ SavePointsAsCSV(care, "licensed_child_care.csv")
 
 ```
 
-
-
-
-
-
-
-
-
 ## Parks
 
 Finally, look at parks.
@@ -442,32 +434,31 @@ SavePolygonsAsCSV(parks, "parks.csv")
 
 ## Make the codebook
 
-Build the codebook, i.e. get variable names for each csv saved above in clean_data. Store the results in a dataframe.
+Build the codebook, i.e. get variable names for each csv saved above in clean_data. Save the results as a csv for easy referencing later.
 
 ```{r}
-filenames <- c("afterschool.csv", "courts.csv", "fields.csv") # add the rest, too
+filenameList <- c("afterschool.csv", "courts.csv", "fields.csv", "libraries.csv", "licensed_child_care.csv", "parks.csv", "playgrounds.csv", "pools.csv", "rec_centers.csv", "skate_parks.csv")
 
-codebook <- data.frame()
+maxVars <- 50
+codebook <- data.frame(matrix(nrow=maxVars, ncol=0))
 
-for (file in filenames) {
-  # get the names of all the variables
+for (filename in filenameList) {
+  # load csv into workspace
+  file <- read.csv(file.path("clean_data",filename) )
   
-  # save to dataframe
+  vars <- rep(NA, maxVars)
+  vars[1:length(names(file))] <- names(file)
   
+  # save column names to dataframe
+  codebook[[filename]] <- vars
 }
 
+write.csv(codebook, file=file.path("clean_data","codebook_resources.csv"), row.names=FALSE)
 ```
 
-
+Here is a functio nfor getting the unique values in a column, too, which will be useful for the "values" section in the codebook (but only for the variables for which this is relevant: i.e. the factors).
 
 ```{r}
-# Function to get list of column names in a data frame
-#    input:   data frame
-#    output:  single string of column names, separated by commas
-GetVars <- function(df) {
-  toString(names(df))
-}
-
 # Function to get codes from a particular column in a data frame
 #    input:   data frame, column name (string)
 #    output:  list of codes used in that column
@@ -476,4 +467,3 @@ GetCodes <- function(df, colName) {
   print(vals)
 }
 ```
-
