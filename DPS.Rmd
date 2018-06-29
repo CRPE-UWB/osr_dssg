@@ -1,0 +1,352 @@
+---
+title: "DPS"
+author: "Joe"
+date: "6/28/2018"
+output: html_document
+---
+
+#Reading in the data#
+
+First we install the necessary packages.
+
+```{r eval=FALSE}
+install.packages("aws.s3", repos = c("cloudyr" = "http://cloudyr.github.io/drat"))
+install.packages('tidyverse')
+install.packages('gridExtra')
+```
+
+```{r message=FALSE}
+library(aws.s3)
+library(tidyverse)
+library(gridExtra)
+```
+
+Now we set up to retrieve the data from AWS. 
+
+```{r message=FALSE}
+source('/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/cred.txt')
+
+Sys.setenv("AWS_ACCESS_KEY_ID" = access_key,
+           "AWS_SECRET_ACCESS_KEY" = secret_key,
+           "AWS_DEFAULT_REGION" = "us-west-2")
+```
+
+##Discipline##
+
+We will read in data as a tibble using the read_csv (NOT read.csv) function. 
+
+```{r message=FALSE, warning=FALSE}
+raw_df <- s3read_using(FUN = read_csv, object = "s3://dssg2018/rawdata/DPS_Discipline_1112-1617.csv")
+
+glimpse(raw_df)
+```
+
+As we can see, the data is currently wide. We would like to go from the 19 columns to just 4: "StudentNumber" (an int), "DisciplineType" (a factor), "SpringYear" (a year), and "NumberOffenses" (an int). In other words, we want the data to be "tidy".
+
+```{r}
+#in school suspensions
+iSS_inds=1:7
+iSS = raw_df[iSS_inds]
+colnames(iSS) = iSS[1,]
+iSS = iSS[-1,]
+iSS = iSS %>% gather('2011-2012','2012-2013','2013-2014','2014-2015','2015-2016','2016-2017',key = 'SpringYear' ,value='NumberOffenses')
+iSS = add_column(iSS, DisciplineType = 'In School Suspension')
+
+#out of school suspensions
+oSS_inds=c(1,8:13)
+oSS = raw_df[oSS_inds]
+colnames(oSS) = oSS[1,]
+oSS = oSS[-1,]
+oSS = oSS %>% gather('2011-2012','2012-2013','2013-2014','2014-2015','2015-2016','2016-2017',key = 'SpringYear' ,value='NumberOffenses')
+oSS = add_column(oSS, DisciplineType = 'Out of School Suspension')
+
+#expulsions
+expulsion_inds=c(1,14:19)
+expulsion = raw_df[expulsion_inds]
+colnames(expulsion) = expulsion[1,]
+expulsion = expulsion[-1,]
+expulsion = expulsion %>% gather('2011-2012','2012-2013','2013-2014','2014-2015','2015-2016','2016-2017',key = 'SpringYear' ,value='NumberOffenses')
+expulsion = add_column(expulsion, DisciplineType = 'Expulsion')
+
+discipline = bind_rows(iSS, oSS, expulsion)
+glimpse(discipline)
+```
+
+Finally, we do simple touch-ups like type conversions and dealing with NA.
+
+```{r}
+discipline$SpringYear = sub("20\\d\\d-","",discipline$SpringYear)
+discipline$SpringYear = as.integer(discipline$SpringYear)
+
+discipline$DisciplineType = as.factor(discipline$DisciplineType)
+
+discipline = discipline %>% replace_na(list(NumberOffenses=0))
+discipline$NumberOffenses = as.integer(discipline$NumberOffenses)
+
+discipline$StudentNumber = as.integer(discipline$StudentNumber)
+discipline = discipline %>% arrange(StudentNumber)
+discipline
+```
+
+##ELA Test##
+
+```{r}
+ela <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_EOCELA_1112-1617.csv")
+```
+
+Change SchoolYear to be the spring year only.
+```{r}
+levels(ela$SchoolYear) <- gsub("\\d{4}-", "", levels(ela$SchoolYear))
+colnames(ela)[1] <- "SpringYear"
+```
+
+CourseFinal entries look unnecessarily complicated. Do years agree with years in the other column? 
+
+```{r}
+for (course in levels(ela$CourseFinal)){
+  temp <- ela[ela$CourseFinal==course,]
+  years <- unique(temp$SpringYear)
+  print(paste(course, "happened in", years))
+}
+```
+
+Answer: yes. Let's simplify these CourseFinal names, then, to just the course name (and Part I, II, or III, if necessary). Note that in cases when the year isn't specified, that means the exam occurred in 2012.
+
+```{r}
+levels(ela$CourseFinal) <- gsub(" Course Final \\d{4}", "", levels(ela$CourseFinal))
+levels(ela$CourseFinal) <- gsub(" Course Final", "", levels(ela$CourseFinal))
+
+# delete any trailing white spaces
+levels(ela$CourseFinal) <- gsub(" $", "", levels(ela$CourseFinal))
+
+levels(ela$CourseFinal)
+```
+
+Finally, look for missing or absurd values.
+
+```{r}
+sapply(ela, function(x) sum( is.na(x) | x=="" | x==" " ))
+```
+
+Make some plots, too, to see if distributions make sense or if there are any strange outliers.
+
+```{r, echo=FALSE}
+plot(ela$SpringYear, main="Years")
+plot(ela$CourseFinal, main="ELA Subjects")
+plot(ela$StudentNumber, main="Student Numbers")
+hist(ela$PointsEarned, main="Points Earned")
+hist(ela$PercentageEarned, main="Percentage Earned")
+plot(ela$Proficiency, main="Proficiency")
+```
+
+```{r}
+ela <- ela[,c(3,1,2,4,5,6)]
+ela %>% arrange(StudentNumber)
+head(ela)
+```
+
+##Math##
+
+```{r}
+math <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_EOCMath_1112-1617.csv")
+```
+
+Overview of entries in each column:
+
+```{r}
+summary(math)
+```
+
+Change SchoolYear to be the spring year only.
+```{r}
+levels(math$SchoolYear) <- gsub("\\d{4}-", "", levels(math$SchoolYear))
+colnames(math)[1] <- "SpringYear"
+summary(math)
+```
+
+CourseFinal entries look unnecessarily complicated. Do years agree with years in the other column? 
+
+```{r}
+for (course in levels(math$CourseFinal)){
+  temp <- math[math$CourseFinal==course,]
+  years <- unique(temp$SpringYear)
+  print(paste(course, "happened in", years))
+}
+```
+
+Answer: yes. Let's simplify these CourseFinal names, then, to just the course name (and Part 1 or 2, if necessary). Note that in cases when the year isn't specified, that means the exam occurred in 2012.
+
+```{r}
+levels(math$CourseFinal) <- gsub(" Course Final \\d{4}", "", levels(math$CourseFinal))
+levels(math$CourseFinal) <- gsub(" Course Final \\d{2}-\\d{2}", "", levels(math$CourseFinal))
+levels(math$CourseFinal) <- gsub(" Course Final", "", levels(math$CourseFinal))
+
+# delete any trailing white spaces
+levels(math$CourseFinal) <- gsub(" $", "", levels(math$CourseFinal))
+
+# make "Probabilty & Statistics" be "Probability and Statistics" for consistency 
+levels(math$CourseFinal) <- gsub("\\&", "and", levels(math$CourseFinal))
+
+levels(math$CourseFinal)
+```
+
+Finally, look for missing or absurd values.
+
+```{r}
+sapply(data, function(x) sum( is.na(x) | x=="" | x==" " ))
+summary(data)
+```
+
+Make some plots, too, to see if distributions make sense or if there are any strange outliers.
+
+```{r, echo=FALSE}
+plot(math$SpringYear, main="Years")
+plot(math$CourseFinal, main="Math Subjects")
+plot(math$StudentNumber, main="Student Numbers")
+hist(math$PointsEarned, main="Points Earned")
+hist(math$PercentageEarned, main="Percentage Earned")
+plot(math$Proficiency, main="Proficiency")
+```
+
+```{r}
+math <- math[,c(3,1,2,4,5,6)]
+math %>% arrange(StudentNumber)
+head(math)
+```
+
+```{r}
+graduation <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_Grad_1112-1617.csv", skip = 1)
+transportation <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_Transport.csv")
+STARreading <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_STAR_1112-1617.csv", skip = 1)
+```
+
+```{r}
+summary(graduation)
+```
+
+We make graduation into a simple Graduation Year lookup by Student Number.
+
+```{r results = 'hide'}
+# change column names
+colnames(graduation) <- sub("X20\\d\\d.", "", colnames(graduation))
+graduationYear = rep(NA,length(graduation))
+for (i in 2:7) {
+  graduationYear[which(graduation[i]==1)] <- colnames(graduation)[i]
+}
+graduation$GraduationYear <- graduationYear
+graduation <- graduation[c("StudentNumber", "GraduationYear")]
+graduation %>% arrange(StudentNumber)
+head(graduation, 6)
+```
+
+## Transportation ##
+
+```{r results='hide'}
+summary(transportation)
+length(unique(transportation$StudentNumber))
+ #StudentNumber is unique 
+unique(transportation$Transportation)
+ #Only one level under column Transportation: Yes 
+unique(transportation$X)
+ #Not sure what this column is about, it only has NAs. 
+```
+
+# STARreading
+
+```{r results='hide'}
+head(STARreading,6)
+```
+
+```{r}
+colnames(STARreading) <- sub("X20\\d\\d.", "", colnames(STARreading))
+STARreading = STARreading %>% gather('2012','2013','2014','2015','2016','2017',key = 'SpringYear' ,value='ReadingLevel')
+STARreading <- STARreading %>% arrange(StudentNumber)
+unique(STARreading$ReadingLevel)
+```
+
+We have some blank lines we should get rid of. 
+
+```{r}
+STARreading$ReadingLevel <- sub("^$",NA,STARreading$ReadingLevel)
+STARreading <- STARreading %>% na.omit()
+head(STARreading,6)
+```
+
+##Enrollment##
+```{r}
+enrollment <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_Enrollment_1112-1718.csv")
+
+head(enrollment)
+summary(enrollment)
+```
+
+We want locations rather than just school names, so we use the Google maps API. This takes 5-10 minutes. 
+```{r eval=FALSE}
+library(ggmap)
+school_locations = data.frame(unique(enrollment$SchoolName))
+colnames(school_locations) <- c("SchoolName")
+school_locations$SchoolName = paste(school_locations$SchoolName, "denver", "colorado", sep=", ")
+
+for(i in 1:nrow(school_locations)) {
+  result <- geocode(school_locations$SchoolName[i], output="latlona", source="google")
+  school_locations$lon[i] <- as.numeric(result[1])
+  school_locations$lat[i] <- as.numeric(result[2])
+  Sys.sleep(1)
+  print(i)
+}
+school_locations$SchoolName <- unique(enrollment$SchoolName)
+write.csv(school_locations, file="school_locations.csv", row.names=FALSE)
+```
+
+```{r}
+school_locations <- read.csv(file="school_locations.csv")
+unique(school_locations$lon)
+```
+
+Looks like we have some NA values.
+
+```{r}
+school_locations$SchoolName[which(is.na(school_locations$lon))]
+```
+
+We'll just manually fix that by typing into Google maps. STRIVE-Federal is at (39.67819,-105.0209) and DS Innovation & Sustainable Design is at (39.7377,-104.9793).
+
+```{r}
+school_locations[which(is.na(school_locations$lon)),]$lat <- c(39.67819,39.7377)
+school_locations[which(is.na(school_locations$lon)),]$lon <- c(-105.0209,-104.9793)
+```
+
+Let's look at these locations to make sure nothing insane is going on. 
+
+```{r}
+library("leaflet")
+library("leaflet.extras")
+leaflet(school_locations) %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircleMarkers(
+    stroke = FALSE, label=school_locations$SchoolName,
+    radius = 4, opacity = 1.0
+  )
+```
+
+Scrolling over the sites outside of Denver and checking their names against the GreatSchools website, it looks like google mis-geocoded "DELTA HS" (the extremely southwestern point). "Satellite Program" and "Ridge View Academy Charter School" are also outside of Denver. Delta HS is alright, but Satellite Program and Ridge View Academy Charter School are outside of Denver limits so we will drop those. 
+
+```{r}
+school_locations[school_locations$SchoolName=="DELTA HS",]$lat <- 39.6866
+school_locations[school_locations$SchoolName=="DELTA HS",]$lon <- -104.9565
+school_locations <- school_locations %>% filter(!SchoolName %in% c("Satellite Program", "Ridge View Academy Charter School"))
+enrollment$SchoolName <- as.character(enrollment$SchoolName)
+enrollment <- enrollment %>% filter(!SchoolName %in% c("Satellite Program", "Ridge View Academy Charter School"))
+```
+
+Now we check the counts of students in schools. 
+
+```{r}
+sort(table(enrollment$SchoolName))
+```
+
+Now we do some final sanity checks via plots. 
+```{r}
+hist(as.factor(enrollment$Grade))
+```
+

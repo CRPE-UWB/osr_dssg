@@ -235,12 +235,18 @@ for(i in 1:nrow(hate_crimes)) {
 ```
 
 
-```{r}
+```{r error=FALSE}
 leaflet() %>% 
   addProviderTiles("CartoDB.Positron") %>%
-  addCircleMarkers(data=hate_crimes, 
+  addCircleMarkers(data=hate_crimes[hate_crimes$bias_type=="ANTI-BLACK",], 
                    stroke = FALSE, fillOpacity = .3, radius=3,
-                   color="blue"
-  )
+                   color="blue") %>%
+  addCircleMarkers(data=hate_crimes[hate_crimes$bias_type=="ANTI-HISPANIC",], 
+                   stroke = FALSE, fillOpacity = .3, radius=3,
+                   color="red") %>%
+  addCircleMarkers(data=hate_crimes[hate_crimes$bias_type=="ANTI-WHITE",], 
+                     stroke=FALSE, fillOpacity=.3, radius=3,
+                     color="green") %>%
+  addLegend(labels=c("Anti-Black","Anti-Hispanic","Anti-White"),colors=c("blue","red","green"))
 ```
 

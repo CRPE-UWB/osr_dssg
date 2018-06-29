@@ -22,7 +22,7 @@ library(gridExtra)
 Now we set up to retrieve the data from AWS. 
 
 ```{r message=FALSE}
-source('/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/keys/cred.txt')
+source('/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/cred.txt')
 
 Sys.setenv("AWS_ACCESS_KEY_ID" = access_key,
            "AWS_SECRET_ACCESS_KEY" = secret_key,
@@ -81,7 +81,8 @@ final_df = final_df %>% replace_na(list(NumberOffenses=0))
 final_df$NumberOffenses = as.integer(final_df$NumberOffenses)
 
 final_df$StudentNumber = as.integer(final_df$StudentNumber)
-final_df %>% arrange(StudentNumber)
+final_df = final_df %>% arrange(StudentNumber)
+final_df
 ```
 
 Now that the data is tidy, we can begin to do some data exploration. 
