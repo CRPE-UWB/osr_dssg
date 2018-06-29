@@ -72,7 +72,7 @@ SavePolygonsAsCSV <- function(spdf, filename) {
   
   # Save result to csv
   MakeDir("clean_data")  # make a clean data directory, if one doesn't exist yet
-  write.csv(centroids, file=file.path("clean_data",filename), row.names=FALSE)
+  write.csv(centroids, file=file.path("clean_data",filename), row.names=FALSE, na = "")
 }
 
 # Function to turn a SpatialPointsDataFrame into a flat csv
@@ -88,7 +88,7 @@ SavePointsAsCSV <- function(spdf, filename) {
  
   # Save result to csv
   MakeDir("clean_data") # make a clean data directory, if one doesn't exist yet 
-  write.csv(df, file=file.path("clean_data",filename), row.names=FALSE)
+  write.csv(df, file=file.path("clean_data",filename), row.names=FALSE, na = "")
 }
 
 # Function to split a column that contains comma-separated lists into separate binary columns
@@ -165,8 +165,17 @@ Delete unuseful columns (urls, links to pdfs and photos, address info, contact i
 
 ```{r}
 recSmall <- recCenters[, c('REC_NAME', 'REC_TYPE', 'MARKETED_F', 'MARKETED_P', 'YEAR_BUILT', 'YEAR_REMOD', 'BLDG_SQFT', 'LABEL')]
-colnames(recSmall@data) <- c('name', 'type', 'FACILITIES', 'PROGRAMS', 'year_built', 'year_remodeled', 'bldg_sqft', 'short_name')
+colnames(recSmall@data) <- c('name', 'type', 'FACILITIES', 'PROGRAMS', 'year_built', 'year_last_remodeled', 'bldg_sqft', 'short_name')
 head(recSmall)
+
+# there are some weird entries in year_built and year_remodeled - fix these
+levels(recSmall@data$year_built) <- gsub("Unknown", NA, levels(recSmall@data$year_built))
+levels(recSmall@data$year_built) <- gsub("1900's", "1900", levels(recSmall@data$year_built))
+levels(recSmall@data$year_built) <- gsub("1960's", "1960", levels(recSmall@data$year_built))
+
+levels(recSmall@data$year_last_remodeled) <- gsub("Unknown", NA, levels(recSmall@data$year_last_remodeled))
+levels(recSmall@data$year_last_remodeled) <- gsub("None", NA, levels(recSmall@data$year_last_remodeled))
+levels(recSmall@data$year_last_remodeled) <- gsub("\\d{4}, ", "", levels(recSmall@data$year_last_remodeled))
 ```
 
 Split up the facility categories (currently contains lists of facilities in a single column) into separate, binary columns. Only keep the meaningful columns.
@@ -259,6 +268,12 @@ Subset to useful variables and rename columns for simplicity.
 playgroundsSmall <- playgrounds[, c('LOCATION', 'YEAR_REHAB', 'CLASS_CATE')]
 colnames(playgroundsSmall@data) <- c('location', 'year_rehab', 'class')
 head(playgroundsSmall@data)
+
+# There are weird values in year_rehab - fix them
+levels(playgroundsSmall@data$year_rehab)
+levels(playgroundsSmall@data$year_rehab) <- gsub("unknown", NA, levels(playgroundsSmall@data$year_rehab))
+levels(playgroundsSmall@data$year_rehab) <- gsub("2015 - partial upgrade", "2015", levels(playgroundsSmall@data$year_rehab))
+
 ```
 
 Save final product as a csv.
@@ -303,6 +318,12 @@ head(courts@data)
 
 courtsSmall <- courts[,c(1,2,7,8)]
 colnames(courtsSmall@data) <- c('sport', 'location', 'year_built', 'year_resurfaced')
+
+# Some null entries are specified as <Null> for some reason - replace these with NAs
+levels(courtsSmall@data$year_resurfaced) <- gsub("<Null>", NA, levels(courtsSmall@data$year_resurfaced))
+
+# Also weirdly one year is labeled as 2014 - Patch... replace with 2014
+levels(courtsSmall@data$year_resurfaced) <- gsub("2014 - Patch", "2014", levels(courtsSmall@data$year_resurfaced))
 
 SavePolygonsAsCSV(courtsSmall, "courts.csv")
 ```
@@ -456,7 +477,7 @@ for (filename in filenameList) {
 write.csv(codebook, file=file.path("clean_data","codebook_resources.csv"), row.names=FALSE)
 ```
 
-Here is a function for getting the unique values in a column, too, which will be useful for the "values" section in the codebook (but only for the variables for which this is relevant: i.e. the factors). We'll use this on specified columns later, but I won't put it in the markdown becuase that seems excessive.
+Here is a function for getting the unique values in a column, too, which will be useful for the "values" section in the codebook (but only for the variables for which this is relevant: i.e. the factors). We'll use this on specified columns later, but I won't put it in the markdown because that seems excessive.
 
 ```{r}
 # Function to get codes from a particular column in a data frame
