@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 # Uncomment the line below if you're using RStudio to run the file
 # (don't use if you're running knitr)
-# setwd(dirname(rstudioapi::getActiveDocumentContext()$path))  # makes sure data files are saved in same location as this file
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))  # makes sure data files are saved in same location as this file
 ```
 
 Load the necessary libraries. 
