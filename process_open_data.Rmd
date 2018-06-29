@@ -456,7 +456,7 @@ for (filename in filenameList) {
 write.csv(codebook, file=file.path("clean_data","codebook_resources.csv"), row.names=FALSE)
 ```
 
-Here is a functio nfor getting the unique values in a column, too, which will be useful for the "values" section in the codebook (but only for the variables for which this is relevant: i.e. the factors).
+Here is a function for getting the unique values in a column, too, which will be useful for the "values" section in the codebook (but only for the variables for which this is relevant: i.e. the factors). We'll use this on specified columns later, but I won't put it in the markdown becuase that seems excessive.
 
 ```{r}
 # Function to get codes from a particular column in a data frame
