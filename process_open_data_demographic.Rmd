@@ -73,7 +73,7 @@ SavePolygonsAsCSV <- function(spdf, filename) {
   
   # Save result to csv
   MakeDir("clean_data")  # make a clean data directory, if one doesn't exist yet
-  write.csv(centroids, file=file.path("clean_data",filename), row.names=FALSE)
+  write.csv(centroids, file=file.path("clean_data",filename), row.names=FALSE, na = "")
 }
 
 # Function to turn a SpatialPointsDataFrame into a flat csv
@@ -89,7 +89,7 @@ SavePointsAsCSV <- function(spdf, filename) {
  
   # Save result to csv
   MakeDir("clean_data") # make a clean data directory, if one doesn't exist yet 
-  write.csv(df, file=file.path("clean_data",filename), row.names=FALSE)
+  write.csv(df, file=file.path("clean_data",filename), row.names=FALSE, na = "")
 }
 
 # Function to split a column that contains comma-separated lists into separate binary columns
