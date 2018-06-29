@@ -38,18 +38,18 @@ We will read in data as a tibble using the read_csv (NOT read.csv) function.
 ```{r message=FALSE, warning=FALSE}
 raw_df <- s3read_using(FUN = read_csv, object = "s3://dssg2018/rawdata/DPS_Discipline_1112-1617.csv")
 
-glimpse(raw_df)
+summary(raw_df)
 ```
 
 As we can see, the data is currently wide. We would like to go from the 19 columns to just 4: "StudentNumber" (an int), "DisciplineType" (a factor), "SpringYear" (a year), and "NumberOffenses" (an int). In other words, we want the data to be "tidy".
 
 ```{r}
 #in school suspensions
-iSS_inds=1:7
-iSS = raw_df[iSS_inds]
-colnames(iSS) = iSS[1,]
-iSS = iSS[-1,]
-iSS = iSS %>% gather('2011-2012','2012-2013','2013-2014','2014-2015','2015-2016','2016-2017',key = 'SpringYear' ,value='NumberOffenses')
+iSS_inds <- 1:7
+iSS <- raw_df[,iSS_inds]
+colnames(iSS) <- iSS[1,]
+iSS <- iSS[-1,]
+iSS <- iSS %>% gather('2011-2012','2012-2013','2013-2014','2014-2015','2015-2016','2016-2017',key = 'SpringYear' ,value='NumberOffenses')
 iSS = add_column(iSS, DisciplineType = 'In School Suspension')
 
 #out of school suspensions
@@ -75,17 +75,20 @@ glimpse(discipline)
 Finally, we do simple touch-ups like type conversions and dealing with NA.
 
 ```{r}
-discipline$SpringYear = sub("20\\d\\d-","",discipline$SpringYear)
-discipline$SpringYear = as.integer(discipline$SpringYear)
+discipline$SpringYear <- sub("20\\d\\d-","",discipline$SpringYear)
+discipline$SpringYear <- as.integer(discipline$SpringYear)
 
-discipline$DisciplineType = as.factor(discipline$DisciplineType)
+discipline$DisciplineType <- as.factor(discipline$DisciplineType)
 
-discipline = discipline %>% replace_na(list(NumberOffenses=0))
-discipline$NumberOffenses = as.integer(discipline$NumberOffenses)
+discipline <- discipline %>% replace_na(list(NumberOffenses=0))
+discipline$NumberOffenses <- as.integer(discipline$NumberOffenses)
 
-discipline$StudentNumber = as.integer(discipline$StudentNumber)
-discipline = discipline %>% arrange(StudentNumber)
-discipline
+discipline$StudentNumber <- as.integer(discipline$StudentNumber)
+discipline <- discipline %>% arrange(StudentNumber)
+discipline <- discipline[,c(1,2,4,3)]
+
+discipline <- as.data.frame(discipline)
+head(discipline)
 ```
 
 ##ELA Test##
@@ -280,7 +283,8 @@ head(enrollment)
 summary(enrollment)
 ```
 
-We want locations rather than just school names, so we use the Google maps API. This takes 5-10 minutes. 
+We want locations rather than just school names, so we use the Google maps API. This takes 5-10 minutes. We also want to ultimately separate out student from school information in the RDS, so we will have school information as one dataframe and student enrollment information in another. 
+
 ```{r eval=FALSE}
 library(ggmap)
 school_locations = data.frame(unique(enrollment$SchoolName))
@@ -294,9 +298,13 @@ for(i in 1:nrow(school_locations)) {
   Sys.sleep(1)
   print(i)
 }
-school_locations$SchoolName <- unique(enrollment$SchoolName)
+unique_indices <- order(enrollment$SchoolName)[!duplicated(sort(enrollment$SchoolName))]
+school_locations$SchoolName <- enrollment$SchoolName[unique_indices]
+school_locations$SchoolNum <- enrollment$SchoolNum[unique_indices]
 write.csv(school_locations, file="school_locations.csv", row.names=FALSE)
 ```
+
+This is just so we don't have to rerun the above code. 
 
 ```{r}
 school_locations <- read.csv(file="school_locations.csv")
@@ -342,11 +350,54 @@ enrollment <- enrollment %>% filter(!SchoolName %in% c("Satellite Program", "Rid
 Now we check the counts of students in schools. 
 
 ```{r}
-sort(table(enrollment$SchoolName))
+head(sort(table(enrollment$SchoolName)))
+```
+
+We'll remove "Sandra Todd-Williams Academy" since there are only two students on record for them. GED High School sounds like students who got their GED (since it doesn't show up when googled). Looking at the data,
+
+```{r}
+enrollment %>% filter(SchoolName=="GED High School")
+```
+
+It looks like it was something they just did in 2011. So we'll exclude this also.
+
+```{r}
+enrollment <- enrollment %>% filter(!SchoolName %in% c("GED High School", "Sandra Todd-Williams Academy"))
+school_locations <- school_locations %>% filter(!SchoolName %in% c("GED High School", "Sandra Todd-Williams Academy"))
 ```
 
 Now we do some final sanity checks via plots. 
 ```{r}
-hist(as.factor(enrollment$Grade))
+hist(enrollment$Grade,col = "black",main = "Grade Level")
+barplot(summary(as.factor(enrollment$Gender)),main="Student Gender")
+barplot(summary(as.factor(enrollment$PrimaryDisability!="No Disability")),main="Student Disability")
+barplot(summary(as.factor(enrollment$RaceEthnicity)),main="Student Race/Ethnicity",las=2,cex.names=.6)
+barplot(summary(as.factor(enrollment[enrollment$PrimaryDisability!="No Disability",]$PrimaryDisability)),main="Student Disability (Ignore `No Disability`)",las=2,cex.names=.4)
+barplot(summary(as.factor(enrollment$LRE)),main="Student Least Restrictive Environment Setting")
 ```
+
+Finally, we'll remove excess information. First, we see that "SwD" (student with disability) has the same info as "PrimaryDisability":
+
+```{r}
+length(enrollment$SwD==0) == length(enrollment$PrimaryDisability=="No Disability")
+all((enrollment$SwD==0) == (enrollment$PrimaryDisability=="No Disability"))
+```
+
+After rearranging columns and eliminating the unnecessary ones:
+
+```{r}
+enrollment <- enrollment[,c(4,1,3,2,5,6,7,8,9,10,11)]
+# School number is in the school information dataframe, so we can remove it
+enrollment$SchoolNum <- NULL
+# Whether student has disability is contained in PrimaryDisability as "No Disability" for 0 and 1 otherwise.
+enrollment$SwD <- NULL
+enrollment <- enrollment %>% arrange(StudentNumber)
+head(enrollment,6)
+```
+
+```{r}
+school_locations <- school_locations[,c(1,4,3,2)]
+head(school_locations,6)
+```
+
 
