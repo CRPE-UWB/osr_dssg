@@ -1,0 +1,150 @@
+---
+title: "Google Analytics API"
+author: "Andrew Taylor"
+date: "6/29/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###Packedge we be using
+```{r}
+library(googleAnalyticsR)
+```
+
+###Authenticate
+
+#VERY IMPORTANT:
+The "ga_auth()" command will prompt an internet dialogue to authenticate our access to google analytics. In this case, let's use the DSSG OSR one. You have to use the browser for this, at least with this packege. 
+```{r}
+##Authenticate
+ga_auth()
+
+##Get accounts
+account_list <- ga_account_list()
+
+##Every account has a view ID
+account_list$viewId
+
+##Here we extract the view ID we want. One seems to be the homepage and two seems to be the search engine?
+ga_id_one <- account_list$viewId[1]
+ga_id_two <- account_list$viewId[2]
+```
+
+###Super Basic Query To Test Where WE AT
+```{r}
+todays_date <- as.character(Sys.Date()) #has to be a character string for the function below
+
+test_ga_one <- google_analytics(
+  ga_id_one, 
+  date_range=c("2018-01-01",(todays_date)),
+  metrics='sessions',
+  dimensions = 'date',
+  max=5000 #or whatever you want, default is 1000
+  )
+
+test_ga_two <- google_analytics(
+  ga_id_two, 
+  date_range=c("2018-01-01",(todays_date)),
+  metrics='sessions',
+  dimensions = 'date',max=5000)
+
+identical(test_ga_two,test_ga_one)
+
+#Just in case anyone was skeptical, these are in fact different, not really sure what's up
+```
+
+###Verifying an Existing Test Report
+We created a test report with multiple tabs, "Test Report", here we verify the google API in R against test "Exit Page." We compare both views here, cus I dk what's going on there. 
+Big fuck off problem though- the google analytics API automatically subsets all users to be only those who meet critera. So for example, these below will be <5 rows. 
+```{r}
+test_exit_page_one <- google_analytics(
+  ga_id_one, 
+  date_range=c("2018-01-01",(todays_date)),
+  metrics=c('Users','timeOnPage'),
+  dimensions =c('Latitude','Longitude','landingPagePath','exitPagePath',"pagePathLevel1","pagePathLevel2","pagePathLevel3","pagePathLevel4","pageTitle"),max=5000)
+
+test_exit_page_two <- google_analytics(
+  ga_id_two, 
+  date_range=c("2018-01-01",(todays_date)),
+  metrics=c('Users','timeOnPage'),
+  dimensions =c('Latitude','Longitude','landingPagePath','exitPagePath',"pagePathLevel1","pagePathLevel2","pagePathLevel3","pagePathLevel4","pageTitle"),max=5000)
+
+nrow(test_exit_page_one)
+nrow(test_exit_page_two)
+```
+
+###Testing two reports
+But if we re-run the previous analysis, with fewer dimensions, nrow increaeses dramatically. 
+
+Metrics and Dimensions codebook: https://developers.google.com/analytics/devguides/reporting/core/dimsmets
+```{r}
+##Running identical reports with both views
+
+test_req_page_one <- google_analytics(
+  ga_id_one, 
+  date_range=c("2018-01-01",(todays_date)),
+  metrics=c('Users','timeOnPage','pageviews','pageviewsPersession','uniquePageviews'),
+  dimensions =c('Latitude','Longitude','landingPagePath','exitPagePath',"pageTitle"),max=50000)
+
+test_req_page_two <- google_analytics(
+  ga_id_two, 
+  date_range=c("2018-01-01",(todays_date)),
+  metrics=c('Users','timeOnPage','pageviews','pageviewsPersession','uniquePageviews'),
+  dimensions =c('Latitude','Longitude','landingPagePath','exitPagePath',"pageTitle"),max=50000)
+
+##comparing the lengths
+
+nrow(test_req_page_one)
+nrow(test_req_page_two)
+
+##Making a summary data frame summing total and unique page views by page title, for our second API view which seems to correspond to search results
+
+Organizational_Page_UniqueViews <- aggregate(uniquePageviews ~ pageTitle, 
+                                             data = test_req_page_two,
+                                             sum)
+
+Organizational_Page_Views <- aggregate(pageviews ~ pageTitle, 
+                                             data = test_req_page_two,
+                                             sum)
+#page title, indicates number of views for specific pages by title, but doesn't tell us shit about decisions, but it's kinda cool right?
+```
+
+
+#Good news
+Parameters show in http, not in tool bar, so we can filter out these things probably
+
+So we should be able to start with urls, and then reverse engineer parameters
+
+So if we could:
+
+1.) Every search
+
+  a.) Page path, per unique search in particular
+    aa.) in perfect world subsquent paths, which seems likely?
+    
+  b.) like pull everything down and filter by search criteria, I mean get as close to everything as you can
+  
+  c.) binary categorization based on partial string match (split on ("&" and "?" or something) and match categories)
+    cc.) in same process make new columns that match these things
+    ccc.) create col for every possible attribute
+    
+  d.) match to lat lon 
+  
+  e.) filter to colorado
+  
+  f.) can we get actual ip?
+
+2.) Then map by category
+
+3.) PRN follow up if you can't get the urls
+
+4.) Keep thinking about limitations w/ search area, bias towards greater edu.
+  a.) we could try to adjust this w/ block group weights from previous study, based on previous search data study? Not sure what kind of calculation, but something to do w/ the census data. 
+  
+5.) Ariel Rokum - dude who led morning tutorial part, ask him what we want & how to get it from the Google API, slack him or email him? 
+
+NOPE
+
