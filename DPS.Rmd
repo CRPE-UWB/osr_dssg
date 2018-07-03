@@ -75,7 +75,7 @@ glimpse(discipline)
 Finally, we do simple touch-ups like type conversions and dealing with NA.
 
 ```{r}
-discipline$SpringYear <- sub("20\\d\\d-","",discipline$SpringYear)
+discipline$SpringYear <- sub("\\d{4}-","",discipline$SpringYear)
 discipline$SpringYear <- as.integer(discipline$SpringYear)
 
 discipline$DisciplineType <- as.factor(discipline$DisciplineType)
@@ -277,10 +277,10 @@ head(STARreading,6)
 
 ##Enrollment##
 ```{r}
-enrollment <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_Enrollment_1112-1718.csv")
+enrollment_copy <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_Enrollment_1112-1718.csv")
 
-head(enrollment)
-summary(enrollment)
+head(enrollment_copy)
+summary(enrollment_copy)
 ```
 
 We want locations rather than just school names, so we use the Google maps API. This takes 5-10 minutes. We also want to ultimately separate out student from school information in the RDS, so we will have school information as one dataframe and student enrollment information in another. 
@@ -400,4 +400,134 @@ school_locations <- school_locations[,c(1,4,3,2)]
 head(school_locations,6)
 ```
 
+##Attendance##
 
+```{r}
+
+#Skipping the first row inorder to g et the appropriate headers
+attendance <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_Attendance_1112-1718.csv", skip = 1, na.strings = " ") 
+
+#Assigning appropriate column names
+colnames(attendance) <- make.names(gsub("\\d{4}.","",colnames(attendance)))
+
+#Changing percentage datapoints (currently read as factors) to numerics:
+convert_percent_to_numeric <- function(y) {
+  if (as.character(y)=="")
+    return(NA)
+  else
+    return(as.numeric(substr(y,0,nchar(as.character(y))-1)))
+}
+
+attendance[,-1] <- apply(attendance[,-1],1:2,convert_percent_to_numeric)
+
+attendance = as.data.frame(attendance)
+head(attendance)
+```
+
+Checking if the student attendance data is distinct on the studentnumber level.
+```{r}
+nrow(attendance)
+length(unique(attendance$StudentNumber))
+length(which(is.na(attendance$StudentNumber)))
+```
+
+The data is unique at the student number level and also no missing student numbers. 
+```{r}
+summary(attendance)
+```
+
+NA's make sense if students have yet to matriculate or have already graduated in that year. But if a student has NA for all years, that's an issue. It looks like there are 90 such students. 
+
+```{r}
+nrow(attendance[apply(attendance, 1, function(x) sum(is.na(x))) > 6,])
+```
+
+```{r}
+always_absent_students <- attendance[apply(attendance, 1, function(x) sum(is.na(x))) > 6,]$StudentNumber
+always_absent_student_info <- enrollment %>% filter(StudentNumber %in% always_absent_students)
+sort(table((enrollment %>% filter(StudentNumber %in% always_absent_students))[,"SchoolName"]))
+```
+
+Googling these schools, it looks like most are just errors, or perhaps students left the school system mid-year. However, ASCENT (upon googling) is a transitional program for students that need just a few more credits to graduate. So it's not too surprising that we have missing attendance here. So we'll delete these in the attendance record (when we merge with other datasets later, they will be refilled with all NAs anyway).
+
+```{r}
+attendance$StudentNumber <- as.character(attendance$StudentNumber)
+attendance <- attendance %>% filter(!StudentNumber %in% always_absent_students)
+```
+
+
+Let's check to makes sure all values are between 0 and 100 (inclusive)
+```{r}
+#Storing the minimum and maximum of each column as a dataframe
+min_values = apply(attendance[,-1], 2, min, na.rm = TRUE)
+min_values = as.data.frame(min_values)
+
+max_values = apply(attendance[,-1], 2, max, na.rm = TRUE)
+max_values = as.data.frame(max_values)
+
+cbind(min_values, max_values)
+```
+As we can see academic years 2014-2015 and 2016-2017 have incorrect minimum values. Let's see the Student Numbers for 
+
+```{r}
+problem_indices <- apply(attendance[,-1], 2, function(y) which(y<0 | y>100))
+```
+
+Let's see what these students' enrollment records look like. 
+
+```{r}
+attendance[c(117203,97075,50504, 137538, 149214, 152694),]
+```
+
+And let's also see what the enrollment looks like for these students
+
+```{r}
+enrollment[c(117203,97075,50504, 137538, 149214, 152694),]
+```
+
+It's unfortunate this data is missing, but for fear of injecting false numbers into our data set we will remove these 6 students. 
+
+```{r}
+attendance <- attendance[-c(117203,97075,50504, 137538, 149214, 152694),]
+```
+
+Finally, we visualize the attendance data.
+
+```{r}
+for (i in 2:ncol(attendance))
+  hist(attendance[,i],main=paste(colnames(attendance)[i],"attendance"))
+```
+
+##CMAS Scores##
+
+```{r}
+#Skipping the first row inorder to get the appropriate headers
+cmas <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_CMAS_1415-1617.csv", na.strings = " ") 
+head(cmas)
+```
+
+```{r}
+ela_score_inds <- c(2,4,6)
+ela_proficiency_inds <- c(3,5,7)
+math_score_inds <- c(8,10,12)
+math_proficiency_inds <- c(9,11,13)
+
+cmas[c(ela_score_inds,math_score_inds),-1] <- as.numeric(cmas[c(ela_score_inds,math_score_inds),-1])
+cmas[c(ela_proficiency_inds,math_proficiency_inds,-1)] <- as.character(cmas[c(ela_proficiency_inds,math_proficiency_inds,-1)])
+
+ela_scores <- cmas[-(1:2),c(1,ela_score_inds)]
+colnames(ela_scores) <- c("2014-2015","2015-2016","2016-2017")
+ela_scores <- ela_scores %>% gather("2014-2015","2015-2016","2016-2017",key="SpringYear",value="ELAScores")
+ela_proficiency <- cmas[-(1:2),c(1,ela_proficiency_inds)]
+colnames(ela_proficiency) <- c("2014-2015","2015-2016","2016-2017")
+ela_proficiency <- ela_proficiency %>% gather("2014-2015","2015-2016","2016-2017",key="SpringYear",value="ELAProficiency")
+math_scores <- cmas[-(1:2),c(1,math_score_inds)]
+colnames(math_scores) <- c("2014-2015","2015-2016","2016-2017")
+math_scores <- math_scores %>% gather("2014-2015","2015-2016","2016-2017",key="SpringYear",value="MathScores")
+math_proficiency <- cmas[-(1:2),c(1,math_proficiency_inds)]
+colnames(math_proficiency) <- c("2014-2015","2015-2016","2016-2017")
+math_proficiency <- math_proficiency %>% gather("2014-2015","2015-2016","2016-2017",key="SpringYear",value="MathProficiency")
+
+# cmas <- bind_rows(ela_scores, ela_proficiency, math_scores, math_proficiency)
+# glimpse(discipline)
+```
