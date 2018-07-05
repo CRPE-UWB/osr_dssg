@@ -9,13 +9,16 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+###API Codebook
+
+Metrics and Dimensions codebook: https://developers.google.com/analytics/devguides/reporting/core/dimsmets
+
 ###Packedge we be using
 ```{r}
 library(googleAnalyticsR)
 ```
 
 ###Authenticate
-
 #VERY IMPORTANT:
 The "ga_auth()" command will prompt an internet dialogue to authenticate our access to google analytics. In this case, let's use the DSSG OSR one. You have to use the browser for this, at least with this packege. 
 ```{r}
@@ -33,118 +36,131 @@ ga_id_one <- account_list$viewId[1]
 ga_id_two <- account_list$viewId[2]
 ```
 
-###Super Basic Query To Test Where WE AT
+
+###Pulling Path Level Data
 ```{r}
-todays_date <- as.character(Sys.Date()) #has to be a character string for the function below
-
-test_ga_one <- google_analytics(
-  ga_id_one, 
-  date_range=c("2018-01-01",(todays_date)),
-  metrics='sessions',
-  dimensions = 'date',
-  max=5000 #or whatever you want, default is 1000
-  )
-
-test_ga_two <- google_analytics(
-  ga_id_two, 
-  date_range=c("2018-01-01",(todays_date)),
-  metrics='sessions',
-  dimensions = 'date',max=5000)
-
-identical(test_ga_two,test_ga_one)
-
-#Just in case anyone was skeptical, these are in fact different, not really sure what's up
-```
-
-###Verifying an Existing Test Report
-We created a test report with multiple tabs, "Test Report", here we verify the google API in R against test "Exit Page." We compare both views here, cus I dk what's going on there. 
-Big fuck off problem though- the google analytics API automatically subsets all users to be only those who meet critera. So for example, these below will be <5 rows. 
-```{r}
-test_exit_page_one <- google_analytics(
-  ga_id_one, 
-  date_range=c("2018-01-01",(todays_date)),
-  metrics=c('Users','timeOnPage'),
-  dimensions =c('Latitude','Longitude','landingPagePath','exitPagePath',"pagePathLevel1","pagePathLevel2","pagePathLevel3","pagePathLevel4","pageTitle"),max=5000)
-
-test_exit_page_two <- google_analytics(
-  ga_id_two, 
-  date_range=c("2018-01-01",(todays_date)),
-  metrics=c('Users','timeOnPage'),
-  dimensions =c('Latitude','Longitude','landingPagePath','exitPagePath',"pagePathLevel1","pagePathLevel2","pagePathLevel3","pagePathLevel4","pageTitle"),max=5000)
-
-nrow(test_exit_page_one)
-nrow(test_exit_page_two)
-```
-
-###Testing two reports
-But if we re-run the previous analysis, with fewer dimensions, nrow increaeses dramatically. 
-
-Metrics and Dimensions codebook: https://developers.google.com/analytics/devguides/reporting/core/dimsmets
-```{r}
-##Running identical reports with both views
-
-test_req_page_one <- google_analytics(
-  ga_id_one, 
-  date_range=c("2018-01-01",(todays_date)),
-  metrics=c('Users','timeOnPage','pageviews','pageviewsPersession','uniquePageviews'),
-  dimensions =c('Latitude','Longitude','landingPagePath','exitPagePath',"pageTitle"),max=50000)
-
-test_req_page_two <- google_analytics(
+#works
+PathLevel <- google_analytics(
   ga_id_two, 
   date_range=c("2018-01-01",(todays_date)),
   metrics=c('Users','timeOnPage','pageviews','pageviewsPersession','uniquePageviews'),
-  dimensions =c('Latitude','Longitude','landingPagePath','exitPagePath',"pageTitle"),max=50000)
-
-##comparing the lengths
-
-nrow(test_req_page_one)
-nrow(test_req_page_two)
-
-##Making a summary data frame summing total and unique page views by page title, for our second API view which seems to correspond to search results
-
-Organizational_Page_UniqueViews <- aggregate(uniquePageviews ~ pageTitle, 
-                                             data = test_req_page_two,
-                                             sum)
-
-Organizational_Page_Views <- aggregate(pageviews ~ pageTitle, 
-                                             data = test_req_page_two,
-                                             sum)
-#page title, indicates number of views for specific pages by title, but doesn't tell us shit about decisions, but it's kinda cool right?
+  dimensions =c('Latitude','Longitude',"PagePath",'SecondPagePath',"pageTitle"),max=50000)
 ```
 
+###Parsing Search Path Function
+This function turns our html string into something we can split systematically
+```{r}
+ParsePath <- function(htmlString) {
+  htmlString <-(gsub("<.*?>", "", htmlString))
+  htmlString <- (gsub("/search","",htmlString))
+  htmlString <- (gsub("&",",",htmlString))
+  htmlString <- (gsub("?","",htmlString))
+  htmlString <- (gsub("/?","",htmlString))
+  htmlString <- (gsub("selected","",htmlString))
+  return(htmlString)
+}
+```
 
-#Good news
-Parameters show in http, not in tool bar, so we can filter out these things probably
+###Creating recognition functions
+These functions read the full parsed html string, determine the feature, and then return the split version of the url.
+```{r}
+ReturnTime <- function(x){
+  check <- grepl("sessionTimes",x)
+  if(check==TRUE){
+    stringcheck <- str_split_fixed(x,",",Inf)
+    for (i in 1:(length(stringcheck))){
+      check.i <- grepl("sessionTimes",stringcheck[i])
+      if (check.i==TRUE){
+        print(stringcheck[i])}
+    }}}
 
-So we should be able to start with urls, and then reverse engineer parameters
+ReturnMaxCost <- function(x){
+  check <- grepl("maximumCost",x)
+  if(check==TRUE){
+    stringcheck <- str_split_fixed(x,",",Inf)
+    for (i in 1:(length(stringcheck))){
+      check.i <- grepl("maximumCost",stringcheck[i])
+      if (check.i==TRUE){
+        print(stringcheck[i])}
+    }}}
 
-So if we could:
+ReturnMinCost <- function(x){
+  check <- grepl("minimumCost",x)
+  if(check==TRUE){
+    stringcheck <- str_split_fixed(x,",",Inf)
+    for (i in 1:(length(stringcheck))){
+      check.i <- grepl("minimumCost",stringcheck[i])
+      if (check.i==TRUE){
+        print(stringcheck[i])}
+    }}}
 
-1.) Every search
+ReturnDistance <- function(x){
+  check <- grepl("distance",x)
+  if(check==TRUE){
+    stringcheck <- str_split_fixed(x,",",Inf)
+    for (i in 1:(length(stringcheck))){
+      check.i <- grepl("distance",stringcheck[i])
+      if (check.i==TRUE){
+        print(stringcheck[i])}
+    }}}
 
-  a.) Page path, per unique search in particular
-    aa.) in perfect world subsquent paths, which seems likely?
-    
-  b.) like pull everything down and filter by search criteria, I mean get as close to everything as you can
-  
-  c.) binary categorization based on partial string match (split on ("&" and "?" or something) and match categories)
-    cc.) in same process make new columns that match these things
-    ccc.) create col for every possible attribute
-    
-  d.) match to lat lon 
-  
-  e.) filter to colorado
-  
-  f.) can we get actual ip?
+ReturnCategory <- function(x){
+  check <- grepl("Categories",x)
+  if(check==TRUE){
+    stringcheck <- str_split_fixed(x,",",Inf)
+    for (i in 1:(length(stringcheck))){
+      check.i <- grepl("Categories",stringcheck[i])
+      if (check.i==TRUE){
+        print(stringcheck[i])}
+    }}}
 
-2.) Then map by category
+ReturnGender <- function(x){
+  check <- grepl("gender",x)
+  if(check==TRUE){
+    stringcheck <- str_split_fixed(x,",",Inf)
+    for (i in 1:(length(stringcheck))){
+      check.i <- grepl("gender",stringcheck[i])
+      if (check.i==TRUE){
+        return(stringcheck[i])}
+    }}}
+```
 
-3.) PRN follow up if you can't get the urls
+###Applying them functions
+Using our functions to fill out categories
+```{r}
+PathLevel$CleanPath <- ParsePath(PathLevel$PagePath)
+PathLevel$gender <- sapply(PathLevel$CleanPath,ReturnGender)
+PathLevel$distance <- sapply(PathLevel$CleanPath,ReturnDistance)
+PathLevel$category <- sapply(PathLevel$CleanPath,ReturnCategory)
+PathLevel$mincost <- sapply(PathLevel$CleanPath,ReturnMinCost)
+PathLevel$maxcost <- sapply(PathLevel$CleanPath,ReturnMaxCost)
+PathLevel$sessiontimes <- sapply(PathLevel$Clean,ReturnTime)
+```
 
-4.) Keep thinking about limitations w/ search area, bias towards greater edu.
-  a.) we could try to adjust this w/ block group weights from previous study, based on previous search data study? Not sure what kind of calculation, but something to do w/ the census data. 
-  
-5.) Ariel Rokum - dude who led morning tutorial part, ask him what we want & how to get it from the Google API, slack him or email him? 
+###Cleaning Functions
+Now that we've returned the split version of the html string, we need to clean it up so that only the relevant information is included. 
+```{r}
+CleanHash<- function(x){
+  stringcheck <- str_split_fixed(x,"=",Inf)
+  ifelse(length(stringcheck)>1,return(stringcheck[2]),"")
+}
+```
 
-NOPE
+###Cleaning
+```{r}
+PathLevel$gender <- sapply(PathLevel$gender,CleanHash)
+PathLevel$distance <-sapply(PathLevel$distance,CleanHash)
+PathLevel$category <- sapply(PathLevel$category,CleanHash)
+PathLevel$mincost <- sapply(PathLevel$mincost,CleanHash)
+PathLevel$maxcost <- sapply(PathLevel$maxcost,CleanHash)
+PathLevel$sessiontimes <- sapply(PathLevel$sessiontimes,CleanHash)
+```
+
+###Aggregating Users By Category & Lat/Lon
+While we may have started our report with several different metrics, here we're only interested in the number of users searching for "x" features at "y" lat/lon. 
+```{r}
+Search_Summary  <- aggregate(Users ~ gender+distance+category+mincost+maxcost+sessiontimes+Latitude+Longitude,PathLevel,sum)
+colnames(Search_Summary) <- c("gender","distance","category","mincost","maxcost","sessiontimes","Lat","Long","Users") #updating colnames
+GoogleSearchData <- Search_Summary #making final name
+```
 
