@@ -109,6 +109,7 @@ destination <- data$DCoords[i]
 ```
 ### Make sure you test things out with a small data sample before you schedule this.  We might need to set up some instances to run on aws or break up the data set and have each one of us be responsible to run it.  
 
+## Extra Credit: How can we run this using one of the `apply` function to avoid the loop? :)
 
 
 
