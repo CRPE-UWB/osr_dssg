@@ -5,23 +5,14 @@ date: "6/27/2018"
 output: html_document
 ---
 ###Using Yelp API
-GUESS WHAT THIS ONLY APPLIES TO FOOD DELIVERY, SO WTF WHY DID I WASTE A DAY ON THIS
+While not relevant to this project, it may be nice to a have a quick review on how to use the Yelp API. Unfortunatley, at the time of this markdown the Yelp API only applies to resturants with specific delivery service through Yelp, and thus is not helpful for locating out of scool resources.
 
-Load required libraries
+For information on the yelp key used in this analysis see the Yelp key markdown (not shared over github).
+
+###Load required libraries
 ```{r echo=FALSE}
 library(tidyverse)
 library(httr)
-```
-
-###Load client id & secret key
-Created a new DSSG-OSR-2018 "app", need this info to query from yelp. Note that the previous yelp API required the use of a token, which appears in many existing yelp packeges, but this is no longer needed. 
-```{r}
-yelp_id <-"l2n6agEPQdzbXezfukLc-A"
-yelp_api_key <- "ksY_KLOxa9iP_oAH7ISG65IxGxd7av_b7zK3GBZ1zLJ3wHKhoBnNLqp31_b7eKUBmCLJZ4-VPKljaMW2B5rlcxRrMjEwArFfiabPwBVjp3cvoVMmlbE2cdHV-OozW3Yx"
-res <- POST("https://api.yelp.com/oauth2/token",
-            body = list(grant_type = "client_credentials",
-                        client_id = yelp_id,
-                        client_secret = yelp_api_key))
 ```
 
 ###Building url for query
@@ -73,42 +64,33 @@ results_list <- lapply(results$businesses, FUN = yelp_httr_parse)
 payload_100 <- do.call("rbind", results_list)
 ```
 
-###Looping to get around yelp's bullshit
-There are two reasons we need to use the much despised for loop here. 1.) Yelp limits the number of results we can collect to 50 per search, and 2.) Yelp limits the max number of results per search we analyze to 999. This means that for the ~3700 businesses on yelp in denver, even if we collect 50 at a time, we can't go over 1,000. To get around this, we search by zip code, max out the zip code to 1,000 queries, collect them 50 at time, repeat. 
+###Looping to get around yelp's limits
+There are two reasons we need to use the much despised for loop here. 
+
+1.) Yelp limits the number of results we can collect to 50 per search, and-
+
+2.) Yelp limits the max number of results per search we analyze to 999. This means that for the ~3700 businesses on yelp in denver, even if we collect 50 at a time, we can't go over 1,000. To get around this, we search by zip code, max out the zip code to 1,000 queries, collect them 50 at time, repeat. 
 ```{r}
 yelp_results <- data.frame()
 denver_zipcodes <- c(80012, 80014, 80110, 80111, 80123, 80202, 80203, 80204, 80205, 80206, 80207, 80209, 80210, 80211, 80212, 80214, 80216, 80218, 80219, 80220, 80221, 80222, 80223, 80224, 80226, 80227, 80230, 80231, 80232, 80235, 80236, 80237, 80238, 80239, 80246, 80247, 80249, 80264, 80290, 80293, 80294)
 
 for (i in 1:(length(denver_zipcodes))){
-  zip <- denver_zipcodes[i] #read the zipcode per denver
-  
+  zip <- denver_zipcodes[i]
   for (z in 1:19){ #here we start the secondary loop reading search results, 50 at a time, per zip code.
-    
   offset <- (1+z)*50 #here our offset is increased by 50 per loop. 
-  
   yelp <- "https://api.yelp.com"
   categories <- NULL #this is null because we do not know which categories a OSR will be in
-  
   limit <- 50 #this is the max limit
-  
   location <- paste("Denver, CO",zip) #here we paste the zip code in to search by zip
-  
   radius <- 8000
-  
   url <- modify_url(yelp, path =c('v3','businesses','search'),
                   query = list(location = location, limit = limit, offset=offset,radius = radius))
-  
   res <- GET(url, add_headers('Authorization' = paste('bearer',yelp_api_key))) #here we enter our api key for authentication with results
-  
   results <- content(res) #this is a httr function for pre-parsing
-  
   results_list <- lapply(results$businesses, FUN = yelp_httr_parse) #here we use the httr yelp function for parsing the yelp results
-  
   payload.i <- do.call("rbind", results_list) #here we transfer the parsed results in a dataframe
-   
   yelp_results <- rbind(yelp_results,payload.i) #here we compile results of every search into one dataframe
-  
-  print(paste("suck it yelp",i,z))} #yea SUCK IT YELP 
+  print(paste("we're totally not exceeding query limits",i,z))}
   Sys.sleep(0.01) #there is a limit on queries per second, so better safe than sorry with a small pause here
 }
 ```

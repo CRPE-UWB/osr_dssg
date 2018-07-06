@@ -60,176 +60,6 @@ PathLevel <- google_analytics(
   dimensions =c('Latitude','Longitude',"PagePath","dateHourMinute"),max=50000)
 ```
 
-###Parsing Search Path Function
-This function turns our html string into something we can split systematically
-```{r}
-ParsePath <- function(htmlString) {
-  htmlString <-(gsub("<.*?>", "", htmlString))
-  htmlString <- (gsub("/search","",htmlString))
-  htmlString <- (gsub("&",",",htmlString))
-  htmlString <- (gsub("?","",htmlString))
-  htmlString <- (gsub("/?","",htmlString))
-  htmlString <- (gsub("selected","",htmlString))
-  return(htmlString)
-}
-```
-
-###Creating recognition functions
-These functions read the full parsed html string, determine the feature, and then return the split version of the url. Could we have combined these with the cleaning function? Probably. 
-```{r}
-ReturnKeyWords <- function(x){
-  check <- grepl("keywords",x)
-    if(check==TRUE){
-    stringcheck <- str_split_fixed(x,",",Inf)
-    for (i in 1:(length(stringcheck))){
-      check.i <- grepl("keywords",stringcheck[i])
-      if (check.i==TRUE){
-        return(stringcheck[i])}
-    }}}
-
-Returnscholarships <- function(x){
-  check <- grepl("sessionAttributes",x)
-    if(check==TRUE){
-    stringcheck <- str_split_fixed(x,",",Inf)
-    for (i in 1:(length(stringcheck))){
-      check.i <- grepl("scholarships",stringcheck[i])
-      if (check.i==TRUE){
-        return(stringcheck[i])}
-    }}}
-
-ReturnspecialNeeds <- function(x){
-  check <- grepl("sessionAttributes",x)
-    if(check==TRUE){
-    stringcheck <- str_split_fixed(x,",",Inf)
-    for (i in 1:(length(stringcheck))){
-      check.i <- grepl("specialNeeds",stringcheck[i])
-      if (check.i==TRUE){
-        return(stringcheck[i])}
-    }}}
-
-ReturnGifted <- function(x){
-  check <- grepl("sessionAttributes",x)
-    if(check==TRUE){
-    stringcheck <- str_split_fixed(x,",",Inf)
-    for (i in 1:(length(stringcheck))){
-      check.i <- grepl("giftedStudent",stringcheck[i])
-      if (check.i==TRUE){
-        return(stringcheck[i])}
-    }}}
-
-ReturnBeforeCare <- function(x){
-  check <- grepl("sessionAttributes",x)
-    if(check==TRUE){
-    stringcheck <- str_split_fixed(x,",",Inf)
-    for (i in 1:(length(stringcheck))){
-      check.i <- grepl("offersBeforeAfterCare",stringcheck[i])
-      if (check.i==TRUE){
-        return(stringcheck[i])}
-    }}}
-
-
-ReturnTime <- function(x){
-  check <- grepl("sessionTimes",x)
-  if(check==TRUE){
-    stringcheck <- str_split_fixed(x,",",Inf)
-    for (i in 1:(length(stringcheck))){
-      check.i <- grepl("sessionTimes",stringcheck[i])
-      if (check.i==TRUE){
-        return(stringcheck[i])}
-    }}}
-
-ReturnMaxCost <- function(x){
-  check <- grepl("maximumCost",x)
-  if(check==TRUE){
-    stringcheck <- str_split_fixed(x,",",Inf)
-    for (i in 1:(length(stringcheck))){
-      check.i <- grepl("maximumCost",stringcheck[i])
-      if (check.i==TRUE){
-        return(stringcheck[i])}
-    }}}
-
-ReturnMinCost <- function(x){
-  check <- grepl("minimumCost",x)
-  if(check==TRUE){
-    stringcheck <- str_split_fixed(x,",",Inf)
-    for (i in 1:(length(stringcheck))){
-      check.i <- grepl("minimumCost",stringcheck[i])
-      if (check.i==TRUE){
-        return(stringcheck[i])}
-    }}}
-
-ReturnDistance <- function(x){
-  check <- grepl("distance",x)
-  if(check==TRUE){
-    stringcheck <- str_split_fixed(x,",",Inf)
-    for (i in 1:(length(stringcheck))){
-      check.i <- grepl("distance",stringcheck[i])
-      if (check.i==TRUE){
-        return(stringcheck[i])}
-    }}}
-
-ReturnCategory <- function(x){
-  check <- grepl("Categories",x)
-  if(check==TRUE){
-    stringcheck <- str_split_fixed(x,",",Inf)
-    for (i in 1:(length(stringcheck))){
-      check.i <- grepl("Categories",stringcheck[i])
-      if (check.i==TRUE){
-        return(stringcheck[i])}
-    }}}
-
-ReturnGender <- function(x){
-  check <- grepl("gender",x)
-  if(check==TRUE){
-    stringcheck <- str_split_fixed(x,",",Inf)
-    for (i in 1:(length(stringcheck))){
-      check.i <- grepl("gender",stringcheck[i])
-      if (check.i==TRUE){
-        return(stringcheck[i])}
-    }}}
-
-ReturnMaxAge <- function(x){
-  check <- grepl("maximumAge",x)
-  if(check==TRUE){
-    stringcheck <- str_split_fixed(x,",",Inf)
-    for (i in 1:(length(stringcheck))){
-      check.i <- grepl("maximumAge",stringcheck[i])
-      if (check.i==TRUE){
-        return(stringcheck[i])}
-    }}}
-
-ReturnMinAge <- function(x){
-  check <- grepl("minimumAge",x)
-  if(check==TRUE){
-    stringcheck <- str_split_fixed(x,",",Inf)
-    for (i in 1:(length(stringcheck))){
-      check.i <- grepl("minimumAge",stringcheck[i])
-      if (check.i==TRUE){
-        return(stringcheck[i])}
-    }}}
-
-ReturnSort <-function(x){
-  check <- grepl("sort",x)
-  if(check==TRUE){
-    stringcheck <- str_split_fixed(x,",",Inf)
-    for (i in 1:(length(stringcheck))){
-      check.i <- grepl("sort",stringcheck[i])
-      if (check.i==TRUE){
-        return(stringcheck[i])}
-    }}}
-
-ReturnLocation <- function(x){
-  check <- grepl("currentLocation",x)
-  if(check==TRUE){
-    stringcheck <- str_split_fixed(x,",",Inf)
-    for (i in 1:(length(stringcheck))){
-      check.i <- grepl("currentLocation",stringcheck[i])
-      if (check.i==TRUE){
-        return(stringcheck[i])}
-    }}}
-  
-```
-
 ###Parsing the Clean Paths
 Using our functions to fill out categories
 ```{r}
@@ -252,16 +82,7 @@ PathLevel$gifted <- sapply(PathLevel$CleanPath,ReturnGifted)
 PathLevel$keywords <- sapply(PathLevel$CleanPath,ReturnKeyWords)
 ```
 
-###Cleaning Functions
-Now that we've returned the split version of the html string, we need to clean it up so that only the relevant information is included. 
-```{r}
-CleanHash<- function(x){
-  stringcheck <- str_split_fixed(x,"=",Inf)
-  ifelse(length(stringcheck)>1,return(stringcheck[2]),"")
-}
-```
-
-###Cleaning
+###Cleaning Paths
 ```{r}
 PathLevel$gender <- sapply(PathLevel$gender,CleanHash)
 PathLevel$distance <-sapply(PathLevel$distance,CleanHash)
@@ -280,6 +101,15 @@ PathLevel$gifted <- sapply(PathLevel$gifted,CleanHash)
 PathLevel$keywords <- sapply(PathLevel$keywords,CleanHash)
 ```
 
+###Cleaning Numeric
+There is a handful of users (<5) who entereted the age range into the min age field, this ommits them. 
+```{r}
+PathLevel$mincost <- as.numeric(PathLevel$mincost)
+PathLevel$maxcost <- as.numeric(PathLevel$maxcost)
+PathLevel$minage <- as.numeric(PathLevel$minage)
+PathLevel$maxage <- as.numeric(PathLevel$maxage)
+```
+
 ###Aggregating Users By Category & Lat/Lon
 While we may have started our report with several different metrics and uniquepaths, here we're only interested in the number of users searching for "x" features at "y" lat/lon. So we make a simpler data.frame from here on out. 
 ```{r}
@@ -287,6 +117,10 @@ Search_Summary  <- aggregate(Users ~ gender+distance+category+mincost+maxcost+se
 colnames(Search_Summary) <- c("gender","distance","category","mincost"
 ,"maxcost","sessiontimes","minage","maxage"
 ,"sort","location","scholarships","specialneeds","beforeaftercare","gifted","keywords","lat","long","users")
-
 ```
 
+###Writing to a CSV to upload into the RDS
+Here we write our aggregated data frame to a csv to upload into the RDS.
+```{r}
+write.csv(Search_Summary,"GoogleAnalyticsSearchSummary.csv",na="",row.names=FALSE)
+```
