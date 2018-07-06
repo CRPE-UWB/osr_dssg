@@ -372,7 +372,7 @@ enrollment <- enrollment %>% filter(!SchoolName %in% c("GED High School", "Sandr
 school_locations <- school_locations %>% filter(!SchoolName %in% c("GED High School", "Sandra Todd-Williams Academy"))
 ```
 
-Now we do some final sanity checks via plots. 
+Now we do some sanity checks via plots. 
 ```{r}
 hist(enrollment$Grade,col = "black",main = "Grade Level")
 barplot(summary(as.factor(enrollment$Gender)),main="Student Gender")
@@ -393,8 +393,8 @@ After rearranging columns and eliminating the unnecessary ones:
 
 ```{r}
 enrollment <- enrollment[,c(4,1,3,2,5,6,7,8,9,10,11)]
-# School number is in the school information dataframe, so we can remove it
-enrollment$SchoolNum <- NULL
+# School name is in the school information dataframe, so we can remove it
+enrollment$SchoolName <- NULL
 # Whether student has disability is contained in PrimaryDisability as "No Disability" for 0 and 1 otherwise.
 enrollment$SwD <- NULL
 enrollment <- enrollment %>% arrange(StudentNumber)
@@ -605,8 +605,28 @@ Now we'll deal with language.
 
 ```{r}
 lang <- langAndChoice[,c("StudentNumber","SpringYear","PrimaryHomeLanguage")]
+lang <- lang[!is.na(lang$primary_home_language),]
 levels(langAndChoice$PrimaryHomeLanguage)
 ```
+
+There are different years for langauge, so let's make sure they're all consistent. This will take a minute to run.
+
+```{r}
+repeats <- c()
+for (student_num in unique(lang$StudentNumber)) {
+  if (length(unique(lang$PrimaryHomeLanguage[lang$StudentNumber==student_num]))>1)
+    repeats <- c(repeats,student_num)
+}
+length(repeats)
+```
+
+No repeats, so we'll just take the first occurrence as the value:
+
+```{r}
+lang <- lang[!duplicated(lang$StudentNumber),]
+lang$SpringYear <- NULL
+```
+
 
 And school choice.
 
@@ -660,6 +680,10 @@ colnames(student_locations) <- changed_col_names(student_locations)
 colnames(lang) <- changed_col_names(lang)
 colnames(choice) <- changed_col_names(choice)
 
+#corrections
+colnames(cmas)[colnames(cmas)=="elascores"]<-"ela_scores"
+colnames(cmas)[colnames(cmas)=="elaproficiency"]<-"ela_proficiency"
+
 #lon to long
 colnames(school_locations)[colnames(school_locations)=="lon"] <- "long"
 
@@ -667,20 +691,33 @@ colnames(school_locations)[colnames(school_locations)=="lon"] <- "long"
 student_locations <- student_locations[,c("student_number","block","geoid_num")]
 ```
 
+Also, we later found that one of the school names has a non-UTF-8 character in it:
+
+```{r}
+school_locations[school_locations$school_num==490,]
+```
+
+So we'll just change that manually to "Colorado High School Charter GES":
+
+```{r}
+school_locations$school_name[school_locations$school_num==490] <- "Colorado High School Charter GES"
+```
+
+
 And finally let's save them.
 
 ```{r}
-write.csv(discipline, file="discipline.csv", row.names=FALSE)
-write.csv(ela, file="ela.csv", row.names=FALSE)
-write.csv(math, file="math.csv", row.names=FALSE)
-write.csv(graduation, file="graduation.csv", row.names=FALSE)
-write.csv(transportation, file="transportation.csv", row.names=FALSE)
-write.csv(STARreading, file="star_reading.csv", row.names=FALSE)
-write.csv(enrollment, file="enrollment.csv", row.names=FALSE)
-write.csv(school_locations, file="school_locations.csv", row.names=FALSE)
-write.csv(attendance, file="attendance.csv", row.names=FALSE)
-write.csv(cmas, file="cmas.csv", row.names=FALSE)
-write.csv(student_locations, file="student_locations.csv", row.names=FALSE)
-write.csv(lang, file="lang.csv", row.names=FALSE)
-write.csv(choice, file="choice.csv", row.names=FALSE)
+write.csv(discipline, file="discipline.csv", row.names=FALSE, na="")
+write.csv(ela, file="ela.csv", row.names=FALSE, na="")
+write.csv(math, file="math.csv", row.names=FALSE, na="")
+write.csv(graduation, file="graduation.csv", row.names=FALSE, na="")
+write.csv(transportation, file="transportation.csv", row.names=FALSE, na="")
+write.csv(STARreading, file="star_reading.csv", row.names=FALSE, na="")
+write.csv(enrollment, file="enrollment.csv", row.names=FALSE, na="")
+write.csv(school_locations, file="school_locations.csv", row.names=FALSE, na="")
+write.csv(attendance, file="attendance.csv", row.names=FALSE, na="")
+write.csv(cmas, file="cmas.csv", row.names=FALSE, na="")
+write.csv(student_locations, file="student_locations.csv", row.names=FALSE, na="")
+write.csv(lang, file="lang.csv", row.names=FALSE, na="")
+write.csv(choice, file="choice.csv", row.names=FALSE, na="")
 ```
