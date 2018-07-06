@@ -45,7 +45,7 @@ geocodeAddress <- function(address) {
     } else {
       out <- NA
   }
-  Sys.sleep(0.05)  # API only allows 50 requests per second
+  Sys.sleep(0.2)  # API only allows 50 requests per second
   out
 }
 
