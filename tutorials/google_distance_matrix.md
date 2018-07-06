@@ -42,6 +42,7 @@ gdist_api <- function(origin,destination,mode,depart){
 ```
 
 **Data we have should look like this:**
+
 | census_block_id| census_block_lat | census_block_lng | resource_id | resource_lat | resource_lng |
 |------------|---------|--------|-------|-----|-----|
 | 1| 43.4848| 102.8776| 34| 43.6464| 102.8087|
