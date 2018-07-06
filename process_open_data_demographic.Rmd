@@ -168,7 +168,7 @@ head(hateSmall)
 
 Save the result to a csv.
 ```{r}
-write.csv(hateSmall, file=file.path("clean_data","hate_crimes.csv"), row.names=FALSE)
+write.csv(hateSmall, file=file.path("clean_data","hate_crimes.csv"), na="", row.names=FALSE)
 ```
 
 ## Foreclosures
