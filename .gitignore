@@ -40,3 +40,6 @@ rsconnect/
 
 # whatever a DS store file
 .DS_Store
+
+# ignore the social media keys
+"Social Media Keys.Rmd"
