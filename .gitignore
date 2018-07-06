@@ -1,5 +1,8 @@
-# Downloaded Open Data
+# Data
 *.zip
+*.html
+raw_data
+clean_data
 
 # History files
 .Rhistory
