@@ -14,11 +14,6 @@ knitr::opts_chunk$set(echo = TRUE)
 library(googleway)
 ```
 
-###Google Places API Key
-```{r}
-places_key <- "AIzaSyBBFwzmJVkSxiwctOG6UYZGeGjbZJ_IH_4" #shhhh don't tell anyone 
-```
-
 ###OSR Organizations Names
 Here we use a list of names from all organizations leading a session in Denver extracted from our blueprint4summer list. 
 ```{r}
@@ -96,6 +91,7 @@ placeID <- google_places$results[1,'place_id'] #makes an object out the place id
 ```
 
 ###Google Place Details
+This is an example of one query per place on our list.
 ```{r}
 google_details <- google_place_details(place_id = placeID, key = places_key)
 reviews <- as.data.frame(google_details$result['reviews']) #very important we select by title since the data.frame length may vary by list 
@@ -103,6 +99,7 @@ reviews$place <- names[1]
 ```
 
 ###Putting it altogether in a loop
+This script takes the above but runs it for the lenght of the list of OSR organizations based off the export from the BluePrint4School website.
 ```{r}
 library(plyr)
 for (i in 1:(length(names))){
@@ -116,7 +113,7 @@ for (i in 1:(length(names))){
   if (length(reviews.i)>0){ #critical here, some have no reviews, if there are none we can't take em obvs, so here we skip
   reviews.i$place <- names[i]
   total_reviews <- rbind.fill(reviews.i,total_reviews)
-  print(paste("suck it google",i)) #yea! With you're free helpful api. We keep the counter per iteration here because we're a small n and we want to track any breaks
+  print(paste("thanks google",i)) #yea! With you're free helpful api. We keep the counter per iteration here because we're a small n and we want to track any breaks
   Sys.sleep(0.01)}}}
 ```
 
@@ -127,6 +124,7 @@ google_reviews_denver <- total_reviews
 ```
 
 ###Write to csv
+To share / upload to RDS.
 ```{r}
 write.csv(google_reviews_denver,"google_reviews_denver.csv")
 ```
