@@ -41,7 +41,7 @@ gdist_api <- function(origin,destination,mode,depart){
 }
 ```
 
-## Data we have should look like this:
+**Data we have should look like this:**
 | census_block_id| census_block_lat | census_block_lng | resource_id | resource_lat | resource_lng |
 |------------|---------|--------|-------|-----|-----|
 | 1| 43.4848| 102.8776| 34| 43.6464| 102.8087|
@@ -49,10 +49,10 @@ gdist_api <- function(origin,destination,mode,depart){
 | 3| 43.6726| 102.5434| 34| 43.6464| 102.8087|
 | 4| 43.8625| 102.8874|34| 43.6464| 102.8087|
 
-### Where we have census_block centroids and we want to determine their distance in relation to various resources in the city using different modes of travel.  We will have to determine a set of "resources to use" against all census blocks.  (I am open to re-thinking this as we might be pulling a lot of requests and this cost $$)
+Where we have census_block centroids and we want to determine their distance in relation to various resources in the city using different modes of travel.  We will have to determine a set of "resources to use" against all census blocks.  (I am open to re-thinking this as we might be pulling a lot of requests and this cost $$)
 
 ## Data Processing 
-### We want to pass two parameters to our function with the `origin` and `destination` using the `lat` and `lng` columns, in the form `origin="41.43206,-81.38992"` and `destiniation="-33.86748,151.20699"`. We can combine columns to match that form.  (might be a better way...)
+We want to pass two parameters to our function with the `origin` and `destination` using the `lat` and `lng` columns, in the form `origin="41.43206,-81.38992"` and `destiniation="-33.86748,151.20699"`. We can combine columns to match that form.  (might be a better way...)
 
 You can add two new columns `OCoords` and `DCoords` for origin and destination in the following way.
 
@@ -60,7 +60,7 @@ You can add two new columns `OCoords` and `DCoords` for origin and destination i
 data <- unite(data, OCoords, census_block_lat , census_block_lng, sep = ",", remove = F)
 data <- unite(data, DCoords, resource_lat, resource_lng, sep = ",", remove = F)
 ```
-### You can set up the loop like so:
+**You can set up the loop like so:**
 ```r
 for(i in 1:nrow(data)){
 
@@ -83,25 +83,24 @@ destination <- data$DCoords[i]
 ```r
 for(i in 1:nrow(data)){
 ```
-### go through each origin/destination in dataset
+**go through each origin/destination in dataset**
 ```r
 origin <- data$OCoordsi]
 destination <- data$DCoords[i]
 ```
-### There may be no valid directions, rather than end the whole process; the API will simply produce an error code where the distance and durations measures should be `try()` will let you move on to the next record
-you can set up multiple modes to run
+**There may be no valid directions, rather than end the whole process; the API will simply produce an error code where the distance and durations measures should be `try()` will let you move on to the next record you can set up multiple modes to run**
 ```r
   drive.temp <- try(gdist_api(origin=origin, destination=destination,mode='driving'), TRUE)
   trans.temp <- try(gdist_api(origin=origin, destination=destination,mode='walking'), TRUE)
 ```
-  ### assign distance & time as new variables (default time is in seconds, so dividing by 60 to get minutes)
+**assign distance & time as new variables (default time is in seconds, so dividing by 60 to get minutes)**
   ```r
   data$drive.dist[i] <- drive.temp[1]
   data$drive.dura[i] <- try(drive.temp[2] / 60, TRUE)
   data$trans.dist[i] <- trans.temp[1]
   data$trans.dura[i] <- try(trans.temp[2] / 60, TRUE)
 ```
-### rest for 1s before moving onto next record to prevent overloading API
+**rest for 1s before moving onto next record to prevent overloading API**
 ```r
   Sys.sleep(1) #might be able to do a smaller interval but will need to research
   
