@@ -217,6 +217,8 @@ math %>% arrange(StudentNumber)
 head(math)
 ```
 
+## Graduation  ##
+
 ```{r}
 graduation <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_Grad_1112-1617.csv", skip = 1)
 transportation <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_Transport.csv")
@@ -251,7 +253,9 @@ length(unique(transportation$StudentNumber))
 unique(transportation$Transportation)
  #Only one level under column Transportation: Yes 
 unique(transportation$X)
- #Not sure what this column is about, it only has NAs. 
+ #This X column is totally usefuless - let's remove it
+transportation <- transportation[,c("StudentNumber","Transportation")]
+colnames(transportation)[2] <- "HasTransportation"
 ```
 
 # STARreading
@@ -277,10 +281,10 @@ head(STARreading,6)
 
 ##Enrollment##
 ```{r}
-enrollment_copy <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_Enrollment_1112-1718.csv")
+enrollment <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_Enrollment_1112-1718.csv")
 
-head(enrollment_copy)
-summary(enrollment_copy)
+head(enrollment)
+summary(enrollment)
 ```
 
 We want locations rather than just school names, so we use the Google maps API. This takes 5-10 minutes. We also want to ultimately separate out student from school information in the RDS, so we will have school information as one dataframe and student enrollment information in another. 
@@ -305,6 +309,8 @@ write.csv(school_locations, file="school_locations.csv", row.names=FALSE)
 ```
 
 This is just so we don't have to rerun the above code. 
+
+### School Locations ###
 
 ```{r}
 school_locations <- read.csv(file="school_locations.csv")
@@ -392,6 +398,7 @@ enrollment$SchoolNum <- NULL
 # Whether student has disability is contained in PrimaryDisability as "No Disability" for 0 and 1 otherwise.
 enrollment$SwD <- NULL
 enrollment <- enrollment %>% arrange(StudentNumber)
+colnames(enrollment)[2] <- "SpringYear"
 head(enrollment,6)
 ```
 
@@ -408,7 +415,7 @@ head(school_locations,6)
 attendance <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_Attendance_1112-1718.csv", skip = 1, na.strings = " ") 
 
 #Assigning appropriate column names
-colnames(attendance) <- make.names(gsub("\\d{4}.","",colnames(attendance)))
+colnames(attendance) <- gsub("X\\d{4}.","",colnames(attendance))
 
 #Changing percentage datapoints (currently read as factors) to numerics:
 convert_percent_to_numeric <- function(y) {
@@ -491,11 +498,11 @@ It's unfortunate this data is missing, but for fear of injecting false numbers i
 attendance <- attendance[-c(117203,97075,50504, 137538, 149214, 152694),]
 ```
 
-Finally, we visualize the attendance data.
+Finally, we do some touchups and visualize the attendance data.
 
 ```{r}
-for (i in 2:ncol(attendance))
-  hist(attendance[,i],main=paste(colnames(attendance)[i],"attendance"))
+attendance <- attendance %>% gather('2012','2013','2014','2015','2016','2017','2018',key = 'SpringYear',value='AttendanceRate', na.rm=TRUE)
+head(attendance)
 ```
 
 ##CMAS Scores##
@@ -512,22 +519,168 @@ ela_proficiency_inds <- c(3,5,7)
 math_score_inds <- c(8,10,12)
 math_proficiency_inds <- c(9,11,13)
 
-cmas[c(ela_score_inds,math_score_inds),-1] <- as.numeric(cmas[c(ela_score_inds,math_score_inds),-1])
-cmas[c(ela_proficiency_inds,math_proficiency_inds,-1)] <- as.character(cmas[c(ela_proficiency_inds,math_proficiency_inds,-1)])
+df_to_numeric <- function(y) {
+  if (as.character(y)=="")
+    return(NA)
+  else
+    return(as.numeric(as.character(y)))
+}
+
+df_to_character <- function(y) {
+  if (as.character(y)=="")
+    return(NA)
+  else
+    return(as.character(y))
+}
+
+cmas[-(1:2),c(ela_score_inds,math_score_inds)] <- apply(cmas[-(1:2),c(ela_score_inds,math_score_inds)],1:2,df_to_numeric)
+cmas[-(1:2),c(ela_proficiency_inds,math_proficiency_inds)] <- apply(cmas[-(1:2),c(ela_proficiency_inds,math_proficiency_inds)],1:2,df_to_character)
 
 ela_scores <- cmas[-(1:2),c(1,ela_score_inds)]
-colnames(ela_scores) <- c("2014-2015","2015-2016","2016-2017")
+colnames(ela_scores) <- c("StudentNumber","2014-2015","2015-2016","2016-2017")
 ela_scores <- ela_scores %>% gather("2014-2015","2015-2016","2016-2017",key="SpringYear",value="ELAScores")
 ela_proficiency <- cmas[-(1:2),c(1,ela_proficiency_inds)]
-colnames(ela_proficiency) <- c("2014-2015","2015-2016","2016-2017")
+colnames(ela_proficiency) <- c("StudentNumber","2014-2015","2015-2016","2016-2017")
 ela_proficiency <- ela_proficiency %>% gather("2014-2015","2015-2016","2016-2017",key="SpringYear",value="ELAProficiency")
 math_scores <- cmas[-(1:2),c(1,math_score_inds)]
-colnames(math_scores) <- c("2014-2015","2015-2016","2016-2017")
+colnames(math_scores) <- c("StudentNumber","2014-2015","2015-2016","2016-2017")
 math_scores <- math_scores %>% gather("2014-2015","2015-2016","2016-2017",key="SpringYear",value="MathScores")
 math_proficiency <- cmas[-(1:2),c(1,math_proficiency_inds)]
-colnames(math_proficiency) <- c("2014-2015","2015-2016","2016-2017")
+colnames(math_proficiency) <- c("StudentNumber","2014-2015","2015-2016","2016-2017")
 math_proficiency <- math_proficiency %>% gather("2014-2015","2015-2016","2016-2017",key="SpringYear",value="MathProficiency")
 
-# cmas <- bind_rows(ela_scores, ela_proficiency, math_scores, math_proficiency)
-# glimpse(discipline)
+cmas <- merge(merge(merge(ela_scores, ela_proficiency),math_scores),math_proficiency)
+all_na_rows <- apply(cmas, 1, function(x) sum(is.na(x)) > 3)
+cmas <- cmas[!all_na_rows,]
+cmas$SpringYear <- sub("\\d{4}-","",cmas$SpringYear)
+
+head(cmas)
+```
+
+##Student Locations##
+
+```{r}
+student_locations <- s3read_using(FUN = read.csv, object = "s3://dssg2018/cleaned/student_block.csv")
+head(student_locations)
+```
+
+We have lots of NA values. Let's map these to see what's going on. 
+
+```{r}
+leaflet(student_locations[is.na(student_locations$blocklon),]) %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircleMarkers(
+    stroke = FALSE, label=student_locations$StudentNumber,
+    radius = 4, opacity = 1.0
+  )
+```
+
+Looks like these are all locations outside of Denver. We will remove these for now, and consider that we can use them as a check for robustness later, or perhaps for discontinuity analysis. The ones spread across the country are likely just errors. In any case, for now we'll delete those NA values.
+
+```{r}
+student_locations <- student_locations[!is.na(student_locations$blocklon),]
+```
+
+Now we delete the sensitive student locations and clean up the column names.
+
+```{r}
+student_locations <- student_locations[,c("StudentNumber","block","geoid_num","blocklon","blocklat")]
+colnames(student_locations)[4:5] <- c("lon","lat")
+```
+
+## Student Language and School Choice ##
+```{r}
+langAndChoice <- s3read_using(FUN = read.csv, object = "s3://dssg2018/cleaned/dps_choice_dems.csv")
+head(langAndChoice)
+```
+
+Let's properly format the school year column as always. 
+
+```{r}
+levels(langAndChoice$SchoolYear) <- gsub("\\d{2}-","",levels(langAndChoice$SchoolYear))
+colnames(langAndChoice)[1] <- "SpringYear"
+```
+
+Now we'll deal with language.
+
+```{r}
+lang <- langAndChoice[,c("StudentNumber","SpringYear","PrimaryHomeLanguage")]
+levels(langAndChoice$PrimaryHomeLanguage)
+```
+
+And school choice.
+
+```{r}
+head(levels(langAndChoice$RequestedSchoolName))
+```
+
+It looks like these school names have a lot more detail than our table on school locations, so we'll keep both the school name (in case we need the info) and school number (so we can easily combine this with other info) here. 
+
+```{r}
+choice <- langAndChoice[,c("StudentNumber","SpringYear","RequestedSchoolNum","RequestedSchoolName","ChoiceSelection","ChoiceStatus")]
+head(choice)
+```
+
+All said and done, we now have a ton of tables to consider:
+
+```{r}
+head(discipline)
+head(ela)
+head(math)
+head(graduation)
+head(transportation)
+head(STARreading)
+head(enrollment)
+head(school_locations)
+head(attendance)
+head(cmas)
+head(student_locations)
+head(lang)
+head(choice)
+```
+
+Finally, change all column names from camel case to lower case with hyphens, make lon into long, and remove sensitive student info from the data:
+
+```{r}
+#camel case to lower case with hyphens
+changed_col_names <- function(df) {
+  return(tolower(gsub("(?<=[a-z0-9])(?=[A-Z])", "_", colnames(df), perl = TRUE)))
+}
+colnames(discipline) <- changed_col_names(discipline)
+colnames(ela) <- changed_col_names(ela)
+colnames(math) <- changed_col_names(math)
+colnames(graduation) <- changed_col_names(graduation)
+colnames(transportation) <- changed_col_names(transportation)
+colnames(STARreading) <- changed_col_names(STARreading)
+colnames(enrollment) <- changed_col_names(enrollment)
+colnames(school_locations) <- changed_col_names(school_locations)
+colnames(attendance) <- changed_col_names(attendance)
+colnames(cmas) <- changed_col_names(cmas)
+colnames(student_locations) <- changed_col_names(student_locations)
+colnames(lang) <- changed_col_names(lang)
+colnames(choice) <- changed_col_names(choice)
+
+#lon to long
+colnames(school_locations)[colnames(school_locations)=="lon"] <- "long"
+
+#remove sensitive
+student_locations <- student_locations[,c("student_number","block","geoid_num")]
+```
+
+And finally let's save them.
+
+```{r}
+write.csv(discipline, file="discipline.csv", row.names=FALSE)
+write.csv(ela, file="ela.csv", row.names=FALSE)
+write.csv(math, file="math.csv", row.names=FALSE)
+write.csv(graduation, file="graduation.csv", row.names=FALSE)
+write.csv(transportation, file="transportation.csv", row.names=FALSE)
+write.csv(STARreading, file="star_reading.csv", row.names=FALSE)
+write.csv(enrollment, file="enrollment.csv", row.names=FALSE)
+write.csv(school_locations, file="school_locations.csv", row.names=FALSE)
+write.csv(attendance, file="attendance.csv", row.names=FALSE)
+write.csv(cmas, file="cmas.csv", row.names=FALSE)
+write.csv(student_locations, file="student_locations.csv", row.names=FALSE)
+write.csv(lang, file="lang.csv", row.names=FALSE)
+write.csv(choice, file="choice.csv", row.names=FALSE)
 ```
