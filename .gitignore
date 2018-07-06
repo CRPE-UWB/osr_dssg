@@ -1,5 +1,4 @@
 # Data
-*.zip
 *.html
 *.zip
 *.csv
@@ -48,4 +47,3 @@ rsconnect/
 
 # ignore the social media keys
 "Social Media Keys.Rmd"
-
