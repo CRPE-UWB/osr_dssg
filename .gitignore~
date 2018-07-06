@@ -1,7 +1,11 @@
 # Data
 *.zip
 *.html
+<<<<<<< HEAD
 *.zip
+*.csv
+=======
+>>>>>>> 37a66f6211c6413e36f5860b45e1dc9a37f1f9e0
 raw_data
 clean_data
 
@@ -47,4 +51,7 @@ rsconnect/
 
 # ignore the social media keys
 "Social Media Keys.Rmd"
+<<<<<<< HEAD
 
+=======
+>>>>>>> 37a66f6211c6413e36f5860b45e1dc9a37f1f9e0
