@@ -10,7 +10,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ###API Codebook
-
 Metrics and Dimensions codebook: https://developers.google.com/analytics/devguides/reporting/core/dimsmets
 
 ###Packedge we be using
@@ -36,15 +35,29 @@ ga_id_one <- account_list$viewId[1]
 ga_id_two <- account_list$viewId[2]
 ```
 
+###Understanding "PathLevel" Dimension 
+Of all the dimensions we could have picked why PathLevel? Why not something more for n of searches or search traffic data? 
+
+In short- because the former too return primarily null values because they are not correctly specified for the internal search engine on the site. Or so the internet tells me. "PathLevel" is the only metric that returns details related to user searches (in this case at the user level, though we could perform "session" analysis with say, page views), in the form of the url which contains the search features.
+
+PagePath is a "Page Level" dimensions, e.g PathLevel by "Level" risks double counting if not "Paths" are discrete categories, which it appears they're not. In other words, PathLevelOne & Two are not actually about the person, like, not about their "path", but rather about aggergating at levels like, www.example.com/path1/page1, vs. /path2/page2. Hence, why path3 == only user profiles. But why in the hell then, path1 & path2 both give us different ns of search results, and that this is also different from general path, is confusing. Do some more research. 
+
+See the following links for more explanation:
+
+https://www.quora.com/In-Google-analytics-custom-Reporting-what-is-Page-path-level-definition
+
+https://analyticscanvas.com/session-vs-page-level-dimensions-google-analytics/
+
+https://www.optimizesmart.com/complete-guide-to-dimensions-and-metrics-in-google-analytics/
 
 ###Pulling Path Level Data
 ```{r}
-#works
+#By Path
 PathLevel <- google_analytics(
   ga_id_two, 
   date_range=c("2018-01-01",(todays_date)),
-  metrics=c('Users','timeOnPage','pageviews','pageviewsPersession','uniquePageviews'),
-  dimensions =c('Latitude','Longitude',"PagePath",'SecondPagePath',"pageTitle"),max=50000)
+  metrics=c('Users','timeOnPage','pageviews','uniquePageviews'),
+  dimensions =c('Latitude','Longitude',"PagePath","dateHourMinute"),max=50000)
 ```
 
 ###Parsing Search Path Function
@@ -62,8 +75,59 @@ ParsePath <- function(htmlString) {
 ```
 
 ###Creating recognition functions
-These functions read the full parsed html string, determine the feature, and then return the split version of the url.
+These functions read the full parsed html string, determine the feature, and then return the split version of the url. Could we have combined these with the cleaning function? Probably. 
 ```{r}
+ReturnKeyWords <- function(x){
+  check <- grepl("keywords",x)
+    if(check==TRUE){
+    stringcheck <- str_split_fixed(x,",",Inf)
+    for (i in 1:(length(stringcheck))){
+      check.i <- grepl("keywords",stringcheck[i])
+      if (check.i==TRUE){
+        return(stringcheck[i])}
+    }}}
+
+Returnscholarships <- function(x){
+  check <- grepl("sessionAttributes",x)
+    if(check==TRUE){
+    stringcheck <- str_split_fixed(x,",",Inf)
+    for (i in 1:(length(stringcheck))){
+      check.i <- grepl("scholarships",stringcheck[i])
+      if (check.i==TRUE){
+        return(stringcheck[i])}
+    }}}
+
+ReturnspecialNeeds <- function(x){
+  check <- grepl("sessionAttributes",x)
+    if(check==TRUE){
+    stringcheck <- str_split_fixed(x,",",Inf)
+    for (i in 1:(length(stringcheck))){
+      check.i <- grepl("specialNeeds",stringcheck[i])
+      if (check.i==TRUE){
+        return(stringcheck[i])}
+    }}}
+
+ReturnGifted <- function(x){
+  check <- grepl("sessionAttributes",x)
+    if(check==TRUE){
+    stringcheck <- str_split_fixed(x,",",Inf)
+    for (i in 1:(length(stringcheck))){
+      check.i <- grepl("giftedStudent",stringcheck[i])
+      if (check.i==TRUE){
+        return(stringcheck[i])}
+    }}}
+
+ReturnBeforeCare <- function(x){
+  check <- grepl("sessionAttributes",x)
+    if(check==TRUE){
+    stringcheck <- str_split_fixed(x,",",Inf)
+    for (i in 1:(length(stringcheck))){
+      check.i <- grepl("offersBeforeAfterCare",stringcheck[i])
+      if (check.i==TRUE){
+        return(stringcheck[i])}
+    }}}
+
+
 ReturnTime <- function(x){
   check <- grepl("sessionTimes",x)
   if(check==TRUE){
@@ -71,7 +135,7 @@ ReturnTime <- function(x){
     for (i in 1:(length(stringcheck))){
       check.i <- grepl("sessionTimes",stringcheck[i])
       if (check.i==TRUE){
-        print(stringcheck[i])}
+        return(stringcheck[i])}
     }}}
 
 ReturnMaxCost <- function(x){
@@ -81,7 +145,7 @@ ReturnMaxCost <- function(x){
     for (i in 1:(length(stringcheck))){
       check.i <- grepl("maximumCost",stringcheck[i])
       if (check.i==TRUE){
-        print(stringcheck[i])}
+        return(stringcheck[i])}
     }}}
 
 ReturnMinCost <- function(x){
@@ -91,7 +155,7 @@ ReturnMinCost <- function(x){
     for (i in 1:(length(stringcheck))){
       check.i <- grepl("minimumCost",stringcheck[i])
       if (check.i==TRUE){
-        print(stringcheck[i])}
+        return(stringcheck[i])}
     }}}
 
 ReturnDistance <- function(x){
@@ -101,7 +165,7 @@ ReturnDistance <- function(x){
     for (i in 1:(length(stringcheck))){
       check.i <- grepl("distance",stringcheck[i])
       if (check.i==TRUE){
-        print(stringcheck[i])}
+        return(stringcheck[i])}
     }}}
 
 ReturnCategory <- function(x){
@@ -111,7 +175,7 @@ ReturnCategory <- function(x){
     for (i in 1:(length(stringcheck))){
       check.i <- grepl("Categories",stringcheck[i])
       if (check.i==TRUE){
-        print(stringcheck[i])}
+        return(stringcheck[i])}
     }}}
 
 ReturnGender <- function(x){
@@ -123,18 +187,69 @@ ReturnGender <- function(x){
       if (check.i==TRUE){
         return(stringcheck[i])}
     }}}
+
+ReturnMaxAge <- function(x){
+  check <- grepl("maximumAge",x)
+  if(check==TRUE){
+    stringcheck <- str_split_fixed(x,",",Inf)
+    for (i in 1:(length(stringcheck))){
+      check.i <- grepl("maximumAge",stringcheck[i])
+      if (check.i==TRUE){
+        return(stringcheck[i])}
+    }}}
+
+ReturnMinAge <- function(x){
+  check <- grepl("minimumAge",x)
+  if(check==TRUE){
+    stringcheck <- str_split_fixed(x,",",Inf)
+    for (i in 1:(length(stringcheck))){
+      check.i <- grepl("minimumAge",stringcheck[i])
+      if (check.i==TRUE){
+        return(stringcheck[i])}
+    }}}
+
+ReturnSort <-function(x){
+  check <- grepl("sort",x)
+  if(check==TRUE){
+    stringcheck <- str_split_fixed(x,",",Inf)
+    for (i in 1:(length(stringcheck))){
+      check.i <- grepl("sort",stringcheck[i])
+      if (check.i==TRUE){
+        return(stringcheck[i])}
+    }}}
+
+ReturnLocation <- function(x){
+  check <- grepl("currentLocation",x)
+  if(check==TRUE){
+    stringcheck <- str_split_fixed(x,",",Inf)
+    for (i in 1:(length(stringcheck))){
+      check.i <- grepl("currentLocation",stringcheck[i])
+      if (check.i==TRUE){
+        return(stringcheck[i])}
+    }}}
+  
 ```
 
-###Applying them functions
+###Parsing the Clean Paths
 Using our functions to fill out categories
 ```{r}
-PathLevel$CleanPath <- ParsePath(PathLevel$PagePath)
+PathLevel$CleanPath <- ParsePath(PathLevel$PagePath) #critical first stage, standardizes the different features of the html hash
+
 PathLevel$gender <- sapply(PathLevel$CleanPath,ReturnGender)
 PathLevel$distance <- sapply(PathLevel$CleanPath,ReturnDistance)
 PathLevel$category <- sapply(PathLevel$CleanPath,ReturnCategory)
 PathLevel$mincost <- sapply(PathLevel$CleanPath,ReturnMinCost)
 PathLevel$maxcost <- sapply(PathLevel$CleanPath,ReturnMaxCost)
 PathLevel$sessiontimes <- sapply(PathLevel$Clean,ReturnTime)
+PathLevel$maxage <- sapply(PathLevel$CleanPath,ReturnMaxAge)
+PathLevel$minage <- sapply(PathLevel$CleanPath,ReturnMinAge)
+PathLevel$sort <- sapply(PathLevel$CleanPath,ReturnSort)
+PathLevel$location <- sapply(PathLevel$CleanPath,ReturnLocation)
+PathLevel$scholarships <- sapply(PathLevel$CleanPath,Returnscholarships)
+PathLevel$specialneeds <- sapply(PathLevel$CleanPath,ReturnspecialNeeds)
+PathLevel$beforeaftercare <- sapply(PathLevel$CleanPath,ReturnBeforeCare)
+PathLevel$gifted <- sapply(PathLevel$CleanPath,ReturnGifted)
+PathLevel$keywords <- sapply(PathLevel$CleanPath,ReturnKeyWords)
 ```
 
 ###Cleaning Functions
@@ -154,13 +269,24 @@ PathLevel$category <- sapply(PathLevel$category,CleanHash)
 PathLevel$mincost <- sapply(PathLevel$mincost,CleanHash)
 PathLevel$maxcost <- sapply(PathLevel$maxcost,CleanHash)
 PathLevel$sessiontimes <- sapply(PathLevel$sessiontimes,CleanHash)
+PathLevel$minage <- sapply(PathLevel$minage,CleanHash)
+PathLevel$maxage <- sapply(PathLevel$maxage,CleanHash)
+PathLevel$sort <- sapply(PathLevel$sort,CleanHash)
+PathLevel$location <- sapply(PathLevel$location,CleanHash)
+PathLevel$scholarships <- sapply(PathLevel$scholarships,CleanHash)
+PathLevel$specialneeds <- sapply(PathLevel$specialneeds,CleanHash)
+PathLevel$beforeaftercare <- sapply(PathLevel$beforeaftercare,CleanHash)
+PathLevel$gifted <- sapply(PathLevel$gifted,CleanHash)
+PathLevel$keywords <- sapply(PathLevel$keywords,CleanHash)
 ```
 
 ###Aggregating Users By Category & Lat/Lon
-While we may have started our report with several different metrics, here we're only interested in the number of users searching for "x" features at "y" lat/lon. 
+While we may have started our report with several different metrics and uniquepaths, here we're only interested in the number of users searching for "x" features at "y" lat/lon. So we make a simpler data.frame from here on out. 
 ```{r}
-Search_Summary  <- aggregate(Users ~ gender+distance+category+mincost+maxcost+sessiontimes+Latitude+Longitude,PathLevel,sum)
-colnames(Search_Summary) <- c("gender","distance","category","mincost","maxcost","sessiontimes","Lat","Long","Users") #updating colnames
-GoogleSearchData <- Search_Summary #making final name
+Search_Summary  <- aggregate(Users ~ gender+distance+category+mincost+maxcost+sessiontimes+minage+maxage+sort+location+scholarships+specialneeds+beforeaftercare+gifted+keywords+Latitude+Longitude,PathLevel,sum)
+colnames(Search_Summary) <- c("gender","distance","category","mincost"
+,"maxcost","sessiontimes","minage","maxage"
+,"sort","location","scholarships","specialneeds","beforeaftercare","gifted","keywords","lat","long","users")
+
 ```
 
