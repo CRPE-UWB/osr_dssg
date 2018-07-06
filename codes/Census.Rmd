@@ -1,0 +1,462 @@
+---
+title: "Newnotebook"
+author: "Haowen Zheng"
+date: "6/20/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include = FALSE}
+library(tidyverse)
+library(rgdal)
+# shape_afterschool <- readOGR("/Users/luna/Desktop/DSSG/data/afterschool_programs", "afterschool_programs")
+```
+
+### 1. Neighborhood level demographics from Open Denver 
+
+I used it as a partial template for the construction of some variables. 
+
+```{r}
+demographics <- read.csv(file = "american_community_survey_nbrhd_2011_2015.csv")
+
+str(demographics)
+demographics$MED_FAMILY_INCOME
+head(demographics)
+```
+
+### 2. Census data on block group level, Denver County. From ACS 2016. Estimates are based on 5 year average (2012-2016)
+
+We will end up with one big file besides the seperate files we intentionally left as seperate files. "Census" contains all demographic estimates. 
+
+#### Population counts 
+```{r}
+# get data 
+population <- read.csv("ACS_16_5YR_B01003_with_ann.csv", skip = 1)
+
+colnames(population)[which(names(population_ME) == "Estimate..Total")] <- "TTL_population" #rename columns
+colnames(population)[which(names(population_ME) == "Margin.of.Error..Total")] <- "Margin.of.Error..TP"
+
+population <- select(population, -5) #get rid of Margins of Error
+```
+
+#### Sex
+```{r}
+#the file from AFF is age by sex
+sexage <- read.csv("ACS_16_5YR_B01001_with_ann.csv", skip = 1)
+
+#first look at sex
+sex <- sexage %>% 
+  select(c("Id","Estimate..Male.", "Estimate..Female."))
+
+colnames(sex_ME)[2:3] <- c("Male", "Female")
+
+#merge sex into census
+census <- left_join(population, sex, by = "Id")
+head(census)
+```
+
+#### Age
+```{r}
+#age groups
+age <- sexage 
+age$Estimate..Male. <- NULL
+age$Estimate..Female. <- NULL
+
+age <- age%>% 
+  select(-contains("Margin")) 
+
+#Combine the age groups 
+ #1. combine male and females under the same age group
+#Extracting the names of the columns that need to be modified
+column_names = colnames(age)[5:27]
+#Extracting the appropriate string to name the modified columns
+modified_column_name = sapply(1:length(column_names), function(x) sub(".*Male....", "", column_names[x]))
+#Adding the columns that are necessary and giving them appropriate names
+added_columns = cbind(age[,5:27] + cbind(age[,28:50]))
+added_columns = as.data.frame(added_columns)
+colnames(added_columns) = modified_column_name
+#Delete the columns not required and adding the modified columns to the main censusage dataset
+age2 <- age[-c(2:3, 5:50)]
+age2 <- cbind(age2,added_columns)
+
+colnames(age2)[2:6] <- c("Total", "Age_Less_5", "Age_5_to_9", "Age_10_to_14", "Age_15_to_17") #rename columns
+
+age3 <- age2 %>%  #add up columns to get new age groups with bigger age ranges 
+  mutate(Age_Less_18 = rowSums(.[3:6])) %>%
+  mutate(Age_0_to_9 = rowSums(.[3:4]), Age_10_to_19 = rowSums(.[5:7]), Age_20_to_29 = rowSums(.[8:11]), 
+         Age_30_to_39 = rowSums(.[12:13]), Age_40_to_49 = rowSums(.[14:15]), Age_50_to_59 = rowSums(.[16:17]),
+         Age_60_to_69 = rowSums(.[18:21]), Age_70_to_79 = rowSums(.[22:23]), Age_80_and_over = rowSums(.[24:25]),
+         PCT_Less_18 = Age_Less_18/Total * 100) 
+age_final <- age3
+head(age_final)
+
+census <- left_join(census, age_final, by = "Id") #merge age into census
+
+head(census)
+```
+
+#### Race
+
+We want both the counts and percentages of each race.
+
+```{r}
+#race
+race_ME <- read.csv("ACS_16_5YR_B02001_with_ann.csv", skip = 1)
+
+race <- race_ME%>% 
+  select(-contains("Margin")) 
+
+#Extracting the names of the columns that need to be modified
+column_names <- colnames(race)[5:13]
+#Extracting and manupulating the appropriate string to name the modified columns
+modified_column_name1 <- sapply(1:length(column_names), function(x) gsub(".*Total....", "", column_names[x]))
+modified_column_name <- sapply(1:length(modified_column_name1), function(x) paste0("PCT ", modified_column_name1[x]))
+
+#Obtaining the percentages
+additional_columns <- (race[,5:13]/race[,4])*100
+#Renaming the column names
+additional_columns <- as.data.frame(additional_columns)
+colnames(additional_columns) <- modified_column_name
+
+#Delete the columns not required and adding the modified columns to the main censusage dataset
+race_final <- cbind(race, additional_columns) 
+race_final <- race_final[-c(2:4)]
+#rename columns
+
+race_final$Two.or.more.races <- rowSums(race_final[8:10])
+race_final[,8:10] <- NULL
+race_final$PCT_Two.or.more.races <- rowSums(race_final[14:16])
+race_final[,14:16] <- NULL
+
+colnames(race_final)[2:7] <- c("White", "Black", "AmericanIndian", "Asian", "PacificIslanders", "OtherRaces")
+colnames(race_final)[8:13] <- c("PCT_White", "PCT_African", "PCT_AmericanIndian", "PCT_Asian", "PCT_PacificIslander", "PCT_OtherRaces")
+
+race_final <- race_final %>%
+              select(Id:OtherRaces, Two.or.more.races, PCT_White:PCT_OtherRaces, PCT_Two.or.more.races)
+
+head(race_final)
+
+#get ethnicity "Hispanics" 
+hispanic <- read.csv("ACS_16_5YR_B03003.csv", skip = 1)
+hispanic <- hispanic %>% select(Id, Estimate..Total....Hispanic.or.Latino)
+colnames(hispanic)[2] <- "Hispanic"
+
+head(hispanic)
+
+race.ethnicity <- left_join(race_final, hispanic, by = "Id")
+census <- left_join(census, race.ethnicity, by = "Id")
+census$PCT_Hispanic <- census$Hispanic/census$TTL_population * 100
+
+head(census)  
+```
+
+#### Education levels
+
+Categories include TTPOP_25PLUS_EDU, LESS_THAN_HS_DIPLOMA, HSGREAD_OR_EQUIV_EDU, SOMECOLLEGE_OR_AA_EDU, BACHELORS_OR_HIGHER_EDU
+
+``` {r}
+census_edu_ME <- read.csv("ACS_16_5YR_B15003.csv", skip = 1)
+census_edu <- census_edu_ME %>% select(-contains("Margin")) 
+colnames(census_edu)[which(names(census_edu) == "Estimate..Total.")] <- "TTPOP_25PLUS_EDU" #rename "estimate total" column to "total population aged 25 years and above"
+
+census_edu$LESS_THAN_HS_DIPLOMA <- rowSums(census_edu[, 5:19]) #recategorize educational levels
+census_edu$HSGREAD_OR_EQUIV_EDU <- rowSums(census_edu[,c(20, 21)])  
+census_edu$SOMECOLLEGE_OR_AA_EDU <- rowSums(census_edu[, 22:24])
+census_edu$BACHELORS_OR_HIGHER_EDU <- rowSums(census_edu[, 25:28])
+
+census_edu.final <- census_edu %>% select(-c(2:3,5:28))
+
+head(census_edu.final)
+census <- left_join(census, census_edu.final, by = "Id") #merge 
+
+head(census)
+```
+
+#### Income
+
+Census blog group level, median household income (in the past 12 months, adjusted in 2016 inflation money), Source: U.S. Census Bureau, 2012-2016 American Community Survey 5-Year Estimates. [Source](https://factfinder.census.gov/faces/tableservices/jsf/pages/productview.xhtml?pid=ACS_16_5YR_B19013&prodType=table)
+
+```{r}
+median_hh_income <- read.csv("ACS_16_5YR_B19013.csv", skip = 1)
+median_hh_income[, c(2,3,5)] <- NULL #get rid of the marigin of error
+colnames(median_hh_income)[2] <- "Median_HH_income"
+
+head(median_hh_income)
+census <- left_join(census, median_hh_income, by = "Id")
+
+head(census)
+```
+
+#### Nativity
+```{r}
+nativity_ME <- read_csv("ACS_16_5YR_B99051.csv", skip = 1)
+nativity <- nativity_ME %>% 
+            select(-contains("llocated")) %>% #I got rid of the missing data computation; and only kept the total estimates
+            select(-c(2,3,4)) #get rid of the Margins of Error
+nativity <- nativity[,1:2]  #remove the repetitive columns   
+colnames(nativity)[2] <- "Native"
+
+head(nativity)
+census <- left_join(census, nativity, by = "Id")
+head(census)
+```
+
+#### Housing tenure
+```{r}
+housing <- read.csv("ACS_16_5YR_B25044.csv", skip = 1)
+
+housing <- housing %>% select(-contains("Margin"))
+
+housing$PCT_Housing_rent <- housing$Estimate..Renter.occupied./housing$Estimate..Total. * 100
+housing$PCT_Vehicle_none <- (housing$Estimate..Owner.occupied....No.vehicle.available +          
+                            housing$Estimate..Renter.occupied....No.vehicle.available)/
+                            housing$Estimate..Total. * 100
+housing$PCT_Vehicle_own <- (housing$Estimate..Owner.occupied....1.vehicle.available + 
+                            housing$Estimate..Owner.occupied....2.vehicles.available +
+                            housing$Estimate..Owner.occupied....3.vehicles.available +
+                            housing$Estimate..Owner.occupied....4.vehicles.available +
+                            housing$Estimate..Owner.occupied....5.or.more.vehicles.available +
+                            housing$Estimate..Renter.occupied....1.vehicle.available +
+                            housing$Estimate..Renter.occupied....2.vehicles.available +
+                            housing$Estimate..Renter.occupied....3.vehicles.available +
+                            housing$Estimate..Renter.occupied....4.vehicles.available +
+                            housing$Estimate..Renter.occupied....5.or.more.vehicles.available)/
+                            housing$Estimate..Total. * 100
+housing <- housing %>%
+           select(Id, PCT_Housing_rent, PCT_Vehicle_none, PCT_Vehicle_own)
+
+head(housing)
+
+census <- left_join(census, housing, by = "Id")
+
+head(census)
+```
+
+#### Language
+``` {r}
+########################################################################################################
+#Sree's code to tidy the data set.
+languagedata = read.csv(file = "ACS_16_5YR_B16004.csv", skip = 1, na.strings = "")
+
+#Selecting only the 'estimate' columns and deleting all the 'margin of erro'r columns
+languagedata <- languagedata[,c(1,2,3,4,seq(50,ncol(languagedata),2))]
+
+#Selecting only the 'estimate' columns and deleting all the 'margin of erro'r columns
+languagedata_1 <- languagedata[,-c(1:7,12, 17, 22, 27:29, 34, 39, 44)]
+languagedata_2 <- languagedata[, c(1:7,12, 17, 22, 27:29, 34, 39, 44)]
+
+modified_columns = cbind(languagedata_1[c(seq(1,31,2))] + languagedata_1[c(seq(2,32,2))])
+
+languagedata_final = cbind(languagedata_2, modified_columns)
+
+#Making the column names much better
+library(magrittr)
+
+x = colnames(languagedata_final)
+x %<>% gsub("Estimate..", "", .) %>% gsub(".years....", "", .) %>% gsub("over....", "", .) %>% gsub("Speak", "", .)
+
+#Assigning the column names
+colnames(languagedata_final) = x
+########################################################################################################
+
+language <- languagedata_final
+language$TTPOP_18PLUS_LNG <- language$X18.to.64.years. + language$X65.over. #combine across the two age groups
+language$LNG_English <- language$X18.to.64.only.English + language$X65..only.English
+language$LNG_Spanish <- language$X18.to.64.Spanish. + language$X65..Spanish.
+language$LNG_Spanish_English_bad <- language$X18.to.64.Spanish.....English..not.well. + language$X65..Spanish.....English..not.well.
+language$LNG_IndoEuropean <- language$X18.to.64.other.Indo.European.languages. + language$X65..other.Indo.European.languages.
+language$LNG_IndoEuropean_English_bad <- language$X18.to.64.other.Indo.European.languages.....English..not.well. + 
+                                         language$X65..other.Indo.European.languages.....English..not.well.
+language$LNG_AsianPacific <- language$X18.to.64.Asian.and.Pacific.Island.languages. + language$X65..Asian.and.Pacific.Island.languages.
+language$LNG_AsianPacific_English_bad <- language$X18.to.64.Asian.and.Pacific.Island.languages.....English..not.well. +
+                                         language$X65..Asian.and.Pacific.Island.languages.....English..not.well.
+language$LNG_Others <- language$X18.to.64.other.languages. + language$X65..other.languages.
+language$LNG_Others_English_bad <- language$X18.to.64.other.languages.....English..not.well. + 
+                                   language$X65..other.languages.....English..not.well.
+language_final <- language %>% select(Id, TTPOP_18PLUS_LNG:LNG_Others_English_bad)
+    
+head(language_final)
+
+census <- left_join(census, language_final, by = "Id") #merge into "census"
+head(census)
+```
+
+#### Poverty
+
+POVERTY STATUS IN THE PAST 12 MONTHS OF FAMILIES BY FAMILY TYPE BY PRESENCE OF RELATED CHILDREN UNDER 18 YEARS BY AGE OF RELATED CHILDREN
+ 
+```{r}
+#read in data
+homecomposition <- read.csv("ACS_16_5YR_B17010.csv", skip = 1)
+#first get rid of the families that do not have children under 18 years old.
+poverty <- homecomposition
+poverty$Poverty_TTL_HH <- poverty$Estimate..Total. -
+  poverty$Estimate..Income.in.the.past.12.months.below.poverty.level....Married.couple.family....No.related.children.of.the.householder.under.18.years -
+  poverty$Estimate..Income.in.the.past.12.months.below.poverty.level....Other.family....Male.householder..no.wife.present....No.related.children.of.the.householder.under.18.years -
+  poverty$Estimate..Income.in.the.past.12.months.below.poverty.level....Other.family....Female.householder..no.husband.present....No.related.children.of.the.householder.under.18.years -
+  poverty$Estimate..Income.in.the.past.12.months.at.or.above.poverty.level....Married.couple.family....No.related.children.of.the.householder.under.18.years -
+  poverty$Estimate..Income.in.the.past.12.months.at.or.above.poverty.level....Other.family....Male.householder..no.wife.present....No.related.children.of.the.householder.under.18.years -
+  poverty$Estimate..Income.in.the.past.12.months.at.or.above.poverty.level....Other.family....Female.householder..no.husband.present....No.related.children.of.the.householder.under.18.years
+
+poverty$Poverty_HH <-   homecomposition$Estimate..Income.in.the.past.12.months.below.poverty.level. -
+           homecomposition$Estimate..Income.in.the.past.12.months.below.poverty.level....Married.couple.family....No.related.children.of.the.householder.under.18.years -
+           homecomposition$Estimate..Income.in.the.past.12.months.below.poverty.level....Other.family....Male.householder..no.wife.present....No.related.children.of.the.householder.under.18.years -
+           homecomposition$Estimate..Income.in.the.past.12.months.below.poverty.level....Other.family....Female.householder..no.husband.present....No.related.children.of.the.householder.under.18.years
+
+#get the percentage of families that have children under 18 years old and are under poverty line 
+poverty$PCT_HH_Poverty <- poverty$Poverty_HH/poverty$Poverty_TTL_HH * 100
+
+poverty <- poverty %>% select(Id, Poverty_TTL_HH, Poverty_HH, PCT_HH_Poverty)
+colnames(poverty)[2] <- "TTL_HH_Children_under_18" 
+colnames(poverty)[4] <- "Poverty_PCT_HH"
+
+head(poverty)
+census <- left_join(census, poverty, by = "Id")
+head(census)
+```
+
+#### Home composition
+```{r}
+homecomposition <- homecomposition %>%
+                   select(-contains("Margin"))
+
+#married-couple hhs, single-dad hhs, single-mom hhs with children under 18 years old
+homecomposition$MarriedCouple_HH <-
+  homecomposition$Estimate..Income.in.the.past.12.months.below.poverty.level....Married.couple.family....With.related.children.of.the.householder.under.18.years. +
+  homecomposition$Estimate..Income.in.the.past.12.months.at.or.above.poverty.level....Married.couple.family....With.related.children.of.the.householder.under.18.years.
+
+homecomposition$SingleDad_HH <- 
+  homecomposition$Estimate..Income.in.the.past.12.months.below.poverty.level....Other.family....Male.householder..no.wife.present....With.related.children.of.the.householder.under.18.years. +
+  homecomposition$Estimate..Income.in.the.past.12.months.at.or.above.poverty.level....Other.family....Male.householder..no.wife.present....With.related.children.of.the.householder.under.18.years.
+
+homecomposition$SingleMom_HH <- 
+  homecomposition$Estimate..Income.in.the.past.12.months.below.poverty.level....Other.family....Female.householder..no.husband.present....With.related.children.of.the.householder.under.18.years. +
+  homecomposition$Estimate..Income.in.the.past.12.months.at.or.above.poverty.level....Other.family....Female.householder..no.husband.present....With.related.children.of.the.householder.under.18.years.
+  
+#PCT
+homecomposition$TTL_HH <- poverty$TTL_HH_Children_under_18
+homecomposition$PCT_MarriedCouple_HH <- homecomposition$MarriedCouple_HH/homecomposition$TTL_HH * 100
+homecomposition$PCT_SingleDad_HH <- homecomposition$SingleDad_HH/homecomposition$TTL_HH * 100
+homecomposition$PCT_SingleMom_HH <- homecomposition$SingleMom_HH/homecomposition$TTL_HH * 100
+
+homecomposition <- homecomposition %>% 
+  select(Id, MarriedCouple_HH, SingleDad_HH, SingleMom_HH, PCT_MarriedCouple_HH, PCT_SingleDad_HH, PCT_SingleMom_HH)
+
+head(homecomposition)
+census <- left_join(census, homecomposition, by = "Id")
+head(census)
+
+write.csv(census, file = "Denver Demographics on block group level 2016.csv")
+census <- read.csv("/Users/luna/Desktop/DSSG/ors/data/clean data/Denver Demographics on block group level 2016.csv")
+```
+
+### 3. Separate files
+
+#### Commuting
+
+Means of transportation to work by travel time to work for workers 16 years and over who did not work at home.
+Leave the file for future manipulation. 
+
+```{r}
+commute <- read_csv("/Users/luna/dssg2018/osr_dssg2018/data/raw data/Commute data/ACS_16_5YR_B08134.csv")
+# commute <- commute %>% select(-contains("Margin"))
+
+colnames(commute) = dbSafeNames(colnames(commute))
+
+head(commute)
+```
+
+### 4. Shapefile 
+
+I got the shapefile from Tiger/Line and merged it into the census dataset. 
+
+```{r}
+shape_conorado <- readOGR("/Users/luna/Desktop/tl_2016_08_bg", "tl_2016_08_bg")
+
+census$Id2 <- as.character(census$Id2)
+census$Id2 <- paste0("0", census$Id2)
+
+#merge 
+library(tigris)
+shape_census <- geo_join(shape_conorado, census, "GEOID", "Id2", how = "inner")
+
+#write the shapefile
+writeOGR(obj=shape_census, dsn="shape_census", layer="shape_census", driver="ESRI Shapefile")
+
+#try if it works
+#shape_census <- readOGR(dsn="/Users/luna/dssg2018/osr_dssg2018/data/shape_census", layer="shape_census")
+```
+
+### 5. Reformatting
+
+```{r}
+# change column names
+# make names db safe: no '.' or other illegal characters,
+# all lower case and unique
+dbSafeNames = function(names) {
+  names = gsub('[^a-z0-9]+','_',tolower(names))
+  names = make.names(names, unique=TRUE, allow_=TRUE)
+  names = gsub('.','_',names, fixed=TRUE)
+  names
+}
+
+colnames(census) = dbSafeNames(colnames(census))
+
+#write a new csv
+write.csv(census, file ="Denver Demographics on block group level 2016.csv")
+
+#get the codebook
+filenameList <- c("Denver Demographics on block group level 2016.csv")
+
+maxVars <- 70
+codebook <- data.frame(matrix(nrow=maxVars, ncol=0))
+
+for (filename in filenameList) {
+  # load csv into workspace
+  file <- read.csv(file.path("/Users/luna/dssg2018/osr_dssg2018/data/clean data",filename) )
+  
+  vars <- rep(NA, maxVars)
+  vars[1:length(names(file))] <- names(file)
+  
+  # save column names to dataframe
+  codebook[[filename]] <- vars
+}
+
+write.csv(codebook, file=file.path("/Users/luna/dssg2018/osr_dssg2018/data/clean data","codebook_resources.csv"), row.names=FALSE)
+```
+
+### 6. Upload
+
+```{r}
+# install.packages("RPostgreSQL")
+
+require("RPostgreSQL")
+
+# loads the PostgreSQL driver
+drv <- dbDriver("PostgreSQL")
+
+# creates a connection to the postgres database
+# note that "con" will be used later in each connection to the database
+source('/Users/luna/Desktop/DSSG/ors/other/keyforRDS')
+
+con <- dbConnect(drv, dbname = "dssg2018uw",
+                 host = "localhost", port =9000,
+                 user = user, password = password)
+
+#here you will do what you need to do in the database.. like
+dbWriteTable(con, c("clean", "acs_demographics"), value = census, row.names = FALSE)
+dbWriteTable(con, c("raw", "commute"), value = commute, row.names = FALSE)
+## dbWriteTable(con, c("raw", "acs_commute"), value = commute, row.names = FALSE) #unsuccessful
+## did not upload the shapefile, waiting for the new database 
+
+#or: 
+#sql_df = dbGetQuery(con, "select * from _schema.table_")
+
+#when you're done, close the connection and unload the driver 
+dbDisconnect(con) 
+dbUnloadDriver(drv)
+```
+

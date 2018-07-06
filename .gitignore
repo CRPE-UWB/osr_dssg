@@ -1,8 +1,9 @@
-# CSVs
-*.csv
-
-# Downloaded Open Data
+# Data
 *.zip
+*.html
+*.zip
+raw_data
+clean_data
 
 # History files
 .Rhistory
@@ -40,3 +41,10 @@ vignettes/*.pdf
 
 # Shiny token, see https://shiny.rstudio.com/articles/shinyapps.html
 rsconnect/
+
+# whatever a DS store file
+.DS_Store
+
+# ignore the social media keys
+"Social Media Keys.Rmd"
+
