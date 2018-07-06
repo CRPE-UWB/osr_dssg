@@ -1,0 +1,278 @@
+---
+title: "Denver Open Data Processing - Demographic(ish) Information"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Uncomment the line below if you're using RStudio to run the file
+# (don't use if you're running knitr)
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))  # makes sure data files are saved in same location as this file
+```
+
+Load the necessary libraries. 
+
+```{r libs, message=FALSE, results="hide"}
+library(tidyverse)
+library(rgdal)  # for working with spatial data frames
+library(rgeos)  # for working with spatial data frames
+library(splitstackshape)  # for splitting strings and turning into binary columns
+library(gsheet)  # only needed for the afterschool programs, to merge with annotated data
+library(ggmap)  # use for geocoding hate crime data
+```
+
+Some functions we will need for data processing:
+
+```{r functions, message=FALSE, results="hide"}
+# Create a directory in the current working directory, if one with the given name doesn't exist yet
+#    input:   name of directory to create (string)
+#    output:  n/a
+MakeDir <- function(dirName) {
+  dataDir <- file.path(getwd(), dirName)
+  if (!dir.exists(dataDir)) {
+    dir.create(dataDir)
+  }
+}
+
+# Function to load data from Denver Open Data shapefiles
+#     input:   name of zip file - see url where data resides to find this (string)
+#     output:  SpatialPointsDataFrame or SpatialPolygonsDataFrame with shapefile data
+GetOpenData <- function(zipname) {
+  MakeDir("raw_data")  # make a raw data directory, if one doesn't exist yet
+  
+  # Download .zip to raw data directory, then unzip in temporary directory.
+  url <- paste("https://www.denvergov.org/media/gis/DataCatalog/", zipname, "/shape/", zipname, ".zip", sep="")
+  tempDir <- tempdir()
+  file <- file.path("raw_data", paste(zipname, ".zip", sep=""))
+  download.file(url, file)
+  unzip(file, exdir = tempDir)
+  
+  # Read in shapefile from unzipped data and return result
+  spdf <- readOGR(dsn = tempDir, zipname)
+  return(spdf)
+}
+
+# Function to turn a SpatialPolygonsDataFrame into a flat csv
+#    input:   SpatialPolygonsDataFrame and filename (string) for the saved csv
+#    output:  n/a
+#    note:    saves the csv to clean_data directory (within current working directory), 
+#             csv has SPDF data + centroid lat/long + polygon area in square feet
+SavePolygonsAsCSV <- function(spdf, filename) {
+  # Compute centroids of polygons and save to data frame
+  centroids <- SpatialPointsDataFrame(gCentroid(spdf, byid=TRUE), spdf@data, match.ID=FALSE) 
+  centroids <- as.data.frame(centroids)
+  colnames(centroids)[colnames(centroids)=="x"] <- "long"  # for consistency across files
+  colnames(centroids)[colnames(centroids)=="y"] <- "lat"  # for consistency across files
+  
+  # Compute area in sqft of each polygon and add to data frame
+  equalAreaProj <- spTransform(spdf, CRS("+proj=laea +lat_0=45 +lon_0=-100 +x_0=0 +y_0=0 +a=6370997 +b=6370997 +units=ft +no_defs"))
+  centroids$sqft <- gArea(equalAreaProj, byid=TRUE)
+  
+  # Save result to csv
+  MakeDir("clean_data")  # make a clean data directory, if one doesn't exist yet
+  write.csv(centroids, file=file.path("clean_data",filename), row.names=FALSE, na = "")
+}
+
+# Function to turn a SpatialPointsDataFrame into a flat csv
+#    input:   SpatialPointsDataFrame and filename (string) for the saved csv
+#    output:  n/a
+#    note:    saves the csv to clean_data directory (within current working directory), 
+#             csv has SPDF data + lat/long
+SavePointsAsCSV <- function(spdf, filename) {
+  # Get and format lat/long info
+  df <- as.data.frame(spdf)
+  colnames(df)[colnames(df)=="coords.x1"] <- "long"  # for consistency across files
+  colnames(df)[colnames(df)=="coords.x2"] <- "lat"  # for consistency across files
+ 
+  # Save result to csv
+  MakeDir("clean_data") # make a clean data directory, if one doesn't exist yet 
+  write.csv(df, file=file.path("clean_data",filename), row.names=FALSE, na = "")
+}
+
+# Function to split a column that contains comma-separated lists into separate binary columns
+#    input:   dataframe, column name (string) containing comma-separated lists to split
+#    output:  dataframe, with binary (0/1) columns replacing the specified column
+SplitCommas <- function(df, colname) {
+  df[[colname]] <- as.character(df[[colname]])
+  dfSplit <- cSplit_e(df, colname, sep = ",", mode = "binary",
+         type = "character", fill = 0, drop = TRUE)
+  return(dfSplit)
+}
+```
+
+Now we're ready to get into the data!
+
+## Crime
+
+First we look at crime.
+
+```{r, results="hide"}
+crime <- GetOpenData("crime")
+```
+
+```{r}
+head(crime@data)
+
+# ~200 of the ~400,000 crime locations have 0 as one or both of the coordinates, so we remove those.
+crimeSmall <- crime[abs(crime@coords[,1])>.01 & abs(crime@coords[,2])>.01,]
+
+# Subset the data
+crimeSmall <- crime[c(3,5,6,18,19)]
+names(crimeSmall) <- c("offense_code","type","category","is_crime","is_traffic")
+
+# Save to csv
+SavePointsAsCSV(crimeSmall, "crimes.csv")
+```
+
+## Hate Crimes
+
+Next we look at hate crimes.
+
+```{r, results="hide"}
+url <- "https://www.denvergov.org/media/gis/DataCatalog/hate_crimes/BiasMotivatedCrimes.csv"
+MakeDir("raw_data")  # make a raw data directory, if one doesn't exist yet
+file <- file.path("raw_data", basename(url))
+download.file(url, file)
+hate <- read.csv(file)
+```
+
+Look at and subset data.
+
+```{r}
+head(hate)
+
+hateSmall <- hate[,c(2,4,7,8,10,11)]
+names(hateSmall) <- c("date","case_status","description","bias_type","location_description","address")
+hateSmall$date <- as.Date(gsub(" .*","",hateSmall$date),"%m/%d/%Y")
+```
+
+We have to geocode these addresses, which themselves are already deidentified. Note that this may take around 1-10 minutes.
+
+```{r, results="hide"}
+hateSmall$addressFull <- paste(hateSmall$address, "denver", "colorado", sep=", ")
+
+for(i in 1:nrow(hateSmall)) {
+  result <- geocode(hateSmall$addressFull[i], output="latlona", source="google")
+  hateSmall$long[i] <- as.numeric(result[1])
+  hateSmall$lat[i] <- as.numeric(result[2])
+  Sys.sleep(1)
+}
+
+hateSmall$addressFull <- NULL
+
+head(hateSmall)
+```
+
+Save the result to a csv.
+```{r}
+write.csv(hateSmall, file=file.path("clean_data","hate_crimes.csv"), na="", row.names=FALSE)
+```
+
+## Foreclosures
+
+Next we look at foreclosures.
+
+```{r, results="hide"}
+foreclosures <- GetOpenData("foreclosures")
+```
+
+```{r}
+head(foreclosures)
+
+# Subset and clean data
+foreclosuresSmall = foreclosures[c(4)]
+names(foreclosuresSmall) = c("year")
+foreclosuresSmall[["year"]]=as.numeric(as.character(foreclosuresSmall[["year"]]))
+
+# Save to csv
+SavePointsAsCSV(foreclosuresSmall, "foreclosures.csv")
+```
+
+## Police Shootings
+
+Next we look at police shootings.
+
+```{r, results="hide"}
+polShoot <- GetOpenData("denver_police_officer_involved_shootings")
+```
+
+```{r}
+head(polShoot)
+
+# one super big entry for no reason - delete this
+polShoot <- polShoot[abs(polShoot@coords[,1])<1000 & abs(polShoot@coords[,2])<1000,]
+
+# Subset the data
+polShootSmall <- polShoot[c(5,6,10,15,16,17,18,19,20,21)]
+names(polShootSmall) <- c("initiated_by","contact_basis","person_role","gender","age","race","ethnicity","armed_with","discharged_firearm","casualty_status")
+polShootSmall[["age"]] <- as.numeric(as.character(polShootSmall[["age"]]))
+
+# Save to csv
+SavePointsAsCSV(polShootSmall, "police_shootings.csv")
+```
+
+## Police Stations
+
+Next we look at police stations.
+
+```{r, results="hide"}
+polStations <- GetOpenData("police_stations")
+```
+
+```{r}
+head(polStations)
+
+# Subset and clean the data
+polStationsSmall = polStations[,c(1,3,12,13,15)]
+names(polStationsSmall) = c("id","name","district","type","is_publicly_accessible")
+polStationsSmall[["name"]]=as.character(polStationsSmall[["name"]])
+
+# Save to csv
+SavePointsAsCSV(polStationsSmall, "police_stations.csv")
+```
+
+## Make the codebook
+
+Build the codebook, i.e. get variable names for each csv saved above in clean_data. Store the results in a dataframe.
+
+```{r}
+filenameList <- c("crimes.csv","hate_crimes.csv","foreclosures.csv","police_shootings.csv","police_stations.csv")
+
+maxVars <- 50
+codebook <- data.frame(matrix(nrow=maxVars, ncol=0))
+
+for (filename in filenameList) {
+  # load csv into workspace
+  file <- read.csv(file.path("clean_data",filename) )
+  
+  vars <- rep(NA, maxVars)
+  vars[1:length(names(file))] <- names(file)
+  
+  # save column names to dataframe
+  codebook[[filename]] <- vars
+}
+
+write.csv(codebook, file=file.path("clean_data","codebook_demographic.csv"), row.names=FALSE)
+```
+
+
+
+```{r}
+# Function to get list of column names in a data frame
+#    input:   data frame
+#    output:  single string of column names, separated by commas
+GetVars <- function(df) {
+  toString(names(df))
+}
+
+# Function to get codes from a particular column in a data frame
+#    input:   data frame, column name (string)
+#    output:  list of codes used in that column
+GetCodes <- function(df, colName) {
+  vals <- sort(unique(df[[colName]]))
+  print(vals)
+}
+```
