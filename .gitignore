@@ -2,6 +2,7 @@
 *.zip
 *.html
 *.zip
+*.csv
 raw_data
 clean_data
 
