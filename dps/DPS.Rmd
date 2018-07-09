@@ -24,7 +24,7 @@ library(gridExtra)
 Now we set up to retrieve the data from AWS. 
 
 ```{r message=FALSE}
-source('/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/cred.txt')
+source('/Users/kelliemacphee/Desktop/dssg2018/cred.txt')
 
 Sys.setenv("AWS_ACCESS_KEY_ID" = access_key,
            "AWS_SECRET_ACCESS_KEY" = secret_key,
@@ -49,8 +49,14 @@ iSS_inds <- 1:7
 iSS <- raw_df[,iSS_inds]
 colnames(iSS) <- iSS[1,]
 iSS <- iSS[-1,]
+
 iSS <- iSS %>% gather('2011-2012','2012-2013','2013-2014','2014-2015','2015-2016','2016-2017',key = 'SpringYear' ,value='NumberOffenses')
-iSS = add_column(iSS, DisciplineType = 'In School Suspension')
+
+# for making the table long
+#iSS = add_column(iSS, DisciplineType = 'In School Suspension')
+
+# for making ISS its own column
+colnames(iSS)[3] <- "NumberISS"
 
 #out of school suspensions
 oSS_inds=c(1,8:13)
@@ -58,7 +64,12 @@ oSS = raw_df[oSS_inds]
 colnames(oSS) = oSS[1,]
 oSS = oSS[-1,]
 oSS = oSS %>% gather('2011-2012','2012-2013','2013-2014','2014-2015','2015-2016','2016-2017',key = 'SpringYear' ,value='NumberOffenses')
-oSS = add_column(oSS, DisciplineType = 'Out of School Suspension')
+
+# for making the table long
+# oSS = add_column(oSS, DisciplineType = 'Out of School Suspension')
+
+# for making ISS its own column
+colnames(oSS)[3] <- "NumberOSS"
 
 #expulsions
 expulsion_inds=c(1,14:19)
@@ -66,7 +77,12 @@ expulsion = raw_df[expulsion_inds]
 colnames(expulsion) = expulsion[1,]
 expulsion = expulsion[-1,]
 expulsion = expulsion %>% gather('2011-2012','2012-2013','2013-2014','2014-2015','2015-2016','2016-2017',key = 'SpringYear' ,value='NumberOffenses')
-expulsion = add_column(expulsion, DisciplineType = 'Expulsion')
+
+# for making the table long
+# expulsion = add_column(expulsion, DisciplineType = 'Expulsion')
+
+# for making expulsions its own column
+colnames(expulsion)[3] <- "NumberExpulsions"
 
 discipline = bind_rows(iSS, oSS, expulsion)
 glimpse(discipline)
@@ -78,14 +94,19 @@ Finally, we do simple touch-ups like type conversions and dealing with NA.
 discipline$SpringYear <- sub("\\d{4}-","",discipline$SpringYear)
 discipline$SpringYear <- as.integer(discipline$SpringYear)
 
-discipline$DisciplineType <- as.factor(discipline$DisciplineType)
+# for making the data long
+# discipline$DisciplineType <- as.factor(discipline$DisciplineType)
+#discipline <- discipline %>% replace_na(list(NumberOffenses=0))
+#discipline$NumberOffenses <- as.integer(discipline$NumberOffenses)
 
-discipline <- discipline %>% replace_na(list(NumberOffenses=0))
-discipline$NumberOffenses <- as.integer(discipline$NumberOffenses)
+# for separate columns for ISS, OSS, expulsions
+discipline <- discipline %>% replace_na(list(NumberISS=0))
+discipline <- discipline %>% replace_na(list(NumberOSS=0))
+discipline <- discipline %>% replace_na(list(NumberExpulsions=0))
 
 discipline$StudentNumber <- as.integer(discipline$StudentNumber)
 discipline <- discipline %>% arrange(StudentNumber)
-discipline <- discipline[,c(1,2,4,3)]
+#discipline <- discipline[,c(1,2,4,3)]
 
 discipline <- as.data.frame(discipline)
 head(discipline)
