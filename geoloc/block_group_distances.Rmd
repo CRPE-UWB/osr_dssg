@@ -26,24 +26,21 @@ dbListTables(con) #list tables
 reschool_programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs") #for getting unique program addresses
 ```
 
-
+###Download the blockgroup shapefiles
+Specifically made for this project vis-a-vi Haowen. Future iterations of this will pull the shape file directly from GitHub. However, because you need all shape files, not just the .shp file for this to function, for now you'll need to update the location to .shp file in your directory.
 ```{r}
 library(rgeos)
 library(rgdal)
 library(raster)
-temp <- tempfile()
-link <- "https://github.com/andret6/osr_dssg2018-3/raw/master/census_blocks_2010/"
-download.file(link,temp)
-spdf <- shapefile("temp/census_block_groups/shape_census.shp")
+#double note: update the link below to your directory
+spdf <- shapefile("/Users/Andrew/osr_dssg2018-3/census_block_groups/shape_census.shp") #reads the shapefile, NOTE: you need all shapefiles in the directory present
 ```
-
 
 ###Find Census Blockgroup Center Points
 ```{r}
 library(rgeos)
 library(rgdal)
 library(raster)
-spdf <- shapefile("/Users/Andrew/osr_dssg2018-3/census_block_groups/shape_census.shp") #read shapefile, easier than the rgeos function because we don't need to change our working directory
 census_centroids <- gCentroid(spdf, byid=TRUE) #find center of shapefile blockgroups
 census_centroids <- as.data.frame(census_centroids) #make it something we can index
 colnames(census_centroids) <- c("long","lat") #consistent with all other dataframes
