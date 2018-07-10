@@ -21,9 +21,7 @@ con <- dbConnect(drv, dbname = "dssg2018uw",
                  host = "localhost", port = 9000,
                  user = user, password = password) #local source credentials
 
-dbListTables(con) #list tables 
-
-reschool_programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs") #for getting unique program addresses
+#dbListTables(con) #list tables 
 ```
 
 ###Download the blockgroup shapefiles
@@ -50,9 +48,18 @@ census_centroids$ID <- rownames(census_centroids) #arbitrary identifer
 
 ###Getting Unique ReSchool Addresses
 ```{r}
+reschool_programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs") #for getting unique program addresses
 reschool_addresses <- reschool_programs[c("complete_session_address","lat","lon")]
 reschool_addresses <- unique(reschool_addresses)
 ```
+
+###Spot fix an incorrectly geocoded reschool address
+```{r}
+spot_fix <- geocode("26th & Quebec St, Denver, 80207, usa",output="latlona",source=c("google","dsk"))
+reschool_addresses$lat[96] <- spot_fix[,2] #putting in lat/lons from new geocode 
+reschool_addresses$lon[96] <- spot_fix[,1]
+```
+
 
 ###Close RDS Connection
 ```{r}
@@ -73,7 +80,8 @@ library(ggmap)
 block_distance <- reschool_addresses
 block_distance$blockID <- 0
 block_distance$driving <- 0
-for (i in 1:2){ #to be replaced length(census_centroids), i.e, read every unique block centroid
+for (i in 1:2){ 
+  #to be replaced length(census_centroids), i.e, read every unique block centroid
   blockgroup.i <- census_centroids$ID[i] #read arbitrary block n
   lat.i <- census_centroids$lat[i] #get coordinates
   long.i <- census_centroids$long[i]
