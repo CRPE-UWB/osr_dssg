@@ -61,6 +61,12 @@ dbDisconnect(con)
 dbUnloadDriver(drv)
 ```
 
+###Register Google API Key
+```{r}
+library(ggmap)
+register_google(key = google_api_key) #key stored outside github
+```
+
 ###Loop to calculate travel distances to block group centers
 ```{r}
 library(ggmap)
