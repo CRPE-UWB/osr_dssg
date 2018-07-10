@@ -1,0 +1,98 @@
+---
+title: "Block_Group_Center_Distances"
+author: "Andrew Taylor"
+date: "7/9/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###Get SQL Data
+```{r}
+library(RPostgreSQL)
+# loads the PostgreSQL driver
+drv <- dbDriver("PostgreSQL")
+
+# creates a connection to the postgres database
+# note that "con" will be used later in each connection to the database
+con <- dbConnect(drv, dbname = "dssg2018uw",
+                 host = "localhost", port = 9000,
+                 user = user, password = password) #local source credentials
+
+dbListTables(con) #list tables 
+
+reschool_programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs") #for getting unique program addresses
+```
+
+
+```{r}
+library(rgeos)
+library(rgdal)
+library(raster)
+temp <- tempfile()
+link <- "https://github.com/andret6/osr_dssg2018-3/raw/master/census_blocks_2010/"
+download.file(link,temp)
+spdf <- shapefile("temp/census_block_groups/shape_census.shp")
+```
+
+
+###Find Census Blockgroup Center Points
+```{r}
+library(rgeos)
+library(rgdal)
+library(raster)
+spdf <- shapefile("/Users/Andrew/osr_dssg2018-3/census_block_groups/shape_census.shp") #read shapefile, easier than the rgeos function because we don't need to change our working directory
+census_centroids <- gCentroid(spdf, byid=TRUE) #find center of shapefile blockgroups
+census_centroids <- as.data.frame(census_centroids) #make it something we can index
+colnames(census_centroids) <- c("long","lat") #consistent with all other dataframes
+rownames(census_centroids) <- NULL #remove row 0
+census_centroids$ID <- rownames(census_centroids) #arbitrary identifer
+```
+
+###Getting Unique ReSchool Addresses
+```{r}
+reschool_addresses <- reschool_programs[c("complete_session_address","lat","lon")]
+reschool_addresses <- unique(reschool_addresses)
+```
+
+###Close RDS Connection
+```{r}
+#close the connection and unload the driver for the RDS
+dbDisconnect(con) 
+dbUnloadDriver(drv)
+```
+
+###Loop to calculate travel distances to block group centers
+```{r}
+library(ggmap)
+block_distance <- reschool_addresses
+block_distance$blockID <- 0
+block_distance$driving <- 0
+for (i in 1:2){ #to be replaced length(census_centroids), i.e, read every unique block centroid
+  blockgroup.i <- census_centroids$ID[i] #read arbitrary block n
+  lat.i <- census_centroids$lat[i] #get coordinates
+  long.i <- census_centroids$long[i]
+  lat.long <- c(lat.i,long.i) #combine blockgroup coordinates for mapdist function
+  lat.long <- paste(lat.long,collapse=" ") #see above
+  block_mover <- subset(block_distance,block_distance$blockID==0) #make a new subset that is original length
+  for (x in 1:nrow(block_mover)){
+    block_mover$blockID <- blockgroup.i
+    lat.x <- block_mover$lat[x] #get coordinates for OSRs
+    long.x <- block_mover$lon[x] 
+    block_mover$blockID <- blockgroup.i #set ID blockgroup ID
+    lat.long.x <- c(lat.x,long.x) #combine OSR coordinates for use in mapdist
+    lat.long.x <- paste(lat.long.x,collapse=" ")
+    distance.x <- mapdist(lat.long,lat.long.x,mode="driving") #calculating distance driving, walking, etc
+    distance_walking.x <- mapdist(lat.long,lat.long.x,mode="walking")
+    distance_transit.x <- mapdist(lat.long,lat.long.x,mode="transit")
+    block_mover$driving[x] <- distance.x[,7] #paste drive time, etc, in minutes
+    block_mover$walking[x] <- distance_walking.x[,7]
+    block_mover$transit[x] <- distance_transit.x[,7]
+    print(paste("and counting",x,i)) #print iterations to note breaks in case something goes wrong with the maps api 
+  }
+  block_distance <- rbind(block_distance,block_mover) #merge new distance into the base dataframe
+}
+block_distances <- subset(block_distance,block_distance$blockID!=0) #remove our empty ID level 
+```

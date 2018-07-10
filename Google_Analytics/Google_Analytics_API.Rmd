@@ -52,6 +52,8 @@ https://www.optimizesmart.com/complete-guide-to-dimensions-and-metrics-in-google
 
 ###Pulling Path Level Data
 ```{r}
+todays_date <- as.character(Sys.Date())
+
 #By Path
 PathLevel <- google_analytics(
   ga_id_two, 
