@@ -54,6 +54,7 @@ reschool_addresses <- unique(reschool_addresses)
 ```
 
 ###Spot fix an incorrectly geocoded reschool address
+**Note:** we spot checked all addresses outside metropolitan areas to confirm if this is was the correct address for drop off. It is, only the below address needs to be updated. 
 ```{r}
 spot_fix <- geocode("26th & Quebec St, Denver, 80207, usa",output="latlona",source=c("google","dsk"))
 reschool_addresses$lat[96] <- spot_fix[,2] #putting in lat/lons from new geocode 
@@ -67,16 +68,9 @@ dbDisconnect(con)
 dbUnloadDriver(drv)
 ```
 
-###Register Google API Key
-```{r}
-library(ggmap)
-register_google(key = google_api_key) #key stored outside github
-```
-
 ###Loop to calculate travel distances to block group centers, with different times
 Here we run an extended loop with start times at 08:00 am, noon, and 5:00 pm, for the first 30 unique addresses
 ```{r}
-library(ggmap)
 library(googleway)
 block_distance <- reschool_addresses
 #for ease of testing
