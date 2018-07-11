@@ -65,6 +65,8 @@ PathLevel <- google_analytics(
 ###Parsing the Clean Paths
 Using our functions to fill out categories
 ```{r}
+library(stringr)
+
 PathLevel$CleanPath <- ParsePath(PathLevel$PagePath) #critical first stage, standardizes the different features of the html hash
 
 PathLevel$gender <- sapply(PathLevel$CleanPath,ReturnGender)
@@ -86,6 +88,8 @@ PathLevel$keywords <- sapply(PathLevel$CleanPath,ReturnKeyWords)
 
 ###Cleaning Paths
 ```{r}
+library(stringr)
+
 PathLevel$gender <- sapply(PathLevel$gender,CleanHash)
 PathLevel$distance <-sapply(PathLevel$distance,CleanHash)
 PathLevel$category <- sapply(PathLevel$category,CleanHash)
@@ -103,19 +107,11 @@ PathLevel$gifted <- sapply(PathLevel$gifted,CleanHash)
 PathLevel$keywords <- sapply(PathLevel$keywords,CleanHash)
 ```
 
-###Cleaning Numeric
-There is a handful of users (<5) who entereted the age range into the min age field, this ommits them. 
-```{r}
-PathLevel$mincost <- as.numeric(PathLevel$mincost)
-PathLevel$maxcost <- as.numeric(PathLevel$maxcost)
-PathLevel$minage <- as.numeric(PathLevel$minage)
-PathLevel$maxage <- as.numeric(PathLevel$maxage)
-```
-
 ###Aggregating Users By Category & Lat/Lon
 While we may have started our report with several different metrics and uniquepaths, here we're only interested in the number of users searching for "x" features at "y" lat/lon. So we make a simpler data.frame from here on out. 
 ```{r}
-Search_Summary  <- aggregate(Users ~ gender+distance+category+mincost+maxcost+sessiontimes+minage+maxage+sort+location+scholarships+specialneeds+beforeaftercare+gifted+keywords+Latitude+Longitude,PathLevel,sum)
+library(haven)
+Search_Summary  <- aggregate(Users ~ gender+distance+category+mincost+maxcost+sessiontimes+minage+maxage+sort+location+scholarships+specialneeds+beforeaftercare+gifted+keywords+Latitude+Longitude,data=PathLevel,sum,na.rm=TRUE,na.action=NULL)
 colnames(Search_Summary) <- c("gender","distance","category","mincost"
 ,"maxcost","sessiontimes","minage","maxage"
 ,"sort","location","scholarships","specialneeds","beforeaftercare","gifted","keywords","lat","long","users")
