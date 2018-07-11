@@ -1,0 +1,288 @@
+---
+title: "Reschool_program_data"
+output: html_document
+---
+
+Libraries we will need:
+
+```{r}
+library(tidyr)
+library(splitstackshape)  # for splitting the categories column
+# library(RJSONIO)  # for Jose's geocoding
+library(ggmap)
+```
+
+## Blueprint4summer program data
+
+Read in the Blueprint4Summer program data from a local csv.
+
+```{r}
+# programdata = read.csv(file = "C:/Users/Sreekanth/Desktop/DSSG Project/programdata.csv", na.strings = "")
+programdata = read.csv(file = "/Users/kelliemacphee/Desktop/dssg2018/Blueprint4Summer.csv", na.strings = "")
+
+head(programdata)
+```
+
+First we look at the distinct cities in which the sessions were conducted. The camp_city seems to be the location of the city where the organization is based out of. 
+
+```{r}
+unique(programdata$session_city)
+```
+
+I guess there is an issue with leading and trailing spaces. So getting rid of them. 
+
+```{r}
+trim <- function (x) gsub("^\\s+|\\s+$", "", x)
+programdata$session_city <- trim(programdata$session_city)
+unique(programdata$session_city)
+```
+
+Now we look at the different camps/organizations.
+
+```{r}
+unique(programdata$camp_name)
+```
+
+Overall, there seem to be 62 unique programs over the summer. They have different sessions running across the summer. As an example:
+
+```{r}
+programdata[programdata$camp_name == 'Pi Q Math',]
+```
+
+Each session seems to have a unique session id. Next we just verify if the data is unique at a session id level. Also, check if the organizations are uniquely identifiable using a camp id. In that case, there should be 62 unique camp ids.
+
+```{r}
+nrow(programdata)
+length(programdata$session_id)
+length(unique(programdata[,1]))
+```
+
+Looks like it. Lets obtain the distinct session addresses. 
+
+```{r}
+unique(programdata$session_address_1)
+```
+
+I am going to remove the trailing and ending whitespcases and '.'s 
+
+```{r}
+trim <- function (x) gsub("^\\s+|\\s+$", "", x)
+programdata$session_address_1 <- trim(programdata$session_address_1)
+programdata$session_city <- trim(programdata$session_city)
+programdata$session_zip <- trim(programdata$session_zip)
+programdata$session_address_1 =   gsub("\\.$", " ", programdata$session_address_1)
+```
+
+There are two addresses that have NA values. But they have another zipcode associated with it as well. We will use fill from dyplyr to fill it with the previous zipcode after sorting it.
+
+```{r}
+programdata[which(is.na(programdata$session_zip)), ]
+programdata <- programdata[order(programdata$session_city, programdata$session_address_1) , ]
+programdata = fill(programdata,session_zip )
+```
+
+There are also some xa0's (no-break spaces) at the beginning of a couple of addresses. Remove these, so that we can geocode properly and query the database properly.
+```{r}
+programdata$session_address_1 <- gsub('*\xa0', '', programdata$session_address_1)
+```
+
+## Getting the unique addresses that needs to be fed into google API
+
+I am checking if there are any session addresses that are repeated.
+
+```{r}
+camp_address = unique(programdata[c("session_address_1",  "session_city", "session_state", "session_zip")])
+camp_address = camp_address[order(camp_address$session_address_1) , ]
+length(camp_address$session_address_1)
+length(unique(camp_address$session_address_1))
+```
+
+There are three duplicates:
+
+```{r}
+camp_address[duplicated(camp_address$session_address_1)|duplicated(camp_address$session_address_1, fromLast=TRUE),]
+```
+
+Okay, there is the issue of duplicates beacuse of the presence of different zipcodes for three different session addresses in the city of Aurora.
+On doing a google search, 2390 Havana St should have the zipcode 80010, 3054 S Laredo St has the zip code 80013 and 800 Telluride St has the zipcode 80011. Manually replace these.
+
+```{r}
+for (i in 2:nrow(camp_address)){
+  if(camp_address[i,1] == camp_address[i-1,1]){
+    camp_address[i,3] = camp_address[i-1,3]
+  }
+}
+
+camp_address = unique(camp_address[c("session_address_1",  "session_city", "session_state", "session_zip")])
+# length(camp_address$session_address_1)
+# length(unique(camp_address$session_address_1))
+head(camp_address)
+```
+
+Get all the pieces of the session address in one column.
+
+```{r}
+#cols <- c('session_address_1' , 'session_city' , 'session_zip' )
+# camp_address$complete_session_address <- apply(camp_address[ , cols ], 1, paste, collapse = ", ")
+camp_address$complete_session_address <- paste(camp_address$session_address_1, camp_address$session_city, "CO", camp_address$session_zip)
+
+nrow(camp_address)
+head(camp_address)
+```
+
+Now we move on to geocoding the addresses so that we have lat/long coordinates.
+
+```{r}
+# Jose's way of geocoding
+# geocodeAddress <- function(address) {
+#   full <- paste(address)
+#   url <- "https://maps.google.com/maps/api/geocode/json?address="
+#   url <- URLencode(paste(url, full, '&sensor=false&key=','AIzaSyAHW3TJFoPOIqXl9-lu4Wz928vu38kUCxE', sep = ""))
+#   x <- fromJSON(url, simplify = FALSE)
+#   if (x$status == "OK") {
+#     
+#       out <- c(x$results[[1]]$geometry$location$lat,
+#                x$results[[1]]$geometry$location$lng)
+#     } else {
+#       out <- NA
+#   }
+#   Sys.sleep(0.05)  # API only allows 50 requests per second
+#   out
+# }
+
+#Initialize
+camp_address$long<-NA
+camp_address$lat<-NA
+#g_add=list()  # Jose's way
+
+# run the geocoding
+old <- Sys.time() # get start time
+for (i in 1:nrow(camp_address)) {
+  # Joe's way
+  result <- geocode(camp_address$complete_session_address[i], output="latlona", source="google")
+  camp_address$long[i] <- as.numeric(result[1])
+  camp_address$lat[i] <- as.numeric(result[2])
+  
+  # Jose's way
+  #g_add <- geocodeAddress(camp_address$complete_session_address[i])
+  #camp_address$lat[i] <- g_add[1]
+  #camp_address$long[i] <- g_add[2]
+  #if (i == nrow(camp_address)) cat("Done!\n")
+  
+  #Sys.sleep(1)
+}
+new <- Sys.time() - old # calculate difference
+print(new)
+
+head(camp_address)
+```
+
+Join the geocodings back with the main dataset, drop unuseful columns, and simplify column names.
+
+```{r}
+# Join geocodings and drop redundant address columns
+camp_address_intermediate = camp_address[,c("session_address_1","complete_session_address","lat","long")]
+programdata_final = merge(x = programdata, y = camp_address_intermediate, by = "session_address_1", all = TRUE)
+programdata_final$complete_session_address <- NULL
+
+# Drop unuseful columns. Note that camp_tag seems to all be region=co,
+# and session_count seems to be all 1's.
+programdata_final =  programdata_final[, !names(programdata_final) %in% c("camp_youtube","camp_phone","camp_facebook", "camp_email", "camp_website", "camp_twitter", "?..camp_id", "camp_tag", "session_count")] 
+
+# Reformatiing dates (no need for times)
+programdata_final$session_date_start = gsub(' 00:00:00','', programdata_final$session_date_start)
+programdata_final$session_date_end = gsub(' 00:00:00','', programdata_final$session_date_start)
+
+# Splitting the session_categories into different columns
+programdata_final <- cSplit_e(programdata_final, "session_categories", sep=",", mode = "binary",
+        type = "character", fill = 0, drop = TRUE)
+
+# Converting all column names into small case
+dbSafeNames = function(names) {
+  names = gsub('[^a-z0-9]+','_',tolower(names))
+  names = make.names(names, unique=TRUE, allow_=TRUE)
+  names = gsub('.','_',names, fixed=TRUE)
+  names
+}
+colnames(programdata_final) = dbSafeNames(colnames(programdata_final))
+
+# Simplifying some column names, to be consistent with rest of database
+for (x in c("academic", "arts", "cooking", "dance", "drama", "music", "nature", "sports", "stem")) {
+  oldName <- paste("session_categories_", x, sep="")
+  newName <- paste("has_", x, sep="")
+  colnames(programdata_final)[colnames(programdata_final) == oldName] <- newName
+}
+
+colnames(programdata_final)[colnames(programdata_final) == "session_categories_scholarshipsavailable"] <- "has_scholarships"
+colnames(programdata_final)[colnames(programdata_final) == "session_categories_offersbeforeaftercare"] <- "has_before_after_care"
+colnames(programdata_final)[colnames(programdata_final) == "session_categories_specialneedsstudent"] <- "has_special_needs_offerings"
+
+# move session_address_1 to a better location
+programdata_final <- programdata_final[,c(2:24, 1, 25:length(programdata_final))]
+
+head(programdata_final)
+colnames(programdata_final)
+```
+
+Extract and save the column names to fill in the codebook.
+
+```{r}
+#Extracting the column names to fill it in the codebook
+column_names = colnames(programdata_final)
+column_names_dataframe = data.frame(row.names = column_names)
+write.csv(column_names_dataframe, file = "programdata_columnnames.csv")
+```
+
+Save the final data:
+
+```{r}
+write.csv(programdata_final, file = "reschool_programs.csv", row.names = FALSE)
+```
+
+
+## Separately, details about getting the museum data
+
+```{r}
+museumdata = read.csv(file = "C:/Users/Sreekanth/Desktop/DSSG Project/museum_locations.csv",  na.strings = "")
+
+# Get the lat and long using google API - function already defined above
+# geocodeAddress <- function(address) {
+#   require(RJSONIO)
+#   full <- paste(address)
+#   url <- "https://maps.google.com/maps/api/geocode/json?address="
+#   url <- URLencode(paste(url, full, '&sensor=false&key=','AIzaSyAHW3TJFoPOIqXl9-lu4Wz928vu38kUCxE', sep = ""))
+#   x <- fromJSON(url, simplify = FALSE)
+#   if (x$status == "OK") {
+#     
+#       out <- c(x$results[[1]]$geometry$location$lat,
+#                x$results[[1]]$geometry$location$lng)
+#     } else {
+#       out <- NA
+#   }
+#   Sys.sleep(0.05)  # API only allows 50 requests per second
+#   out
+# }
+
+# Initialize
+g_add=list()
+
+# Run the geocoding
+old <- Sys.time() # get start time
+for (i in 1:nrow(museumdata)) {
+  # Joe's way
+  result <- geocode(camp_address$complete_session_address[i], output="latlona", source="google")
+  camp_address$long[i] <- as.numeric(result[1])
+  camp_address$lat[i] <- as.numeric(result[2])
+  
+  # Jose's way
+  # g_add <- geocodeAddress(museumdata$address[i])
+  # museumdata$lat[i] <- g_add[1]
+  # museumdata$long[i] <- g_add[2]
+
+  if (i == nrow(museumdata)) cat("Done!\n")
+}
+new <- Sys.time() - old # calculate difference
+print(new)
+
+museumdata_final = museumdata
+```
