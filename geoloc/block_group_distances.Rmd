@@ -69,6 +69,7 @@ dbUnloadDriver(drv)
 ```
 
 ###Loop to calculate travel distances to block group centers, with different times
+**NOTE:** There is no need to run this section of the code for anything other than verification. Ommit this chunk from any calls outside the free per dieum. 
 Here we run an extended loop with start times at 08:00 am, noon, and 5:00 pm, for the first 30 unique addresses
 ```{r}
 library(googleway)
