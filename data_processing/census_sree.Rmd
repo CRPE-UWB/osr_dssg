@@ -33,7 +33,7 @@ censusage_final = cbind(censusage_final,added_columns)
 ```{r}
 censusage[c(6,7,8,29,30,31)]
 ```
-**********************************Howen's race dataset problem*******************************************
+**********************************Haowen's race dataset problem*******************************************
 ```{r}
 race = read.csv(file = "C:/Users/Sreekanth/Desktop/DSSG Project/race.csv", na.strings = "")
 
