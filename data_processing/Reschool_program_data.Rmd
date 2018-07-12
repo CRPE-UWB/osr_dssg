@@ -288,5 +288,5 @@ Extract and save the column names to fill in the codebook.
 #Extracting the column names to fill it in the codebook
 column_names = colnames(programdata_final)
 column_names_dataframe = data.frame(row.names = column_names)
-write.csv(column_names_dataframe, file = "/Users/kelliemacphee/Desktop/dssg2018/code/osr_dssg2018/programdata_columnnames.csv")
+write.csv(column_names_dataframe, file = "/Users/kelliemacphee/Desktop/dssg2018/programdata_columnnames.csv")
 ```
