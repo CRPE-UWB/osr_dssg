@@ -89,4 +89,18 @@ dfFinal <- df2[,c(1,2,5)]
 colnames(dfFinal)[3] <- 'nbhd_name'
 head(dfFinal)
 
+# sanity check that the block groups are actually lining up in the right neighborhood
+myId <- 10  # pick a random nbhd id (1-78)
+plot(nbhds, 
+     border = "blue", main = "Nbhd + Block Groups")
+
+bgIds <- dfFinal[ (dfFinal$nbhd_id==myId), 2]
+print( paste( length(bgIds), 'block groups'))
+
+for (id in bgIds) {
+  plot(blockGroups[(blockGroups@data$Id2==id), ], 
+       col = "red", border = NA, add = TRUE)
+}
+
+# Looks good!
 # End by uploading dfFinal to the database!
