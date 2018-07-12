@@ -42,8 +42,11 @@ vignettes/*.pdf
 # Shiny token, see https://shiny.rstudio.com/articles/shinyapps.html
 rsconnect/
 
-# whatever a DS store file
+# whatever a DS store file is
 .DS_Store
 
 # ignore the social media keys
 "Social Media Keys.Rmd"
+
+# aws things
+aws_connect.R

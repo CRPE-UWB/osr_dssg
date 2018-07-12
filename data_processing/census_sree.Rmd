@@ -1,0 +1,84 @@
+---
+title: "sreekanth_helping_haowen"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**********************************Haowen's regex problem*******************************************
+```{r}
+
+censusage = read.csv(file = "C:/Users/Sreekanth/Desktop/DSSG Project/CensusAge.csv", na.strings = "")
+
+#Extracting the names of the columns that need to be modified
+column_names = colnames(censusage)[6:28]
+
+#Extracting the appropriate string to name the modified columns
+modified_column_name = sapply(1:length(column_names), function(x) sub(".*Male....", "", column_names[x]))
+
+#Adding the columns that are necessary and giving them appropriate column names 
+added_columns = cbind(censusage[,6:28] + cbind(censusage[,29:51]))
+added_columns = as.data.frame(added_columns)
+colnames(added_columns) = modified_column_name
+
+#Delete the columns not required and adding the modified columns to the main censusage dataset
+censusage_final = censusage[-c(6:51)]
+censusage_final = cbind(censusage_final,added_columns)
+
+```
+
+
+```{r}
+censusage[c(6,7,8,29,30,31)]
+```
+**********************************Haowen's race dataset problem*******************************************
+```{r}
+race = read.csv(file = "C:/Users/Sreekanth/Desktop/DSSG Project/race.csv", na.strings = "")
+
+#Extracting the names of the columns that need to be modified
+column_names = colnames(race)[6:14]
+
+#Extracting and manupulating the appropriate string to name the modified columns
+modified_column_name1 = sapply(1:length(column_names), function(x) gsub(".*Total....", "", column_names[x]))
+modified_column_name = sapply(1:length(modified_column_name1), function(x) paste0("Perecentage ", modified_column_name1[x]))
+
+#Obtaining the percentages
+additional_columns = (race[,6:14]/race[,5])*100
+
+#Renaming the column names
+additional_columns = as.data.frame(additional_columns)
+colnames(additional_columns) = modified_column_name
+
+#Delete the columns not required and adding the modified columns to the main censusage dataset
+race_final = cbind(race, additional_columns)
+```
+
+
+**************************Howen's language dataset problem********************************************************
+```{r}
+languagedata = read.csv(file = "C:/Users/Sreekanth/Desktop/DSSG Project/languagedata.csv", skip = 1, na.strings = "")
+
+#Selecting only the 'estimate' columns and deleting all the 'margin of erro'r columns
+languagedata <- languagedata[,c(1,2,3,4,seq(50,ncol(languagedata),2))]
+
+#Selecting only the 'estimate' columns and deleting all the 'margin of erro'r columns
+languagedata_1 <- languagedata[,-c(1:7,12, 17, 22, 27:29, 34, 39, 44)]
+languagedata_2 <- languagedata[, c(1:7,12, 17, 22, 27:29, 34, 39, 44)]
+
+modified_columns = cbind(languagedata_1[c(seq(1,31,2))] + languagedata_1[c(seq(2,32,2))])
+
+languagedata_final = cbind(languagedata_2, modified_columns)
+
+#Making the column names much better
+library(magrittr)
+
+x = colnames(languagedata_final)
+x %<>% gsub("Estimate..", "", .) %>% gsub(".years....", "", .) %>% gsub("over....", "", .) %>% gsub("Speak", "", .)
+
+#Assigning the column names
+colnames(languagedata_final) = x
+
+write.csv(languagedata_final, file = "languagedata_final.csv")
+```
