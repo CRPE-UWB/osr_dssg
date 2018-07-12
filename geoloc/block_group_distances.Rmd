@@ -48,6 +48,9 @@ census_centroids$ID <- rownames(census_centroids) #arbitrary identifer
 
 ###Getting Unique ReSchool Addresses
 ```{r}
+library(rgeos)
+library(rgdal)
+library(raster)
 reschool_programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs") #for getting unique program addresses
 reschool_addresses <- reschool_programs[c("complete_session_address","lat","lon")]
 reschool_addresses <- unique(reschool_addresses)
@@ -56,6 +59,7 @@ reschool_addresses <- unique(reschool_addresses)
 ###Spot fix an incorrectly geocoded reschool address
 **Note:** we spot checked all addresses outside metropolitan areas to confirm if this is was the correct address for drop off. It is, only the below address needs to be updated. 
 ```{r}
+library(ggmap)
 spot_fix <- geocode("26th & Quebec St, Denver, 80207, usa",output="latlona",source=c("google","dsk"))
 reschool_addresses$lat[96] <- spot_fix[,2] #putting in lat/lons from new geocode 
 reschool_addresses$lon[96] <- spot_fix[,1]
@@ -63,6 +67,9 @@ reschool_addresses$lon[96] <- spot_fix[,1]
 
 ###Close RDS Connection
 ```{r}
+library(rgeos)
+library(rgdal)
+library(raster)
 #close the connection and unload the driver for the RDS
 dbDisconnect(con) 
 dbUnloadDriver(drv)
@@ -110,17 +117,17 @@ for (i in 1:5){
     distance.x <- google_distance(origin=c(lat.i,long.i),
     destination = c(lat.x,long.x),
     mode="driving",
-    arrival_time = as.POSIXct("2018-07-12 08:00:00 MT"),
+    arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"), #FOR SOME REASON- autocorrects to pacific time, so we start one hour earlier
     key = google_api_key)
     distance_walking.x <- google_distance(origin=c(lat.i,long.i),
     destination = c(lat.x,long.x),
     mode="walking",
-    arrival_time = as.POSIXct("2018-07-12 08:00:00 MT"),
+    arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"),
     key = google_api_key)
     distance_transit.x <- google_distance(origin=c(lat.i,long.i),
     destination = c(lat.x,long.x),
     mode="driving",
-    arrival_time = as.POSIXct("2018-07-12 08:00:00 MT"),
+    arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"),
     key = google_api_key)
     
     #grabbing our dataframe list items
@@ -138,17 +145,17 @@ for (i in 1:5){
     distance.x <- google_distance(origin=c(lat.i,long.i),
     destination = c(lat.x,long.x),
     mode="driving",
-    arrival_time = as.POSIXct("2018-07-12 12:00:00 MT"),
+    arrival_time = as.POSIXct("2018-07-12 11:00:00 MT"),
     key = google_api_key)
     distance_walking.x <- google_distance(origin=c(lat.i,long.i),
     destination = c(lat.x,long.x),
     mode="walking",
-    arrival_time = as.POSIXct("2018-07-12 12:00:00 MT"),
+    arrival_time = as.POSIXct("2018-07-12 11:00:00 MT"),
     key = google_api_key)
     distance_transit.x <- google_distance(origin=c(lat.i,long.i),
     destination = c(lat.x,long.x),
     mode="driving",
-    arrival_time = as.POSIXct("2018-07-12 12:00:00 MT"),
+    arrival_time = as.POSIXct("2018-07-12 11:00:00 MT"),
     key = google_api_key)
     
     distance.x <- as.data.frame(distance.x$rows$elements)
@@ -164,26 +171,26 @@ for (i in 1:5){
     distance.x <- google_distance(destination=c(lat.i,long.i),
     origin = c(lat.x,long.x),
     mode="driving",
-    arrival_time = as.POSIXct("2018-07-12 19:00:00 MT"),
+    arrival_time = as.POSIXct("2018-07-12 18:00:00 MT"),
     key = google_api_key)
     
     distance_walking.x <- google_distance(destination=c(lat.i,long.i),
     origin = c(lat.x,long.x),
     mode="walking",
-    arrival_time = as.POSIXct("2018-07-12 19:00:00 MT"),
+    arrival_time = as.POSIXct("2018-07-12 18:00:00 MT"),
     key = google_api_key)
     
     distance_transit.x <- google_distance(destination=c(lat.i,long.i),
     origin = c(lat.x,long.x),
     mode="driving",
-    arrival_time = as.POSIXct("2018-07-12 19:00:00 MT"),
+    arrival_time = as.POSIXct("2018-07-12 18:00:00 MT"),
     key = google_api_key)
     
     distance.x <- as.data.frame(distance.x$rows$elements)
     distance_walking.x <- as.data.frame(distance_walking.x$rows$elements)
     distance_transit.x <- as.data.frame(distance_transit.x$rows$elements)
     
-    block_mover$driving_evening[x] <- as.numeric(distance.x$duration[2]/60) #paste drive time, etc, in minutes
+    block_mover$driving_evening[x] <- as.numeric(distance.x$duration[2]/60) #paste drive time, etc, in minutes, default display is in seconds
     block_mover$walking_evening[x] <- as.numeric(distance_walking.x$duration[2]/60)
     block_mover$transit_evening[x] <- as.numeric(distance_transit.x$duration[2]/60)
     print(paste("evening start",x,i))
@@ -237,17 +244,17 @@ for (i in 1:nrow(census_centroids)){
     distance.x <- google_distance(origin=c(lat.i,long.i),
     destination = c(lat.x,long.x),
     mode="driving",
-    arrival_time = as.POSIXct("2018-07-12 08:00:00 MT"),
+    arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"), #autocorrect to PST, so we adjust for the dif from MST to MT
     key = google_api_key)
     distance_walking.x <- google_distance(origin=c(lat.i,long.i),
     destination = c(lat.x,long.x),
     mode="walking",
-    arrival_time = as.POSIXct("2018-07-12 08:00:00 MT"),
+    arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"),
     key = google_api_key)
     distance_transit.x <- google_distance(origin=c(lat.i,long.i),
     destination = c(lat.x,long.x),
     mode="driving",
-    arrival_time = as.POSIXct("2018-07-12 08:00:00 MT"),
+    arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"),
     key = google_api_key)
     
     #grabbing our dataframe list items

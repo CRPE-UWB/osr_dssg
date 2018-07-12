@@ -60,6 +60,12 @@ PathLevel <- google_analytics(
   date_range=c("2018-01-01",(todays_date)),
   metrics=c('Users','timeOnPage','pageviews','uniquePageviews'),
   dimensions =c('Latitude','Longitude',"PagePath","dateHourMinute"),max=50000)
+
+Pathtest <- google_analytics(
+  ga_id_two, 
+  date_range=c("2018-01-01",(todays_date)),
+  metrics=c('Users','timeOnPage','pageviews','uniquePageviews'),
+  dimensions =c("geolocation","PagePath"),max=50000)
 ```
 
 ###Parsing the Clean Paths
