@@ -3,7 +3,7 @@ title: "Reschool_program_data"
 output: html_document
 ---
 
-Libraries we will need:
+Load libraries we will need:
 
 ```{r}
 library(tidyr)
@@ -19,6 +19,31 @@ Read in the Blueprint4Summer program data from a local csv.
 ```{r}
 # programdata = read.csv(file = "C:/Users/Sreekanth/Desktop/DSSG Project/programdata.csv", na.strings = "")
 programdata = read.csv(file = "/Users/kelliemacphee/Desktop/dssg2018/Blueprint4Summer.csv", na.strings = "")
+```
+
+Fix the types of the columns so that everything is loaded properly into the database later. Do this first thing in case any other code below might be affected, too.
+
+```{r}
+integer_cols <- c("camp_id", "session_id", "camp_zip", "session_size", 
+                  "session_min_age", "session_max_age", "session_cost", "session_count", 
+                  "session_zip")
+
+char_cols <- c("camp_tag", "camp_name", "camp_website", "camp_email", "camp_phone", 
+               "camp_address_1", "camp_address_2", "camp_city", "camp_state", "camp_facebook", 
+               "camp_twitter", "camp_youtube", "camp_short_description", 
+               "camp_long_description", "session_name", "session_short_description", 
+               "session_long_description", "session_reg_open", "session_reg_close", 
+               "session_gender", "session_date_start", "session_date_end",
+               "session_address_name", "session_address_1", "session_address_2",
+               "session_city", "session_state", "session_categories")
+
+for (col in integer_cols) {
+  programdata[[col]] <- as.integer(programdata[[col]])
+}
+
+for (col in char_cols) {
+  programdata[[col]] <- as.character(programdata[[col]])
+}
 
 head(programdata)
 ```
@@ -69,16 +94,24 @@ I am going to remove the trailing and ending whitespcases and '.'s
 trim <- function (x) gsub("^\\s+|\\s+$", "", x)
 programdata$session_address_1 <- trim(programdata$session_address_1)
 programdata$session_city <- trim(programdata$session_city)
-programdata$session_zip <- trim(programdata$session_zip)
+# programdata$session_zip <- trim(programdata$session_zip)
 programdata$session_address_1 =   gsub("\\.$", " ", programdata$session_address_1)
 ```
 
 There are two addresses that have NA values. But they have another zipcode associated with it as well. We will use fill from dyplyr to fill it with the previous zipcode after sorting it.
 
 ```{r}
-programdata[which(is.na(programdata$session_zip)), ]
+sum(is.na(programdata$session_reg_open))  # 1905
+sum(is.na(programdata$session_reg_close))  # 1370
+
+#programdata[which(is.na(programdata$session_zip)), ]
 programdata <- programdata[order(programdata$session_city, programdata$session_address_1) , ]
-programdata = fill(programdata,session_zip )
+
+#checking if we're introducing new na's or just reordering
+sum(is.na(programdata$session_reg_open))  # 1905
+sum(is.na(programdata$session_reg_close))  # 1370
+
+programdata = fill(programdata, session_zip)
 ```
 
 There are also some xa0's (no-break spaces) at the beginning of a couple of addresses. Remove these, so that we can geocode properly and query the database properly.
@@ -133,7 +166,7 @@ head(camp_address)
 Now we move on to geocoding the addresses so that we have lat/long coordinates.
 
 ```{r}
-# Jose's way of geocoding
+# Function for Jose's way of geocoding
 # geocodeAddress <- function(address) {
 #   full <- paste(address)
 #   url <- "https://maps.google.com/maps/api/geocode/json?address="
@@ -150,52 +183,78 @@ Now we move on to geocoding the addresses so that we have lat/long coordinates.
 #   out
 # }
 
-#Initialize
-camp_address$long<-NA
-camp_address$lat<-NA
-#g_add=list()  # Jose's way
+# Initialize the lat/longs to NAs
+camp_address$long <- NA
+camp_address$lat <- NA
+# g_add <- list()  # Jose's way
 
-# run the geocoding
-old <- Sys.time() # get start time
-for (i in 1:nrow(camp_address)) {
-  # Joe's way
-  result <- geocode(camp_address$complete_session_address[i], output="latlona", source="google")
-  camp_address$long[i] <- as.numeric(result[1])
-  camp_address$lat[i] <- as.numeric(result[2])
-  
-  # Jose's way
-  #g_add <- geocodeAddress(camp_address$complete_session_address[i])
-  #camp_address$lat[i] <- g_add[1]
-  #camp_address$long[i] <- g_add[2]
-  #if (i == nrow(camp_address)) cat("Done!\n")
-  
-  #Sys.sleep(1)
+# Run the geocoding!
+max_runs <- 5  # sometimes don't get the lat/long on the first run - try again
+
+for (k in 1:max_runs) {
+  notGeocoded <- which( is.na(camp_address$lat) | is.na(camp_address$long) )
+  for (i in notGeocoded) {
+    # geocode this row - Joe's way
+    result <- geocode(camp_address$complete_session_address[i], output="latlona", source="google")
+    camp_address$long[i] <- as.numeric(result[1])
+    camp_address$lat[i] <- as.numeric(result[2])
+    
+    Sys.sleep(0.05)  # prevent over 50 google maps queries per second
+    
+    # Jose's way
+    # g_add <- geocodeAddress(camp_address$complete_session_address[i])
+    # camp_address$lat[i] <- g_add[1]
+    # camp_address$long[i] <- g_add[2]
+  }
 }
-new <- Sys.time() - old # calculate difference
-print(new)
-
-head(camp_address)
 ```
 
-Join the geocodings back with the main dataset, drop unuseful columns, and simplify column names.
+Join the geocodings back with the main dataset.
 
 ```{r}
 # Join geocodings and drop redundant address columns
-camp_address_intermediate = camp_address[,c("session_address_1","complete_session_address","lat","long")]
-programdata_final = merge(x = programdata, y = camp_address_intermediate, by = "session_address_1", all = TRUE)
-programdata_final$complete_session_address <- NULL
+camp_address_intermediate <- camp_address[,c("session_address_1","session_city", "session_state", "session_zip", "lat","long")]
 
-# Drop unuseful columns. Note that camp_tag seems to all be region=co,
+programdata_final <- merge(x = programdata, y = camp_address_intermediate, sort=FALSE)
+head(programdata_final)
+nrow(programdata_final)  # should be 3136
+ncol(programdata_final)  # should be 37 + 2 (adding lat, long)
+```
+
+Drop unuseful columns.
+
+```{r}
+# Note that camp_tag seems to all be region=co,
 # and session_count seems to be all 1's.
-programdata_final =  programdata_final[, !names(programdata_final) %in% c("camp_youtube","camp_phone","camp_facebook", "camp_email", "camp_website", "camp_twitter", "?..camp_id", "camp_tag", "session_count")] 
+colsToDrop <- c("camp_youtube","camp_phone","camp_facebook", "camp_email", "camp_website", "camp_twitter", "?..camp_id", "camp_tag", "session_count")
 
-# Reformatiing dates (no need for times)
+programdata_final =  programdata_final[, !names(programdata_final) %in% colsToDrop] 
+
+head(programdata_final)
+```
+
+Remove times (which are all 00:00:00) from dates.
+
+```{r}
+# Reformatting dates (no need for times)
 programdata_final$session_date_start = gsub(' 00:00:00','', programdata_final$session_date_start)
-programdata_final$session_date_end = gsub(' 00:00:00','', programdata_final$session_date_start)
+programdata_final$session_date_end = gsub(' 00:00:00','', programdata_final$session_date_end)
 
+head(programdata_final)
+```
+
+Split the session categories into different columns, and update column names to be simple and database-safe.
+
+```{r}
 # Splitting the session_categories into different columns
 programdata_final <- cSplit_e(programdata_final, "session_categories", sep=",", mode = "binary",
         type = "character", fill = 0, drop = TRUE)
+# Change 0/1 encoding to true/false in the new split columns
+newCols <- grep("session_categories", colnames(programdata_final))
+for (colnum in newCols) {
+  programdata_final[,colnum] <- as.logical(programdata_final[,colnum])
+}
+
 
 # Converting all column names into small case
 dbSafeNames = function(names) {
@@ -212,7 +271,6 @@ for (x in c("academic", "arts", "cooking", "dance", "drama", "music", "nature", 
   newName <- paste("has_", x, sep="")
   colnames(programdata_final)[colnames(programdata_final) == oldName] <- newName
 }
-
 colnames(programdata_final)[colnames(programdata_final) == "session_categories_scholarshipsavailable"] <- "has_scholarships"
 colnames(programdata_final)[colnames(programdata_final) == "session_categories_offersbeforeaftercare"] <- "has_before_after_care"
 colnames(programdata_final)[colnames(programdata_final) == "session_categories_specialneedsstudent"] <- "has_special_needs_offerings"
@@ -230,59 +288,5 @@ Extract and save the column names to fill in the codebook.
 #Extracting the column names to fill it in the codebook
 column_names = colnames(programdata_final)
 column_names_dataframe = data.frame(row.names = column_names)
-write.csv(column_names_dataframe, file = "programdata_columnnames.csv")
-```
-
-Save the final data:
-
-```{r}
-write.csv(programdata_final, file = "reschool_programs.csv", row.names = FALSE)
-```
-
-
-## Separately, details about getting the museum data
-
-```{r}
-museumdata = read.csv(file = "C:/Users/Sreekanth/Desktop/DSSG Project/museum_locations.csv",  na.strings = "")
-
-# Get the lat and long using google API - function already defined above
-# geocodeAddress <- function(address) {
-#   require(RJSONIO)
-#   full <- paste(address)
-#   url <- "https://maps.google.com/maps/api/geocode/json?address="
-#   url <- URLencode(paste(url, full, '&sensor=false&key=','AIzaSyAHW3TJFoPOIqXl9-lu4Wz928vu38kUCxE', sep = ""))
-#   x <- fromJSON(url, simplify = FALSE)
-#   if (x$status == "OK") {
-#     
-#       out <- c(x$results[[1]]$geometry$location$lat,
-#                x$results[[1]]$geometry$location$lng)
-#     } else {
-#       out <- NA
-#   }
-#   Sys.sleep(0.05)  # API only allows 50 requests per second
-#   out
-# }
-
-# Initialize
-g_add=list()
-
-# Run the geocoding
-old <- Sys.time() # get start time
-for (i in 1:nrow(museumdata)) {
-  # Joe's way
-  result <- geocode(camp_address$complete_session_address[i], output="latlona", source="google")
-  camp_address$long[i] <- as.numeric(result[1])
-  camp_address$lat[i] <- as.numeric(result[2])
-  
-  # Jose's way
-  # g_add <- geocodeAddress(museumdata$address[i])
-  # museumdata$lat[i] <- g_add[1]
-  # museumdata$long[i] <- g_add[2]
-
-  if (i == nrow(museumdata)) cat("Done!\n")
-}
-new <- Sys.time() - old # calculate difference
-print(new)
-
-museumdata_final = museumdata
+write.csv(column_names_dataframe, file = "/Users/kelliemacphee/Desktop/dssg2018/code/osr_dssg2018/programdata_columnnames.csv")
 ```
