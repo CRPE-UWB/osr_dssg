@@ -212,7 +212,7 @@ mean(block_distances$driving_morning_noon)
 ```
 
 ###Final Loop
-Given that differences in arrival times seem quite small, here we run the full loop for 08:00 departures. 
+Given that differences in arrival times seem quite small, here we run the full loop for 08:00 departures to save us money/time/LIFE. 
 ```{r}
 library(ggmap)
 library(googleway)
@@ -225,7 +225,7 @@ block_distance$transit_morning <- 0
 
 for (i in 1:nrow(census_centroids)){ 
   #to be replaced length(census_centroids), i.e, read every unique block centroid
-  blockgroup.i <- census_centroids$ID[i] #read arbitrary block n
+  blockgroup.i <- census_centroids$ID[i] #read arbitrary block ID
   lat.i <- census_centroids$lat[i] #get coordinates
   long.i <- census_centroids$long[i]
   lat.long <- c(lat.i,long.i) #combine blockgroup coordinates for mapdist function
