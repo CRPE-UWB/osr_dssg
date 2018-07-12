@@ -49,4 +49,4 @@ rsconnect/
 "Social Media Keys.Rmd"
 
 # aws things
-aws_connect.R
+cred.txt
