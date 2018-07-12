@@ -39,11 +39,13 @@ spdf <- shapefile("/Users/Andrew/osr_dssg2018-3/census_block_groups/shape_census
 library(rgeos)
 library(rgdal)
 library(raster)
-census_centroids <- gCentroid(spdf, byid=TRUE) #find center of shapefile blockgroups
-census_centroids <- as.data.frame(census_centroids) #make it something we can index
-colnames(census_centroids) <- c("long","lat") #consistent with all other dataframes
-rownames(census_centroids) <- NULL #remove row 0
-census_centroids$ID <- rownames(census_centroids) #arbitrary identifer
+library(tidyverse)
+census_centroids <- SpatialPointsDataFrame(gCentroid(spdf, byid=TRUE), spdf@data, match.ID = FALSE)
+census_centroids <- as.data.frame(census_centroids)
+colnames(census_centroids)[colnames(census_centroids)=="x"] <- "long"  # for consistency across files
+colnames(census_centroids)[colnames(census_centroids)=="y"] <- "lat"
+census_centroids <- census_centroids %>% select(Id2, lat, long)
+colnames(census_centroids)[colnames(census_centroids)=="Id2"] <- "blockID" #updating for loop consistency
 ```
 
 ###Getting Unique ReSchool Addresses
@@ -51,9 +53,11 @@ census_centroids$ID <- rownames(census_centroids) #arbitrary identifer
 library(rgeos)
 library(rgdal)
 library(raster)
+library(tidyverse)
 reschool_programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs") #for getting unique program addresses
-reschool_addresses <- reschool_programs[c("complete_session_address","lat","lon")]
+reschool_addresses <- reschool_programs %>% select(session_address_1,lat,long)
 reschool_addresses <- unique(reschool_addresses)
+rownames(reschool_addresses) <- NULL
 ```
 
 ###Spot fix an incorrectly geocoded reschool address
@@ -61,8 +65,8 @@ reschool_addresses <- unique(reschool_addresses)
 ```{r}
 library(ggmap)
 spot_fix <- geocode("26th & Quebec St, Denver, 80207, usa",output="latlona",source=c("google","dsk"))
-reschool_addresses$lat[96] <- spot_fix[,2] #putting in lat/lons from new geocode 
-reschool_addresses$lon[96] <- spot_fix[,1]
+reschool_addresses$lat[129] <- spot_fix[,2] #putting in lat/lons from new geocode 
+reschool_addresses$long[129] <- spot_fix[,1]
 ```
 
 ###Close RDS Connection
@@ -222,8 +226,9 @@ block_distance$blockID <- 0
 block_distance$driving_morning <- 0
 block_distance$walking_morning <- 0
 block_distance$transit_morning <- 0
+block_distance$kilometers <- 0
 
-for (i in 1:nrow(census_centroids)){ 
+system.time(for (i in 1:3){ 
   #to be replaced length(census_centroids), i.e, read every unique block centroid
   blockgroup.i <- census_centroids$ID[i] #read arbitrary block ID
   lat.i <- census_centroids$lat[i] #get coordinates
@@ -266,10 +271,12 @@ for (i in 1:nrow(census_centroids)){
     block_mover$driving_morning[x] <- as.numeric(distance.x$duration[2]/60) #paste drive time, etc, in minutes
     block_mover$walking_morning[x] <- as.numeric(distance_walking.x$duration[2]/60)
     block_mover$transit_morning[x] <- as.numeric(distance_transit.x$duration[2]/60)
+    block_mover$kilometers[x] <- distance.x$distance[[1]]
     print(paste("morning",x,i)) #print iterations to note breaks in case something goes wrong with the maps api 
   }
   block_distance <- rbind(block_distance,block_mover) #merge new distance into the base dataframe
-}
-block_distance_final <- subset(block_distance,block_distance$blockID!=0) #remove our empty ID level 
+})
+block_distance_final <- subset(block_distance,block_distance$blockID!=0) #remove our empty ID level
+colnames(block_distance_final)[colnames(block_distance_final)=="blockID"] <- "Id2"
 ```
 
