@@ -1,5 +1,5 @@
 ---
-title: "Newnotebook"
+title: "Create_census"
 author: "Haowen Zheng"
 date: "6/20/2018"
 output: html_document
@@ -382,12 +382,13 @@ census$Id2 <- paste0("0", census$Id2)
 #merge 
 library(tigris)
 shape_census <- geo_join(shape_conorado, census, "GEOID", "Id2", how = "inner")
+shape_census@data$Id2 <- gsub("0(\\d{11})","\\1",shape_census@data$Id2)
 
 #write the shapefile
 writeOGR(obj=shape_census, dsn="shape_census", layer="shape_census", driver="ESRI Shapefile")
 
 #try if it works
-#shape_census <- readOGR(dsn="/Users/luna/dssg2018/osr_dssg2018/data/shape_census", layer="shape_census")
+# shape_census <- readOGR(dsn="/path/shape_census", layer="shape_census")
 ```
 
 ### 5. Reformatting
