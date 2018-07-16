@@ -10,6 +10,8 @@ library(tidyr)
 library(splitstackshape)  # for splitting the categories column
 # library(RJSONIO)  # for Jose's geocoding
 library(ggmap)
+library(rgdal)
+library(rgeos)
 ```
 
 ## Blueprint4summer program data
@@ -18,7 +20,7 @@ Read in the Blueprint4Summer program data from a local csv.
 
 ```{r}
 # programdata = read.csv(file = "C:/Users/Sreekanth/Desktop/DSSG Project/programdata.csv", na.strings = "")
-programdata = read.csv(file = "/Users/kelliemacphee/Desktop/dssg2018/Blueprint4Summer.csv", na.strings = "")
+programdata = read.csv(file = "/Users/kelliemacphee/Desktop/dssg2018/Data/Blueprint4Summer.csv", na.strings = "")
 ```
 
 Fix the types of the columns so that everything is loaded properly into the database later. Do this first thing in case any other code below might be affected, too.
@@ -119,7 +121,7 @@ There are also some xa0's (no-break spaces) at the beginning of a couple of addr
 programdata$session_address_1 <- gsub('*\xa0', '', programdata$session_address_1)
 ```
 
-## Getting the unique addresses that needs to be fed into google API
+## Getting the unique addresses that need to be fed into google API
 
 I am checking if there are any session addresses that are repeated.
 
@@ -280,6 +282,36 @@ programdata_final <- programdata_final[,c(2:24, 1, 25:length(programdata_final))
 
 head(programdata_final)
 colnames(programdata_final)
+```
+
+We also want to add the block group ids to the dataset, in addition to the lat/longs.
+```{r}
+# get block group polygons
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+mypath <- getwd()
+dataPath <- file.path(dirname(mypath), "data", "census_clean", "shape_census")
+blockGroups <- readOGR(dsn = dataPath, 'shape_census')
+
+# figure out which block group each program is in
+coords <- data.frame(programdata_final$long, programdata_final$lat)
+colnames(coords) <- c("long", "lat")
+spatialReschool <- SpatialPoints(coords, proj4string = CRS(proj4string(blockGroups)))
+
+nests <- gIntersects(spatialReschool, blockGroups, byid = TRUE)  # rows=bgroups, cols=programs
+true_idxs <- which(nests==TRUE, arr.ind=TRUE)  # col1 = bgroup idx, col2 = program idx
+bgroup_idxs  <- true_idxs[,1]
+program_idxs <- true_idxs[,2]
+
+reschool_bgs <- data.frame(coords[program_idxs,],
+                      blockGroups$Id2[bgroup_idxs]
+                      )
+colnames(reschool_bgs) <- c("long", "lat", "bgroup_id2")
+
+reschool_bgs$bgroup_id2 <- as.character(as.numeric(as.character(reschool_bgs$bgroup_id2))) # strip leading 0's
+head(reschool_bgs)
+
+programdata_final <- merge(programdata_final, reschool_bgs)
+head(programdata_final)
 ```
 
 Extract and save the column names to fill in the codebook.
