@@ -1,5 +1,5 @@
 ---
-title: "Reschool_program_data"
+title: "Process reschool program data"
 output: html_document
 ---
 
@@ -19,7 +19,6 @@ library(rgeos)
 Read in the Blueprint4Summer program data from a local csv.
 
 ```{r}
-# programdata = read.csv(file = "C:/Users/Sreekanth/Desktop/DSSG Project/programdata.csv", na.strings = "")
 programdata = read.csv(file = "/Users/kelliemacphee/Desktop/dssg2018/Data/Blueprint4Summer.csv", na.strings = "")
 ```
 
@@ -201,7 +200,7 @@ for (k in 1:max_runs) {
     camp_address$long[i] <- as.numeric(result[1])
     camp_address$lat[i] <- as.numeric(result[2])
     
-    Sys.sleep(0.05)  # prevent over 50 google maps queries per second
+    Sys.sleep(0.1)  # prevent over 50 google maps queries per second
     
     # Jose's way
     # g_add <- geocodeAddress(camp_address$complete_session_address[i])
@@ -294,10 +293,14 @@ blockGroups <- readOGR(dsn = dataPath, 'shape_census')
 
 # figure out which block group each program is in
 coords <- data.frame(programdata_final$long, programdata_final$lat)
+coords <- unique(coords)
 colnames(coords) <- c("long", "lat")
 spatialReschool <- SpatialPoints(coords, proj4string = CRS(proj4string(blockGroups)))
-
 nests <- gIntersects(spatialReschool, blockGroups, byid = TRUE)  # rows=bgroups, cols=programs
+
+# each program should be in at most one block group!! check:
+print(paste( sum(colSums(nests) > 1), "errors" ))
+
 true_idxs <- which(nests==TRUE, arr.ind=TRUE)  # col1 = bgroup idx, col2 = program idx
 bgroup_idxs  <- true_idxs[,1]
 program_idxs <- true_idxs[,2]
@@ -307,11 +310,19 @@ reschool_bgs <- data.frame(coords[program_idxs,],
                       )
 colnames(reschool_bgs) <- c("long", "lat", "bgroup_id2")
 
-reschool_bgs$bgroup_id2 <- as.character(as.numeric(as.character(reschool_bgs$bgroup_id2))) # strip leading 0's
+# strip leading 0's in block group ids
+reschool_bgs$bgroup_id2 <- as.character(as.numeric(as.character(reschool_bgs$bgroup_id2))) 
 head(reschool_bgs)
 
-programdata_final <- merge(programdata_final, reschool_bgs)
-head(programdata_final)
+programdata_final_bgs <- merge(programdata_final, reschool_bgs, by.x=c("lat", "long"), by.y=c("lat", "long"), all.x=TRUE, all.y=FALSE)
+head(programdata_final_bgs)
+```
+
+Save the final, clean data to a csv.
+
+```{r}
+filename <- paste("clean-reschool-data-", Sys.Date(), ".csv", sep="")
+write.csv(programdata_final_bgs, file = filename, row.names = FALSE)
 ```
 
 Extract and save the column names to fill in the codebook.

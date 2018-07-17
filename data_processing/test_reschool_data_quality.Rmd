@@ -1,0 +1,103 @@
+---
+title: "Test Blueprint4Summer data quality"
+author: "Kellie"
+date: "7/16/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(leaflet)
+library(dplyr)
+
+# Load the data - saved locally in the same folder as this Rmd
+date <- "2018-07-16"  # input this
+filename <- paste("clean-reschool-data-", date, ".csv", sep="")
+cleanData <- read.csv(filename)
+```
+
+## Are camp and session ids unique?
+
+```{r}
+sessionIds_are_unique <- (nrow(cleanData) == length(unique(cleanData$session_id)))
+print(paste("Session ids are unique:", sessionIds_are_unique))
+
+campIds_are_unique <- (length(unique(cleanData$camp_id)) == 
+                         length(unique(cleanData$camp_name)))
+print(paste("Camp ids are unique:", campIds_are_unique))
+```
+
+## Are any session addresses repeated, with wrong zipcodes?
+
+Check if there are any session addresses that are repeated.
+
+```{r}
+session_addresses <- unique(cleanData[c("session_address_1",  "session_city", "session_state", "session_zip")])
+num_repeats <- (length(session_addresses$session_address_1) - length(unique(session_addresses$session_address_1)))
+print(paste("Number of session addresses that arerepeated:", num_repeats))
+```
+
+Look at the duplicates:
+
+```{r}
+session_addresses[duplicated(session_addresses$session_address_1)|duplicated(session_addresses$session_address_1, fromLast=TRUE),]
+```
+
+MANUALLY REPLACE THESE!!!!
+
+Okay, there is the issue of duplicates beacuse of the presence of different zipcodes for three different session addresses in the city of Aurora.
+On doing a google search, 2390 Havana St should have the zipcode 80010, 3054 S Laredo St has the zip code 80013 and 800 Telluride St has the zipcode 80011. Manually replace these.
+
+```{r}
+for (i in 2:nrow(session_addresses)){
+  if(session_addresses[i,1] == session_addresses[i-1,1]){
+    session_addresses[i,3] = session_addresses[i-1,3]
+  }
+}
+
+session_addresses = unique(session_addresses[c("session_address_1",  "session_city", "session_state", "session_zip")])
+# length(camp_address$session_address_1)
+# length(unique(camp_address$session_address_1))
+head(session_addresses)
+```
+
+Manually replace more of these on your own here:
+
+```{r}
+
+```
+
+
+## Geocoding data quality check
+
+Did any geocodings fail? (Look for NAs.)
+
+```{r}
+print(paste(sum(is.na(cleanData$lat)), "failed latitudes"))
+print(paste(sum(is.na(cleanData$long)), "failed longitudes"))
+```
+
+Show the geocoded program locations in an interactive map, invite viewer to manually change any bad geocodings.
+
+```{r}
+denver_center_lat <- 39.7392
+denver_center_long <- -104.9903
+
+leaflet(cleanData) %>%
+  setView(lng = denver_center_long, lat = denver_center_lat, zoom = 0) %>%
+  addTiles() %>%
+  addCircleMarkers(~long, ~lat, stroke = FALSE,
+                   popup = paste(cleanData$session_name, 
+                                 cleanData$camp_name, 
+                                 cleanData$session_address_1,
+                                 paste(cleanData$session_city,
+                                       cleanData$session_state, sep=", "), 
+                                 sep="<br>")
+                   )
+```
+
+
+
+
+
