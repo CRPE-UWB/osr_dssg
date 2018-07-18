@@ -1,7 +1,5 @@
 ---
-title: "Test Blueprint4Summer data quality"
-author: "Kellie"
-date: "7/16/2018"
+title: "Testing Blueprint4Summer clean data"
 output: html_document
 ---
 
@@ -13,13 +11,15 @@ library(dplyr)
 
 # Load the data - saved locally in the same folder as this Rmd
 date <- "2018-07-16"  # input this
-filename <- paste("clean-reschool-data-", date, ".csv", sep="")
-cleanData <- read.csv(filename)
+cleandata_filename <- paste("clean-reschool-data-", date, ".csv", sep="")
+cleanData <- read.csv(cleandata_filename)
 ```
 
-## Are camp and session ids unique?
+### Basic data quality check
 
-```{r}
+Are camp and session ids unique?
+
+```{r, echo=FALSE, results='hold'}
 sessionIds_are_unique <- (nrow(cleanData) == length(unique(cleanData$session_id)))
 print(paste("Session ids are unique:", sessionIds_are_unique))
 
@@ -28,63 +28,62 @@ campIds_are_unique <- (length(unique(cleanData$camp_id)) ==
 print(paste("Camp ids are unique:", campIds_are_unique))
 ```
 
-## Are any session addresses repeated, with wrong zipcodes?
+Are any session addresses repeated, with different zipcodes (or city/state)?
 
-Check if there are any session addresses that are repeated.
+```{r, echo=FALSE, results='hold'}
+session_addresses <- unique(cleanData[c("session_address_1",  "session_city",
+                                          "session_state", "session_zip")])
 
-```{r}
-session_addresses <- unique(cleanData[c("session_address_1",  "session_city", "session_state", "session_zip")])
-num_repeats <- (length(session_addresses$session_address_1) - length(unique(session_addresses$session_address_1)))
-print(paste("Number of session addresses that arerepeated:", num_repeats))
+AreDuplicateAddresses <- function(session_addresses) {
+  num_repeats <- (length(session_addresses$session_address_1) -
+                    length(unique(session_addresses$session_address_1)))
+  print(paste("Number of session addresses that are repeated:", num_repeats)) 
+}
+
+AreDuplicateAddresses(session_addresses)
 ```
 
-Look at the duplicates:
+Look at the duplicated addresses:
 
-```{r}
+```{r, echo=FALSE, results='hold'}
 session_addresses[duplicated(session_addresses$session_address_1)|duplicated(session_addresses$session_address_1, fromLast=TRUE),]
 ```
 
-MANUALLY REPLACE THESE!!!!
-
-Okay, there is the issue of duplicates beacuse of the presence of different zipcodes for three different session addresses in the city of Aurora.
-On doing a google search, 2390 Havana St should have the zipcode 80010, 3054 S Laredo St has the zip code 80013 and 800 Telluride St has the zipcode 80011. Manually replace these.
+From a Google Maps search, 2390 Havana St has the zipcode 80010, 3054 S Laredo St has the zip code 80013 and 800 Telluride St has the zipcode 80011. Manually replace these.
 
 ```{r}
-for (i in 2:nrow(session_addresses)){
-  if(session_addresses[i,1] == session_addresses[i-1,1]){
-    session_addresses[i,3] = session_addresses[i-1,3]
-  }
-}
-
-session_addresses = unique(session_addresses[c("session_address_1",  "session_city", "session_state", "session_zip")])
-# length(camp_address$session_address_1)
-# length(unique(camp_address$session_address_1))
-head(session_addresses)
+cleanData[cleanData$session_address_1=="2390 Havana St", "session_zip"] <- 80010
+cleanData[cleanData$session_address_1=="3054 S Laredo St", "session_zip"] <- 80013
+cleanData[cleanData$session_address_1=="800 Telluride St", "session_zip"] <- 80011
 ```
 
-Manually replace more of these on your own here:
+Are there any bad duplicated addresses left? If so, add additional rows to the code above.
 
-```{r}
+```{r, echo=FALSE, results='hold'}
+session_addresses <- unique(cleanData[c("session_address_1",  
+                                               "session_city", 
+                                               "session_state", 
+                                               "session_zip")])
 
+AreDuplicateAddresses(session_addresses)
 ```
 
+### Geocoding quality check
 
-## Geocoding data quality check
+Did any geocodings fail? First we look for NAs in the added latitudes and longitudes.
 
-Did any geocodings fail? (Look for NAs.)
-
-```{r}
+```{r, echo=FALSE, results='hold'}
 print(paste(sum(is.na(cleanData$lat)), "failed latitudes"))
 print(paste(sum(is.na(cleanData$long)), "failed longitudes"))
 ```
 
-Show the geocoded program locations in an interactive map, invite viewer to manually change any bad geocodings.
+Next we look at the geocoded program locations in an interactive map, to see if any are obviously wrong (e.g. the wrong state or city). **Zoom in and look around!!! You can click on points in the map to see the session name, camp name, and address.**
 
-```{r}
+```{r, echo=FALSE}
 denver_center_lat <- 39.7392
 denver_center_long <- -104.9903
 
-leaflet(cleanData) %>%
+leaflet(cleanData, width = "100%", height = 400) %>%
   setView(lng = denver_center_long, lat = denver_center_lat, zoom = 0) %>%
   addTiles() %>%
   addCircleMarkers(~long, ~lat, stroke = FALSE,
@@ -97,7 +96,40 @@ leaflet(cleanData) %>%
                    )
 ```
 
+For example, the session named "Summer in The Park - Fred Thomas Park" is supposed to be in Denver but has been geocoded into Arkansas for some reason. From a Google search, the correct latitude for Fred Thomas Park is 39.7525 and the correct longitude is -104.9016. We manually correct this:
 
+```{r}
+cleanData[cleanData$session_name=="Summer in The Park - Fred Thomas Park", "lat"] <- 39.7525
+cleanData[cleanData$session_name=="Summer in The Park - Fred Thomas Park", "long"] <- -104.9016
+```
 
+Look at the map again:
 
+```{r, echo=FALSE}
+denver_center_lat <- 39.7392
+denver_center_long <- -104.9903
+
+leaflet(cleanData, width = "100%", height = 400) %>%
+  setView(lng = denver_center_long, lat = denver_center_lat, zoom = 0) %>%
+  addTiles() %>%
+  addCircleMarkers(~long, ~lat, stroke = FALSE,
+                   popup = paste(cleanData$session_name, 
+                                 cleanData$camp_name, 
+                                 cleanData$session_address_1,
+                                 paste(cleanData$session_city,
+                                       cleanData$session_state, sep=", "), 
+                                 sep="<br>")
+                   )
+```
+
+**You should emulate the code above to manually fix any other noticeably wrong geocodings.**
+
+### Save to csv
+
+Once everything looks good, we overwrite the previous version of the clean data with our even cleaner data.
+
+```{r}
+# Uncomment the line below to actually save the csv
+# write.csv(cleanData, file = cleandata_filename, row.names = FALSE, na = "")
+```
 
