@@ -95,7 +95,6 @@ PathLevel$keywords <- sapply(PathLevel$CleanPath,ReturnKeyWords)
 ###Cleaning Paths
 ```{r}
 library(stringr)
-
 PathLevel$gender <- sapply(PathLevel$gender,CleanHash)
 PathLevel$distance <-sapply(PathLevel$distance,CleanHash)
 PathLevel$category <- sapply(PathLevel$category,CleanHash)
@@ -112,6 +111,15 @@ PathLevel$beforeaftercare <- sapply(PathLevel$beforeaftercare,CleanHash)
 PathLevel$gifted <- sapply(PathLevel$gifted,CleanHash)
 PathLevel$keywords <- sapply(PathLevel$keywords,CleanHash)
 ```
+
+###Subset Pathlevel to searchs only
+Our pull returns lots of pages that are not related to search results When we start to aggregate features, we'll notice a lot of empy searches. Here we use a function that only returns pages with search specifications, then subset for those. 
+```{r}
+PathLevel$cut <- ""
+PathLevel$cut <- sapply(PathLevel$PagePath,FlagNonSearch)
+PathLevel <- subset(PathLevel,PathLevel$cut!="cut")
+```
+
 
 ###Aggregating Users By Category & Lat/Lon
 While we may have started our report with several different metrics and uniquepaths, here we're only interested in the number of users searching for "x" features at "y" lat/lon. So we make a simpler data.frame from here on out. 

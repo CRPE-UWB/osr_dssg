@@ -217,8 +217,8 @@ mean(block_distances$driving_morning_noon)
 
 ###Final Loop
 Given that differences in arrival times seem quite small, here we run the full loop for 08:00 departures to save us money/time/LIFE. 
+
 ```{r}
-library(ggmap)
 library(googleway)
 block_distance <- reschool_addresses
 #for ease of testing
@@ -228,7 +228,7 @@ block_distance$walking_morning <- 0
 block_distance$transit_morning <- 0
 block_distance$kilometers <- 0
 
-system.time(for (i in 1:60){  #first 25%
+system.time(for (i in 1:nrow(census_centroids)){  
   #to be replaced length(census_centroids), i.e, read every unique block centroid
   blockgroup.i <- census_centroids$blockID[i] #read arbitrary block ID
   lat.i <- census_centroids$lat[i] #get coordinates
@@ -244,7 +244,6 @@ system.time(for (i in 1:60){  #first 25%
     block_mover$blockID <- blockgroup.i #set ID blockgroup ID
     lat.long.x <- c(lat.x,long.x) #combine OSR coordinates for use in mapdist
     lat.long.x <- paste(lat.long.x,collapse=" ")
-    
     #distance calculations with arrival time = 08:00am on a weekday
     distance.x <- google_distance(origin=c(lat.i,long.i),
     destination = c(lat.x,long.x),
@@ -258,25 +257,61 @@ system.time(for (i in 1:60){  #first 25%
     key = google_api_key)
     distance_transit.x <- google_distance(origin=c(lat.i,long.i),
     destination = c(lat.x,long.x),
-    mode="driving",
+    mode="transit",
     arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"),
     key = google_api_key)
-    
     #grabbing our dataframe list items
     distance.x <- as.data.frame(distance.x$rows$elements)
     distance_walking.x <- as.data.frame(distance_walking.x$rows$elements)
     distance_transit.x <- as.data.frame(distance_transit.x$rows$elements)
-    
+    if(distance_transit.x$status!="ZERO_RESULTS"){
+      block_mover$transit_morning[x] <- as.numeric(distance_transit.x$duration[2]/60)}
     #indexing the piece of the dataframes we need
     block_mover$driving_morning[x] <- as.numeric(distance.x$duration[2]/60) #paste drive time, etc, in minutes
     block_mover$walking_morning[x] <- as.numeric(distance_walking.x$duration[2]/60)
-    block_mover$transit_morning[x] <- as.numeric(distance_transit.x$duration[2]/60)
     block_mover$kilometers[x] <- distance.x$distance[[1]]
-    print(paste("totally working, PLEASE DON'T TURN ME OFF",x,i)) #print iterations to note breaks in case something goes wrong with the maps api 
-  }
+    if(x %% 50 == 0){
+      print(paste("working...",x,i))
+      print(nrow(block_distance))#print iterations to note breaks in case something goes wrong with the maps api 
+    }
+}
   block_distance <- rbind(block_distance,block_mover) #merge new distance into the base dataframe
-})
+  })
 #block_distance_final <- subset(block_distance,block_distance$blockID!=0) #remove our empty ID level, we don't want to cut till we done
-colnames(block_distance_final)[colnames(block_distance_final)=="blockID"] <- "Id2"
+block_distance <- subset(block_distance,block_distance$blockID!=0)
+colnames(block_distance)[colnames(block_distance)=="blockID"] <- "Id2"
 ```
 
+Spot fix 355, maybe 322?, def 390. We're def missing 3. AFTER we convert to numeric, remove partial duplicates (things where the ID got fucked up) we see unique = 478, != 484
+
+So we should have 114,720 rows. We have 116,643. So there are some duplicates, somewhere, not getting removed with unique(df). Possibly fucked up lat longs? When we include the three remaining block groups we should have a total of 115,440.
+
+###Data Cleaning
+```{r}
+block_distance <- unique(block_distance) #remove any duplicates in case we had to start and stop a few block ID choices in the loop
+block_distance$meters <- grepl(" m",block_distance$kilometers) #identify which are no kms for use in function
+block_distance$distance <- 0 #empty dataframe to store new distances
+
+#for loop to remove distance characters, cus the hell with sapply
+for (x in 1:nrow(block_distance)){
+  if(block_distance$meters[x]==FALSE){
+    km <- as.numeric(str_split_fixed(block_distance$kilometers[x]," ",2)[,1])
+    block_distance$distance[x] <- km}
+  if(block_distance$meters[x]==TRUE){
+    m <- as.numeric(str_split_fixed(block_distance$kilometers[x]," ",2)[,1])/1000
+    block_distance$distance[x] <- m
+  }
+  if(x %% 100 == 0 ){
+    print(paste("working....",x))
+  }
+}
+
+#convet distance to numeric and remove placeholder columns
+block_distance$distance <- as.numeric(block_distance$distance)
+block_distance$kilometers <- block_distance$distance
+block_distance$distance <- NULL
+block_distance$meters <- NULL
+
+#convert transit time = 0 to NA as it should be 
+block_distance$transit_morning[block_distance$transit_morning == 0] <- NA
+```

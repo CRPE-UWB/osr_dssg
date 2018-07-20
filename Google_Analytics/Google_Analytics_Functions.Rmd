@@ -189,4 +189,11 @@ CleanHash<- function(x){
   stringcheck <- str_split_fixed(x,"=",Inf)
   ifelse(length(stringcheck)>1,return(stringcheck[2]),"")
 }
+
+FlagNonSearch <- function(x){
+  y <- grepl("search",x)
+  z <- grepl("Categories",x)
+  a <- grepl("distance",x)
+  b <- grepl("gender",x)
+  ifelse((y[1]==TRUE | z[1]==TRUE | a[1]==TRUE) | b[1]==TRUE,"",return("cut"))}
 ```
