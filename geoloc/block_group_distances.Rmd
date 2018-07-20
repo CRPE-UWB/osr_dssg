@@ -286,6 +286,76 @@ Spot fix 355, maybe 322?, def 390. We're def missing 3. AFTER we convert to nume
 
 So we should have 114,720 rows. We have 116,643. So there are some duplicates, somewhere, not getting removed with unique(df). Possibly fucked up lat longs? When we include the three remaining block groups we should have a total of 115,440.
 
+###Spot fix a handful of blocks that are missing
+"80310157004","80319800001","80319801001"
+```{r}
+library(googleway)
+missing_blocks <- c("080310157004","080319800001","080319801001")
+missing_centroids <-census_centroids[census_centroids$blockID %in% missing_blocks,] #create a subset of missing blocks
+block_mover <- subset(block_distance,block_distance$Id2==block_distance$Id2[1]) #make a new empty subset so we can rerun the same loop
+block_mover$driving_morning <- 0
+block_mover$transit_morning <- 0
+block_mover$walking_morning <- 0
+block_mover$kilometers <- 0
+block_mover$Id2 <- 0
+block_distance <- rbind(block_distance,block_mover)
+
+system.time(for (i in 1:length(missing_blocks)){  
+  #to be replaced length(census_centroids), i.e, read every unique block centroid
+  blockgroup.i <- missing_centroids$blockID[i] #read arbitrary block ID
+  lat.i <- missing_centroids$lat[i] #get coordinates
+  long.i <- missing_centroids$long[i]
+  lat.long <- c(lat.i,long.i) #combine blockgroup coordinates for mapdist function
+  lat.long <- paste(lat.long,collapse=" ") #see above
+  block_mover <- subset(block_distance,block_distance$Id2==0) #make a new subset that is original length
+  for (x in 1:nrow(block_mover)){
+    #setting up block subset
+    block_mover$Id2 <- blockgroup.i
+    lat.x <- block_mover$lat[x] #get coordinates for OSRs
+    long.x <- block_mover$lon[x] 
+    lat.long.x <- c(lat.x,long.x) #combine OSR coordinates for use in mapdist
+    lat.long.x <- paste(lat.long.x,collapse=" ")
+    #distance calculations with arrival time = 08:00am on a weekday
+    
+    distance.x <- google_distance(origin=c(lat.i,long.i),
+    destination = c(lat.x,long.x),
+    mode="driving",
+    arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"), #autocorrect to PST, so we adjust for the dif from MST to MT
+    key = google_api_key)
+    
+   distance_walking.x <- google_distance(origin=c(lat.i,long.i),
+    destination = c(lat.x,long.x),
+    mode="walking",
+    arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"),
+    key = google_api_key)
+
+    distance_transit.x <- google_distance(origin=c(lat.i,long.i),
+    destination = c(lat.x,long.x),
+    mode="transit",
+    arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"),
+    key = google_api_key)
+
+    #grabbing our dataframe list items
+    distance.x <- as.data.frame(distance.x$rows$elements)
+    distance_walking.x <- as.data.frame(distance_walking.x$rows$elements)
+    distance_transit.x <- as.data.frame(distance_transit.x$rows$elements)
+    if(distance_transit.x$status!="ZERO_RESULTS"){
+      block_mover$transit_morning[x] <- as.numeric(distance_transit.x$duration[2]/60)}
+    
+    #indexing the piece of the dataframes we need
+    block_mover$driving_morning[x] <- as.numeric(distance.x$duration[2]/60) #paste drive time, etc, in minutes
+    block_mover$walking_morning[x] <- as.numeric(distance_walking.x$duration[2]/60)
+    block_mover$kilometers[x] <- distance.x$distance[[1]]
+    if(x %% 10 == 0){
+      print(paste("working...",x,i))
+      print(nrow(block_distance))#print iterations to note breaks in case something goes wrong with the maps api 
+    }
+}
+  block_distance <- rbind(block_distance,block_mover) #merge new distance into the base dataframe
+  })
+block_distance <- subset(block_distance,block_distance$Id2!=0)
+```
+
 ###Data Cleaning
 ```{r}
 block_distance <- unique(block_distance) #remove any duplicates in case we had to start and stop a few block ID choices in the loop
@@ -301,7 +371,7 @@ for (x in 1:nrow(block_distance)){
     m <- as.numeric(str_split_fixed(block_distance$kilometers[x]," ",2)[,1])/1000
     block_distance$distance[x] <- m
   }
-  if(x %% 100 == 0 ){
+  if(x %% 10000 == 0 ){
     print(paste("working....",x))
   }
 }
@@ -314,4 +384,95 @@ block_distance$meters <- NULL
 
 #convert transit time = 0 to NA as it should be 
 block_distance$transit_morning[block_distance$transit_morning == 0] <- NA
+```
+
+###Aggregate number of programs per unique address
+```{r}
+library(tidyverse)
+#total sessions
+reschool_programs$n <- 1
+total_programs <- aggregate(n ~ session_address_1 + lat + long, data=reschool_programs, sum)
+
+#sessions by category
+#re-do for each discrete, I KNOW IT SUCKS, but you got a better idea?
+#creating aggregated categories
+reschool_programs$academic <- ifelse(reschool_programs$has_academic==TRUE | reschool_programs$has_stem==TRUE,TRUE,FALSE) 
+reschool_programs$art <- ifelse(reschool_programs$has_arts==TRUE | reschool_programs$has_cooking==TRUE | 
+                                  reschool_programs$has_dance==TRUE | reschool_programs$has_drama==TRUE
+                                | reschool_programs$has_music==TRUE,
+                                TRUE,FALSE)
+
+#aggregating for agg categories and discrete categories
+programs_academic <- aggregate(n ~ session_address_1+academic, data=reschool_programs,sum)
+programs_arts <- aggregate(n ~ session_address_1+art, data=reschool_programs,sum)
+programs_sports <- aggregate(n ~ session_address_1+has_sports, data=reschool_programs,sum)
+programs_nature <- aggregate(n ~ session_address_1+has_nature, data=reschool_programs,sum)
+
+programs_academic <- subset(programs_academic,programs_academic$academic==TRUE)
+programs_arts <- subset(programs_arts, programs_arts$art==TRUE)
+programs_sports <- subset(programs_sports, programs_sports$has_sports==TRUE)
+programs_nature <- subset(programs_nature, programs_nature$has_nature==TRUE)
+
+#trimming and creating unique colnames for merge 
+colnames(programs_academic)[colnames(programs_academic)=="n"] <- "n_academic"
+programs_academic <- programs_academic %>% select(n_academic, session_address_1)
+
+colnames(programs_arts)[colnames(programs_arts)=="n"] <- "n_arts"
+programs_arts <- programs_arts %>% select(n_arts, session_address_1)
+
+colnames(programs_sports)[colnames(programs_sports)=="n"] <- "n_sports"
+programs_sports <- programs_sports %>% select(n_sports, session_address_1)
+
+colnames(programs_nature)[colnames(programs_nature)=="n"] <- "n_nature"
+programs_nature <- programs_nature %>% select(n_nature, session_address_1)
+
+#Create a car owners data frame to merge
+#note we could do this in one step from the full census data.frame, but this is much simpler and less error prone
+census_car_owners <- as.data.frame(census_blocks)
+colnames(census_car_owners)[colnames(census_car_owners)=="INTPTLA"] <- "lat"  # for consistency across files
+colnames(census_car_owners)[colnames(census_car_owners)=="INTPTLO"] <- "long"
+census_car_owners <- census_car_owners %>% select(Id2, PCT_Vhcl_w, lat, long)
+```
+
+###Merge in additional data
+```{r}
+#merging total programs
+block_distance <- merge(block_distance, total_programs, by="session_address_1")
+
+#programs by category
+block_distance <- merge(block_distance,programs_academic,all.x=TRUE)
+block_distance <- merge(block_distance,programs_arts,all.x=TRUE)
+block_distance <- merge(block_distance,programs_nature,all.x=TRUE)
+block_distance <- merge(block_distance,programs_sports,all.x=TRUE)
+
+#nas to 0s
+block_distance$n_academic[is.na(block_distance$n_academic)==TRUE] <- 0
+block_distance$n_arts[is.na(block_distance$n_arts)==TRUE] <- 0
+block_distance$n_nature[is.na(block_distance$n_nature)==TRUE] <- 0
+block_distance$n_sports[is.na(block_distance$n_sports)==TRUE] <- 0
+
+#merge car ownership
+block_distance$Id2 <- as.numeric(block_distance$Id2)
+census_car_owners$Id2 <- as.numeric(census_car_owners$Id2)
+block_distance <- merge(block_distance, census_car_owners, by="Id2",all=TRUE)
+
+#final removal of duplictes, double check nothing messed around from merging
+block_list <- unique(block_distance$Id2)
+
+length(unique(block_distance$Id2))
+colnames(block_distance)
+```
+
+###Clean and Update Names 
+```{r}
+#update names for new lat/long combos
+block_distance$lat.y <- NULL
+block_distance$long.y <- NULL
+colnames(block_distance)[colnames(block_distance)=="lat"] <- "block_lat"
+colnames(block_distance)[colnames(block_distance)=="long"] <- "block_long"
+colnames(block_distance)[colnames(block_distance)=="lat.x"] <- "lat"
+colnames(block_distance)[colnames(block_distance)=="long.x"] <- "long"
+block_distance <- unique(block_distance)
+block_distance$Id2 <- as.character(block_distance$Id2) #convert Ids back to characters
+colnames(block_distance)
 ```
