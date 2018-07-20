@@ -9,20 +9,27 @@ library(tigris)
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
 
+# load credentials for the connection:
+# dbname, host, port, user, password
+source('/Users/kelliemacphee/Desktop/dssg2018/cred.txt')
+
 # creates a connection to the postgres database
 # note that "con" will be used later in each connection to the database
-con <- dbConnect(drv, dbname = "dssg2018uw",
-                 host = "localhost", port = 22,
-                 user = "dssg2018uw", password = "dssg2018UW")
+con <- dbConnect(drv, dbname = dbname,
+                 host = host, port = port,
+                 user = user, password = password)
 
-
-#########################Getting the required tables from the sql database####################################
+## Getting the required tables from the sql database ##
 reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
 aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
 
+## Disconnect from database and unload driver ##
+dbDisconnect(con) 
+dbUnloadDriver(drv)
+
 #######################Getting the shape file to plot the bock groups on the map##############################
-shape_census <- readOGR(dsn = "C:/Users/Sreekanth/Desktop/DSSG Project/census_nbhd_dem_shapes", layer = "nbhd_dem_shapes")
+shape_census <- readOGR(dsn = "/Users/kelliemacphee/Desktop/dssg2018/GITHUB_osr_dssg2018/data/nbhd_dem_shapes", layer = "nbhd_dem_shapes")
 #Getting the percentages for the two columns
 shape_census@data$PCT_HSD = shape_census@data$PCT_HSD * 100
 shape_census@data$PCT_NON = shape_census@data$PCT_NON * 100
@@ -44,4 +51,5 @@ maxprice_reschoolprograms = max(reschool_summer_program$session_cost)
 
 #Defining variables for choosing demographic information
 demographic_filters = c("Median Income", "Percent below poverty level")
+
 

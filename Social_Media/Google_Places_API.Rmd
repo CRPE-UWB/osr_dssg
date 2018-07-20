@@ -95,13 +95,16 @@ This is an example of one query per place on our list.
 ```{r}
 google_details <- google_place_details(place_id = placeID, key = places_key)
 reviews <- as.data.frame(google_details$result['reviews']) #very important we select by title since the data.frame length may vary by list 
-reviews$place <- names[1]
+reviews$place <- names[1] #adding a consistent identifier 
 ```
 
-###Putting it altogether in a loop
+###Looping the above for all names in our list
 This script takes the above but runs it for the lenght of the list of OSR organizations based off the export from the BluePrint4School website.
 ```{r}
-library(plyr)
+library(plyr) #for use in rbind.fill
+
+total_reviews <- data.frame() #empy data frame to store results
+
 for (i in 1:(length(names))){
   google_places.i <- google_places(search_string = names[i],
                                 location = c(39.7392,-104.9903),
@@ -114,7 +117,7 @@ for (i in 1:(length(names))){
   reviews.i$place <- names[i]
   total_reviews <- rbind.fill(reviews.i,total_reviews)
   print(paste("thanks google",i)) #yea! With you're free helpful api. We keep the counter per iteration here because we're a small n and we want to track any breaks
-  Sys.sleep(0.01)}}}
+  Sys.sleep(0.01)}}} #our list is short and there's a query per second limit, so we chill here to not risk breaking it
 ```
 
 ###Cleaning up the total reviews data for analysis
@@ -126,6 +129,6 @@ google_reviews_denver <- total_reviews
 ###Write to csv
 To share / upload to RDS.
 ```{r}
-write.csv(google_reviews_denver,"google_reviews_denver.csv")
+write.csv(google_reviews_denver,"google_reviews_denver.csv",na="",row.names=FALSE)
 ```
 

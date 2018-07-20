@@ -27,7 +27,7 @@ shinyServer(
     program_category_data = reactive({
       
       
-      a = reschool_summer_program[apply(as.data.frame(reschool_summer_program[,colm()]) == 1, 1, any), c(1,2,3,4,5,6,7,8,colm())]
+      a = reschool_summer_program[apply(as.data.frame(reschool_summer_program[,colm()]) == 1, 1, any), c(1,2,3,4,5,6,7,8,9,10,11,12,colm())]
       
       
       return(a) 
@@ -82,30 +82,42 @@ shinyServer(
       
       #Creating the variables to be used in the leaflet to show median household data
       bins <- c(0, 20000, 40000, 60000, 80000, 100000, Inf)
-      pal <- colorBin("YlOrRd", domain = shape_census@data$MED_HH_, bins = bins)
+      pal <- colorBin("viridis", domain = shape_census@data$MED_HH_, bins = bins)
+      
+      #Hovering on the neighborhood text
       labels <- sprintf(
         "Children aged 5-18 = %i <br/> Number of sessions = %i <br/> %% Hispanic students = %g%% <br/> %% English student learners = %g%% <br/> 
         %% Students who use transportation = %g%% <br/> %% Students with disability = %g%% ",
         shape_census@data$AGE_5_T, shape_census@data$count, shape_census@data$perc_hispanic_students, shape_census@data$perc_nonenglish_students,
         shape_census@data$perc_with_transport_students, shape_census@data$perc_disable_students) %>% lapply(htmltools::HTML)
+    
+      #Text in the pop up markers
+      marker_popup_text <- sprintf(
+        "Session name = %s, <br/> Organization name = %s, <br/> Session start date = %s, <br/> Session end date = %s, <br/> Session cost = %i,  <br/> Special needs offerings = %s,
+         <br/> Scholarships = %s, <br/> Session short description = %s",
+        neighborhood_data1$session_name,neighborhood_data1$camp_name, neighborhood_data1$session_date_start, neighborhood_data1$session_date_end,
+        neighborhood_data1$session_cost,neighborhood_data1$has_special_needs_offerings, neighborhood_data1$has_scholarships,
+        neighborhood_data1$session_short_description) %>% lapply(htmltools::HTML)
+      
+      
       
       #Creating the variables to be used in the leaflet to show percentage of households % of people over 25 who have atleast a high school degree
       bins_edu <- c(0, 10, 20,30,40,50,Inf)
-      pal_edu <- colorBin("YlOrRd", domain = shape_census@data$PCT_HSD, bins = bins_edu)
+      pal_edu <- colorBin("viridis", domain = shape_census@data$PCT_HSD, bins = bins_edu)
       
       #Creating the variables to be used in the leaflet to show percentage of hispanic population
       bins_hispanic <- c(0, 10, 20,30,40,50,60,70,80,Inf)
-      pal_hispanic <- colorBin("YlOrRd", domain = shape_census@data$PCT_HIS, bins = bins_hispanic)
+      pal_hispanic <- colorBin("viridis", domain = shape_census@data$PCT_HIS, bins = bins_hispanic)
       
       #Creating the variables to be used in the leaflet to show percentage of non-english population
       bins_language <- c(0, 10, 20,30,40,50,60,70,Inf)
-      pal_language <- colorBin("YlOrRd", domain = shape_census@data$PCT_NON, bins = bins_language)
+      pal_language <- colorBin("viridis", domain = shape_census@data$PCT_NON, bins = bins_language)
       
       
       #Function for creating the markers
       map_with_markers = function(data, lat, lon){
         leaflet()  %>% setView(lng = -104.991531, lat = 39.742043,zoom = 10) %>% addTiles() %>%
-          addMarkers(lng = jitter(data$lon), lat = jitter(data$lat), popup = "single marker", 
+          addMarkers(lng = jitter(data$lon), lat = jitter(data$lat), popup = marker_popup_text, 
                      clusterOptions = markerClusterOptions(spiderfyOnMaxZoom = TRUE)) 
         
         
@@ -124,7 +136,7 @@ shinyServer(
                                                                         fillOpacity = 0.7,
                                                                         highlight = highlightOptions(
                                                                           weight = 5,
-                                                                          color = "#666",
+                                                                          color = "#777",
                                                                           dashArray = "",
                                                                           fillOpacity = 0.7,
                                                                           bringToFront = TRUE),
@@ -156,8 +168,7 @@ shinyServer(
         
       }
       
-      
-      else if(input$demographics == "Above 25 high school degree holders(%)") {
+      else if(input$demographics == "High school degree or equivalent(%)") {
         
         demographic_maps(pal_edu,"PCT_HSD")
         
@@ -181,11 +192,8 @@ shinyServer(
       }
       
     })
+
+    
+  })  
     
     
-  })
-
-
-
-
-
