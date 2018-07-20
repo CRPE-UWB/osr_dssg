@@ -310,6 +310,9 @@ The zip codes we care to save are those in the search data and those in Denver g
 
 ```{r}
 relevant_zip_codes <- spdf[spdf@data$GEOID10 %in% unique_search_locations,]
+# create a shapefile so we don't have to push such a large dataset
+writeOGR(relevant_zip_codes,"../data/zip_codes","zip_codes", driver="ESRI Shapefile")
+onion <- readOGR(dsn="../data/zip_codes")
 ```
 
 Oddly enough, 3 of the searched zip codes don't exist:
