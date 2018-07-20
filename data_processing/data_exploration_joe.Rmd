@@ -1,0 +1,605 @@
+---
+title: "data_exploration"
+author: "Joe"
+date: "7/11/2018"
+output: html_document
+---
+
+```{r}
+#install.packages("RPostgreSQL")
+require("RPostgreSQL")
+require("tidyverse")
+require("leaflet")
+require("leaflet.extras")
+require("rgdal")
+```
+
+```{r}
+# loads the PostgreSQL driver
+drv <- dbDriver("PostgreSQL")
+
+# creates a connection to the postgres database
+# note that "con" will be used later in each connection to the database
+# just create variables "user" and "password" with the RDS username and password (excluded for security)
+con <- dbConnect(drv, dbname = "dssg2018uw",
+                 host = "localhost", port =9000,
+                 user = user, password = password)
+```
+
+```{r}
+block_locations <- dbGetQuery(con, "select * from clean.dps_block_locations")
+students <- dbGetQuery(con, "select * from clean.dps_students")
+choice <- dbGetQuery(con, "select * from clean.dps_choice")
+enrollment <- dbGetQuery(con, "select * from clean.dps_enrollment")
+google_analytics <- dbGetQuery(con, "select * from clean.google_analytics")
+programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs")
+census <- dbGetQuery(con, "select * from clean.acs_demographics")
+test <- dbGetQuery(con, "select * from clean.dps_cmas")
+star <- dbGetQuery(con, "select * from clean.dps_star_reading")
+discipline <- dbGetQuery(con, "select * from clean.dps_discipline")
+museums <- dbGetQuery(con, "select * from clean.museums")
+libraries <- dbGetQuery(con, "select * from clean.libraries")
+fields <- dbGetQuery(con, "select * from clean.fields")
+```
+
+Let's look at the percentage of students entering kindegarten, 6th, and 9th grade who are in the choice program. 
+
+```{r}
+parts <- data.frame()
+totals <- data.frame()
+for (grade in 0:12) {
+  for (given_year in 2014:2018) {
+    students_with_choice <- choice %>% filter(spring_year %in% given_year) %>% select(student_number)
+    students_with_choice <- students_with_choice$student_number
+    
+    part <- enrollment %>% filter(student_number %in% students_with_choice) %>% filter(spring_year %in% given_year) %>% filter(grade_level %in% grade) %>% nrow
+    
+    total <- enrollment %>% filter(spring_year %in% given_year) %>% filter(grade_level %in% grade) %>% nrow
+    
+    parts[as.character(grade),as.character(given_year)] <- part
+    totals[as.character(grade),as.character(given_year)] <- total
+  }
+}
+
+proportion <- parts / totals
+print("Percentage of students by grade and year who did choice enrollment:")
+print(round(proportion*100,1))
+```
+
+Unfortunately, not all of the choice students have an associated address:
+
+```{r}
+students_with_locations <- unique(students$student_number[!is.na(students[,"block"])])
+print(paste("Number of students who did choice enrollment but don't have address on record:",length(unique(choice$student_number)) - length(students_with_locations)))
+```
+
+So we need to additionally get rid of those when considering the percentage of students for whom we have addresses: 
+
+```{r}
+parts_both <- data.frame()
+totals_both <- data.frame()
+for (grade in 0:12) {
+  for (given_year in 2014:2018) {
+    
+    students_with_choice <- choice %>% filter(spring_year %in% given_year) %>% select(student_number)
+    students_with_choice <- students_with_choice$student_number
+    
+    part <- enrollment %>% filter(spring_year %in% given_year) %>% filter(grade_level %in% grade) %>% filter(student_number %in% students_with_locations) %>% filter(student_number %in% students_with_choice) %>% nrow
+    
+    total <- enrollment %>% filter(spring_year %in% given_year) %>% filter(grade_level %in% grade) %>% nrow
+    
+    parts_both[as.character(grade),as.character(given_year)] <- part
+    totals_both[as.character(grade),as.character(given_year)] <- total
+  }
+}
+
+proportion_both <- parts_both / totals_both
+print("Percentage of students by grade and year who have address on record and did choice enrollment:")
+print(round(proportion_both*100,1))
+```
+
+Finally, we want to know which student addresses we actually have by considering that when they choose in one year, we know their address for all years before and all years after. 
+
+```{r}
+parts_both <- data.frame()
+totals_both <- data.frame()
+for (grade in 0:12) {
+  for (given_year in 2014:2018) {
+    
+    students_with_choice <- choice %>% filter(spring_year %in% given_year) %>% select(student_number)
+    students_with_choice <- students_with_choice$student_number
+    
+    part <- enrollment %>% filter(spring_year %in% given_year) %>% filter(grade_level %in% grade) %>% filter(student_number %in% students_with_locations) %>% nrow
+    
+    total <- enrollment %>% filter(spring_year %in% given_year) %>% filter(grade_level %in% grade) %>% nrow
+    
+    parts_both[as.character(grade),as.character(given_year)] <- part
+    totals_both[as.character(grade),as.character(given_year)] <- total
+  }
+}
+
+proportion_both <- parts_both / totals_both
+print("Percentage of students by grade and year who have address on record:")
+print(round(proportion_both*100,1))
+```
+
+We can aggregate these numbers to get a better picture:
+
+```{r}
+print(apply(parts_both,MARGIN=1,sum))
+print(apply(totals_both,MARGIN=1,sum))
+print(apply(parts_both,MARGIN=2,sum))
+print(apply(totals_both,MARGIN=2,sum))
+```
+
+Now we'd like to see how different our choice students are from all other choices, to see whether our sample is biased. 
+
+```{r}
+columns = c("race","gender","el_status","primary_disability","has_transportation")
+for (column in columns) {
+  tmp_df <- data.frame()
+  groups <- unique(students[,column])
+  for (group in groups) {
+    tmp_df[group,"address"] <- round((sum((students$student_number %in% students_with_locations) & (students[,column]==group)) / length(students_with_locations))*100,1)
+    tmp_df[group,"no_address"] <- round((sum((!students$student_number %in% students_with_locations) & (students[,column]==group)) / (nrow(students)-length(students_with_locations)))*100,1)
+  }
+  print(column)
+  print(tmp_df)
+  barplot(t(tmp_df),beside=TRUE,main=column,cex.names=.5,las=2,legend.text = TRUE)
+}
+```
+
+Not too bad. Let's also check test scores.
+
+```{r}
+tmp_df <- data.frame()
+
+math_scores <- test[!is.na(test$math_scores),c("student_number","math_scores")]
+ela_scores <- test[!is.na(test$ela_scores),c("student_number","ela_scores")]
+math_scores <- aggregate(math_scores ~ student_number, data=math_scores, mean)
+ela_scores <- aggregate(ela_scores ~ student_number, data=ela_scores, mean)
+
+math_scores$math_scores <- make_z_score(math_scores$math_scores)
+ela_scores$ela_scores <- make_z_score(ela_scores$ela_scores)
+
+tmp_df["ela","address"] <- mean(ela_scores[ela_scores$student_number %in% students_with_locations,"ela_scores"])
+tmp_df["ela","no_address"] <- mean(ela_scores[!ela_scores$student_number %in% students_with_locations,"ela_scores"])
+tmp_df["math","address"] <- mean(math_scores[math_scores$student_number %in% students_with_locations,"math_scores"])
+tmp_df["math","no_address"] <- mean(math_scores[!math_scores$student_number %in% students_with_locations,"math_scores"])
+
+barplot(t(tmp_df),beside=TRUE,main="Test Score Comparison",cex.names=1,las=2,legend.text = TRUE)
+```
+
+```{r}
+get_mode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+tmp_df <- data.frame()
+
+star_proficiency <- aggregate(reading_level ~ student_number, data=star, get_mode)
+
+groups <- unique(star_proficiency$reading_level)
+for (group in groups) {
+    tmp_df[group,"address"] <- round((sum((star_proficiency$student_number %in% students_with_locations) & (star_proficiency$reading_level==group))/sum(star_proficiency$student_number %in% students_with_locations))*100,1)
+    tmp_df[group,"no_address"] <- round((sum((!star_proficiency$student_number %in% students_with_locations) & (star_proficiency$reading_level==group))/sum(!star_proficiency$student_number %in% students_with_locations))*100,1)
+}
+
+barplot(t(tmp_df),beside=TRUE,main="Reading Score Comparison",cex.names=1,las=2,legend.text=TRUE, args.legend = list(x = "topleft"))
+```
+
+Finally, we want to understand how discipline differs between the groups of students. 
+
+```{r}
+tmp_df <- data.frame()
+
+iss <- discipline[,c("student_number","number_iss")]
+oss <- discipline[,c("student_number","number_oss")]
+expulsions <- discipline[,c("student_number","number_expulsions")]
+
+iss <- aggregate(number_iss ~ student_number, data=iss, mean)
+oss <- aggregate(number_oss ~ student_number, data=oss, mean)
+expulsions <- aggregate(number_expulsions ~ student_number, data=expulsions, mean)
+
+tmp_df["in_school_suspension","address"] <- mean(iss[iss$student_number %in% students_with_locations,"number_iss"])
+tmp_df["out_of_school_suspension","address"] <- mean(oss[oss$student_number %in% students_with_locations,"number_oss"])
+tmp_df["expulsion","address"] <- mean(expulsions[expulsions$student_number %in% students_with_locations,"number_expulsions"])
+
+tmp_df["in_school_suspension","no_address"] <- mean(iss[!iss$student_number %in% students_with_locations,"number_iss"])
+tmp_df["out_of_school_suspension","no_address"] <- mean(!oss[oss$student_number %in% students_with_locations,"number_oss"])
+tmp_df["expulsion","no_address"] <- mean(expulsions[!expulsions$student_number %in% students_with_locations,"number_expulsions"])
+
+barplot(t(tmp_df),beside=TRUE,main="Average Discipline Record Comparison",cex.names=.5,las=2,legend.text = TRUE)
+```
+
+Now we want to consider how many students we have in each block group. First, we'll read in the shape file for block groups:
+
+```{r}
+spdf <- readOGR(dsn = "/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/osr_dssg2018/data/census_clean/shape_census","shape_census")
+```
+
+Now let's see where students lie in blocks:
+
+```{r}
+table_of_blocks <- table(students$block)
+blocks_with_frequencies <- data.frame("block"=names(table_of_blocks), "frequencies"=as.vector(table_of_blocks))
+merged <- merge(block_locations,blocks_with_frequencies,all.x=TRUE)
+
+normalize <- function(vec) {
+  return((vec-min(vec))/(max(vec)-min(vec)))
+}
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  # addCircleMarkers(
+  #   data = google_analytics %>% filter(lat < 39.8 & long > -105.1 & lat > 39.6 & long < -104.8),
+  #   stroke = FALSE, fillOpacity = .5, color = 'blue'
+  # ) %>%
+  addCircleMarkers(
+    data = merged,
+    stroke = FALSE, fillOpacity = normalize(merged$frequencies), popup = paste("block",merged$block,"frequency:",merged$frequencies)
+  ) %>%
+  setView(lat=39.7,lng=-104.9,zoom=10)
+```
+
+And in block groups:
+
+```{r}
+merged_block_groups <- aggregate(frequencies ~ block_group, data=merged[,c("block_group","frequencies")], sum)
+merged_block_groups <- merge(spdf[,"Id2"],merged_block_groups,all.y=TRUE,by.y="block_group",by.x="Id2")
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    data = merged_block_groups, weight=1,
+    fillColor = ~colorQuantile("YlOrRd",n=6,merged_block_groups$frequencies)(merged_block_groups$frequencies),
+    fillOpacity=10,
+    popup = paste("Student population:",merged_block_groups$frequencies)
+    ) %>%
+  setView(lat=39.7,lng=-104.9,zoom=10)
+```
+
+There is a lot of spatial variation here, which is surprising since block groups are made to have an approximately fixed population size. Let's compare to census data by mapping the difference of the school choice population and the census population.  
+
+In the following map, red means that students in the choice dataset are overrepresented, while yellow means they're underrepresented. 
+
+```{r}
+merged_block_groups <- merge(merged_block_groups,census[,c("id2","age_5_to_9","age_10_to_14","age_15_to_17")],all.x=TRUE,by.x="Id2",by.y="id2")
+merged_block_groups@data$census_pop <- apply(X = merged_block_groups@data[,c("age_5_to_9","age_10_to_14","age_15_to_17")], FUN = sum, MARGIN=1)
+merged_block_groups@data[,c("age_5_to_9","age_10_to_14","age_15_to_17")] <- NULL
+
+differences = merged_block_groups@data$frequencies-merged_block_groups@data$census_pop
+percent_differences <- round(differences / merged_block_groups@data$frequencies,1)
+hist(percent_differences,xlab="(Student - Census)/Student")
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    data = merged_block_groups, weight=1,
+    fillColor = ~colorQuantile("YlOrRd",n=6,percent_differences)(percent_differences),
+    fillOpacity=10,
+    popup = paste("percent off:",percent_differences,"%")
+    ) %>%
+  setView(lat=39.7,lng=-104.9,zoom=10)
+```
+
+The census and student populations seem to match up quite well by block - most of the percent discrepencies are in the +/-5% range.  
+
+Now we'll move on to analyzing Blueprint4Summer search data, which includes the zip code searched for. 
+
+We'll get shape files for all zip codes from 
+
+```{r}
+library("rgdal")
+
+# Read shapefile into SpatialPointsDataFrame.
+spdf <- readOGR(dsn = "~/Documents/Experiences/Applications/UWashington/Project/osr_dssg2018/data/zip_codes", "cb_2017_us_zcta510_500k")
+
+spdf@data$GEOID10 <- as.character(spdf@data$GEOID10)
+```
+
+Consider all zip codes included in the search data (some of which are outside of Denver, and some are missing from the set of Denver zip codes).
+
+```{r}
+google_analytics$location <- gsub(".*(80\\d{3}).*","\\1",google_analytics$location)
+searches_with_locations <- google_analytics[grep("80\\d{3}",google_analytics$location),]
+unique_search_locations <- unique(searches_with_locations$location)
+```
+
+The zip codes we care to save are those in the search data and those in Denver generally:
+
+```{r}
+relevant_zip_codes <- spdf[spdf@data$GEOID10 %in% unique_search_locations,]
+```
+
+Oddly enough, 3 of the searched zip codes don't exist:
+
+```{r}
+unique_search_locations[!unique_search_locations %in% relevant_zip_codes@data$GEOID10]
+```
+
+Let's check out the frequencies of searches by zip code:
+
+```{r}
+table(searches_with_locations$location)
+```
+
+We'll be excluding 2+3+7=12 zip codes, but for now let's just forget them and move on (we'll still have 3,000 searches total):
+
+```{r}
+searches_with_locations <- searches_with_locations[searches_with_locations$location %in% unique_search_locations[unique_search_locations %in% relevant_zip_codes@data$GEOID10],]
+
+table(searches_with_locations$location)
+```
+
+We can look at the included areas with leaflet, weighted by the number of searches in that area:
+
+```{r}
+search_frequencies <- as.vector(table(searches_with_locations$location))
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    data = relevant_zip_codes,
+    fillColor = ~colorQuantile("YlOrRd",search_frequencies)(search_frequencies),
+    popup = as.character(search_frequencies)
+    ) %>%
+  addCircleMarkers(
+    data=programs,
+    radius=5,
+    popup = programs$camp_name
+  ) %>%
+  addScaleBar() %>%
+  setView(lat=39.7,lng=-104.9,zoom=10)
+```
+
+We also can look at the distribution of programs by type.
+
+We'll begin by considering where athletic programs are. We note that there are very few in the north, which also is a lower income community. 
+
+```{r}
+colors5 <- c('#ffffb2','#fecc5c','#fd8d3c','#f03b20','#bd0026') 
+
+popup_string="Income:"
+col_name="Mdn_HH_"
+
+spdf@data$color <- 1
+breaks <- c(30000,50000,70000,90000)
+for (i in 1:length(breaks)) {
+  spdf@data$color[spdf@data[,col_name] > breaks[i]] <- i+1
+}
+
+lab_factor <- c("Less than 30,000", 
+                "Between 30,000 and 50,000", 
+                "Between 50,000 and 70,000", 
+                "Between 70,000 and 90,000",
+                "Greater than 90,000")
+spdf@data$color <- factor(spdf@data$color, label = lab_factor)
+
+#search_frequencies <- as.vector(table(searches_with_locations$location)
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    data=spdf,
+    fillColor = ~colorFactor(colors5,spdf@data[,col_name])(spdf@data[,col_name]),
+    opacity=.1,
+    popup = paste(popup_string,round((spdf@data[,col_name]),1)),
+    fillOpacity = 1,
+    weight=1
+  ) %>%
+  addLegend(colors=colors5,labels=lab_factor) %>%
+  addCircleMarkers(
+    data=programs[programs$has_sports,],
+    color='green',
+    opacity=10,
+    radius=2,
+    popup=programs[programs$has_athletic,"session_name"]
+  ) %>%
+  # addCircleMarkers(
+  #   data=fields,
+  #   color='blue',
+  #   radius=2,
+  #   popup=fields$sport
+  # ) %>%
+  addLegend(labels=c('athletic programs'),
+            colors=c('green')
+  ) %>%
+  setView(lat=39.7,lng=-104.9,zoom=10)
+```
+
+```{r}
+colors5 <- c('#ffffb2','#fecc5c','#fd8d3c','#f03b20','#bd0026') 
+
+popup_string="Income:"
+col_name="Mdn_HH_"
+
+spdf@data$color <- 1
+breaks <- c(30000,50000,70000,90000)
+for (i in 1:length(breaks)) {
+  spdf@data$color[spdf@data[,col_name] > breaks[i]] <- i+1
+}
+
+lab_factor <- c("Less than 30,000", 
+                "Between 30,000 and 50,000", 
+                "Between 50,000 and 70,000", 
+                "Between 70,000 and 90,000",
+                "Greater than 90,000")
+spdf@data$color <- factor(spdf@data$color, label = lab_factor)
+
+#search_frequencies <- as.vector(table(searches_with_locations$location)
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    data=spdf,
+    fillColor = ~colorFactor(colors5,spdf@data[,col_name])(spdf@data[,col_name]),
+    opacity=.1,
+    popup = paste(popup_string,round((spdf@data[,col_name]),1)),
+    fillOpacity = 1,
+    weight=1
+  ) %>%
+  addLegend(colors=colors5,labels=lab_factor) %>%
+  addCircleMarkers(
+    data=programs,#[programs$has_sports,],
+    color='green',
+    opacity=10,
+    radius=2,
+    popup=programs$session_name#[programs$has_athletic,"session_name"]
+  ) %>%
+  # addCircleMarkers(
+  #   data=fields,
+  #   color='blue',
+  #   radius=2,
+  #   popup=fields$sport
+  # ) %>%
+  addLegend(labels=c('athletic programs'),
+            colors=c('green')
+  ) %>%
+  setView(lat=39.7,lng=-104.9,zoom=10)
+```
+
+Interestingly, there are resources already there which could be used for sports programs. Mapping also athletic fields:
+
+```{r}
+colors5 <- c('#ffffb2','#fecc5c','#fd8d3c','#f03b20','#bd0026') 
+
+popup_string="Income:"
+col_name="Mdn_HH_"
+
+spdf@data$color <- 1
+breaks <- c(30000,50000,70000,90000)
+for (i in 1:length(breaks)) {
+  spdf@data$color[spdf@data[,col_name] > breaks[i]] <- i+1
+}
+
+lab_factor <- c("Less than 30,000", 
+                "Between 30,000 and 50,000", 
+                "Between 50,000 and 70,000", 
+                "Between 70,000 and 90,000",
+                "Greater than 90,000")
+spdf@data$color <- factor(spdf@data$color, label = lab_factor)
+
+#search_frequencies <- as.vector(table(searches_with_locations$location)
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    data=spdf,
+    fillColor = ~colorFactor(colors5,spdf@data[,col_name])(spdf@data[,col_name]),
+    opacity=.1,
+    popup = paste(popup_string,round((spdf@data[,col_name]),1)),
+    fillOpacity = 1,
+    weight=1
+  ) %>%
+  addLegend(colors=colors5,labels=lab_factor) %>%
+  addCircleMarkers(
+    data=programs[programs$has_sports,],
+    color='green',
+    opacity=10,
+    radius=2,
+    popup=programs[programs$has_sports,"session_name"]
+  ) %>%
+  # addCircleMarkers(
+  #   data=fields,
+  #   color='blue',
+  #   radius=2,
+  #   popup=fields$sport
+  # ) %>%
+  addLegend(labels=c('athletic programs',''),
+            colors=c('green','blue')
+  ) %>%
+  setView(lat=39.7,lng=-104.9,zoom=10)
+```
+
+
+```{r}
+# Thanks Haowen
+colors5 <- c('#ffffb2','#fecc5c','#fd8d3c','#f03b20')#,'#bd0026') 
+
+popup_string="Black percentage:"
+col_name="PCT_Afr"
+
+spdf@data$color <- 1
+breaks <- c(20,40,60)
+for (i in 1:length(breaks)) {
+  spdf@data$color[spdf@data[,col_name] > breaks[i]] <- i+1
+}
+
+lab_factor <- c("Less than 20", 
+                "Between 20 and 40", 
+                "Between 40 and 60", 
+                "Between 60 and 80")
+                #"Greater than 80")
+spdf@data$color <- factor(spdf@data$color, label = lab_factor)
+
+#search_frequencies <- as.vector(table(searches_with_locations$location)
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    data=spdf,
+    fillColor = ~colorFactor(colors5,spdf@data[,col_name])(spdf@data[,col_name]),
+    opacity=.1,
+    popup = paste(popup_string,round((spdf@data[,col_name]),1)),
+    fillOpacity = 1,
+    weight=1
+  ) %>%
+  addLegend(colors=colors5,labels=lab_factor) %>%
+  addCircleMarkers(
+    data=programs[programs$has_sports,],
+    color='green',
+    opacity=10,
+    radius=2,
+    popup=programs[programs$has_sports,"session_name"]
+  ) %>%
+  # addCircleMarkers(
+  #   data=fields,
+  #   color='blue',
+  #   radius=2,
+  #   popup=fields$sport
+  # ) %>%
+  addLegend(labels=c('athletic programs','fields'),
+            colors=c('green','blue')
+  ) %>%
+  setView(lat=39.7,lng=-104.9,zoom=10)
+```
+
+We can look at the locations of the searchers (based on IP address), and we find that there are unfortunately only 2 distinct locations in Denver.
+
+```{r}
+google_analytics_aggregated <- aggregate(users ~ lat + long, data=google_analytics, sum)
+
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  # addCircleMarkers(
+  #   data = google_analytics %>% filter(lat < 39.8 & long > -105.1 & lat > 39.6 & long < -104.8),
+  #   stroke = FALSE, fillOpacity = .5, color = 'blue'
+  # ) %>%
+  addCircleMarkers(
+    data = google_analytics_aggregated,
+    stroke = FALSE, fillOpacity = .5, color = 'yellow', popup = as.character(google_analytics_aggregated$users)
+  ) %>%
+  setView(lat=39.7,lng=-104.9,zoom=10)
+```
+
+We also would like to understand how long programs generally last: 
+
+```{r}
+programs$length <- as.numeric(as.Date(programs[!duplicated(programs$session_id),"session_date_end"]) - as.Date(programs[!duplicated(programs$session_id),"session_date_start"]))
+print(table(programs[!duplicated(programs$session_name),]$length))
+plot(table(programs[!duplicated(programs$session_name),]$length))
+```
+
+One big fear for the access index is that we will need to adjust program cost, or potentially even transportation time, for the number of days the programs last. By manual inspection of the websites for the programs the program with 119 is online, and some of the monthlong ones meet just once a week. So we may have to manually check those that are greater than about 4 days. 
+
+```{r}
+sum(programs[!duplicated(programs$session_name),]$length > 4)
+```
+
+Manually inputting the true number of days would be somewhat time-consuming, though doable. But the main problem is that it would not be very reproducible.
+
+```{r}
+#when you're done, close the connection and unload the driver 
+dbDisconnect(con) 
+dbUnloadDriver(drv)
+```
+
+```{r}
+View(programs)
+```
