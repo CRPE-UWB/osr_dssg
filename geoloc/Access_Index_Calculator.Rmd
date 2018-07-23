@@ -110,11 +110,11 @@ for (i in 1:length(block_list)){
     Tc <- block_mover$driving_morning[x]
     Tp <- block_mover$transit_morning[x]
     n <- block_mover$n[x]
-    Ai <- Car*(fxn(Tc,5))
+    Ai <- (Car*(fxn(Tc,5)))*n
     block_mover$Access_Index[x] <- Ai
-    if( i %% 200 == 0){
+  }
+  if( i %% 200 == 0){
       print(paste(i,x,"working..."))}
-    }
   #block_mover$Access_Index <- rescale(block_mover$Access_Index,to = c(0, 100))
   access_indexices <- rbind(block_mover,access_indexices)
   summary_index$Access_Index[i] <- mean(block_mover$Access_Index,na.rm=TRUE)}
@@ -136,9 +136,16 @@ census_blocks <- census_blocks[order(census_blocks$Id2),]
 block_distance <- block_distance[order(block_distance$Id2),]
 summary_index <- summary_index[order(summary_index$blockID),] 
 
+colourCount <- length(unique(total_programs$n))
+getPalette <- colorRampPalette(brewer.pal(9,"Reds"))
+
 pal <- colorNumeric(
   palette = "Blues",
   domain = summary_index$Access_Index)
+
+pal2 <- colorNumeric(
+  palette = rev(getPalette(colourCount)),
+  domain = range(total_programs$n))
 
 info <- paste("n",total_programs$n)
 
@@ -146,35 +153,18 @@ Ai_leaflet <- leaflet(census_blocks) %>%
   addTiles() %>%
   addPolygons(color = "Blues",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.75,
               fillColor = ~pal(summary_index$Access_Index),
-              popup=paste(summary_index$blockID,summary_index$Access_Index,census_blocks$Id2),
+              popup=paste(as.numeric(summary_index$blockID),summary_index$Access_Index,as.numeric(census_blocks$Id2)),
               highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
-  addLegend(pal = pal, values = ~summary_index$Access_Index, opacity = 1) %>%
-  addCircles(data = total_programs, opacity = 0.4,weight=7, color="red",popup=info) %>%
-  addCircles(data = census_centroids, opacity = 0.4, weight=7,color="purple",popup=census_centroids$blockID) %>%
+  
+  addLegend(pal = pal, values = ~summary_index$Access_Index, opacity = 1,title = "Access Index Score") %>%
+  
+  addCircles(data = total_programs, 
+             opacity = 1,weight=7, popup=info,
+             color = ~pal2(total_programs$n) ) %>%
+  
   setView(lat=39.7,lng=-104.9,zoom=11)
+
+#%>%
+  #addCircles(data = census_centroids, opacity = 0.4,
+             #weight=7,color="purple",popup=census_centroids$blockID) #originally we included centroids for validation, now we don't need them
 ```
-
-###Leaflet example using the access_indexices data frame
-```{r}
-library(leaflet)
-library(RColorBrewer)
-pal <- colorNumeric(
-  palette = "Blues",
-  domain = summary_index$Access_Index)
-
-info <- paste("n",access_indexices$n)
-
-test <- leaflet(census_blocks) %>%
-  addTiles() %>%
-  addPolygons(color = "Blues",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 1,
-              fillColor = ~pal(summary_index$Access_Index),
-              popup=census_blocks$Id2,
-              highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
-  addLegend(pal = pal, values = ~summary_index$Access_Index, opacity = 1) %>%
-  addCircles(data = access_indexices,lat= access_indexices$lat,
-             lng= access_indexices$long,
-             opacity = 0.4,weight=10, color="red",
-             popup=info) %>%
- setView(lat=39.7,lng=-104.9,zoom=10)
-```
-
