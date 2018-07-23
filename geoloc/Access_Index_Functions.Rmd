@@ -1,0 +1,125 @@
+---
+title: "Access_Index_Functions"
+author: "Andrew Taylor"
+date: "7/23/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Loops to Functions
+```{r}
+type <- c("academic","art") #needs to be a vector of whatever get's passed to shiny
+
+Make_Subset <- function(dataframe,type){
+  return(dataframe[apply(FUN=any,X=dataframe[,c(type)],MARGIN=1),])
+}
+
+Aggregate_Subset <- function(dataframe){
+  return(aggregate(n ~ session_address_1+lat+long, data=dataframe,FUN=sum))
+}
+
+Merge_Set <- function(dataframe){
+  block_distance_new <- block_distance[,-c(3,4,9:14)]
+  temp <- merge(block_distance_new,dataframe,all.y=TRUE)
+  temp$n[is.na(temp$n)==TRUE] <- 0
+  return(temp)
+}
+
+decay_fxn <- function(dataframe){
+  scale=5
+  dataframe$n*(ifelse(dataframe$driving_morning<=scale,1,(1/(dataframe$driving_morning/scale))^2))
+}
+
+decay_fxn_transit <- function(dataframe){
+  scale=10
+  dataframe$n*(ifelse(dataframe$driving_morning<=scale,1,(1/(dataframe$driving_morning/scale))^2))
+}
+```
+
+###User Script for Driving
+```{r}
+#User specifies query (type)
+type <- c("academic","art")
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#calculate access index per location 
+merged_set$AccessIndex <- decay_fxn(merged_set) #why not apply? who knows
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_user <- aggregate(AccessIndex ~ Id2+block_lat+block_long,data=merged_set,FUN=mean)
+```
+
+###User Script for Transit
+```{r}
+#User specifies query (type)
+type <- c("academic","art")
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#replace na and 0 transit times with drive times
+merged_set$transit_morning[is.na(merged_set$transit_morning)] <- merged_set$driving_morning[is.na(merged_set$transit_morning)]
+merged_set$transit_morning[merged_set$transit_morning==0] <- merged_set$driving_morning[merged_set$transit_morning==0]
+
+#calculate access index per location, #get average of AccessIndex col, return to summary dataframe by blockgroup ID
+system.time(merged_set$AccessIndex <- decay_fxn_transit(merged_set))
+system.time(summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=mean))
+```
+
+
+###Plot Summary Index
+```{r}
+#Ordering
+census_blocks <- census_blocks[order(census_blocks$Id2),]
+merged_set <- merged_set[order(merged_set$Id2),]
+summary_index_user <- summary_index_user[order(summary_index_user$Id2),] 
+
+#specifiying color pallet
+colourCount <- length(unique(agg_set$n))
+getPalette <- colorRampPalette(brewer.pal(9,"Reds"))
+
+pal <- colorNumeric(
+  palette = "Blues",
+  domain = summary_index_user$AccessIndex)
+
+pal2 <- colorNumeric(
+  palette = rev(getPalette(colourCount)),
+  domain = range(agg_set$n))
+
+#indicating one popup info
+info <- paste("n",agg_set$n)
+
+#creating leaflet map
+Ai_leaflet <- leaflet(census_blocks) %>%
+  addTiles() %>%
+  addPolygons(color = "Blues",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.75,
+              fillColor = ~pal(summary_index_user$AccessIndex),
+              popup=paste(as.numeric(summary_index_user$Id2),summary_index_user$AccessIndex,as.numeric(census_blocks$Id2)),
+              highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
+  
+  addLegend(pal = pal, values = ~summary_index_user$AccessIndex, opacity = 1,title = "Access Index Score") %>%
+  
+  addCircles(data = agg_set, 
+             opacity = 1,weight=7, popup=info,
+             color = ~pal2(agg_set$n) ) %>%
+  
+  setView(lat=39.7,lng=-104.9,zoom=11.5)
+```
+

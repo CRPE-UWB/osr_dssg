@@ -100,7 +100,7 @@ block_list <- sort(block_list)
 summary_index$blockID <- as.numeric(summary_index$blockID)
 summary_index <- summary_index[order(summary_index$blockID),]
 
-for (i in 1:length(block_list)){
+system.time(for (i in 1:length(block_list)){
   block.i <- block_list[i]
   block_mover <- subset(block_distance,block_distance$Id2==block.i)
   summary.i <- summary_index
@@ -117,7 +117,7 @@ for (i in 1:length(block_list)){
       print(paste(i,x,"working..."))}
   #block_mover$Access_Index <- rescale(block_mover$Access_Index,to = c(0, 100))
   access_indexices <- rbind(block_mover,access_indexices)
-  summary_index$Access_Index[i] <- mean(block_mover$Access_Index,na.rm=TRUE)}
+  summary_index$Access_Index[i] <- mean(block_mover$Access_Index,na.rm=TRUE)})
 ```
 
 ###Plotting the Access Index and number of programs
