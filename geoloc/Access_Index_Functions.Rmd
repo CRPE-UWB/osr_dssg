@@ -9,7 +9,51 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-##Loops to Functions
+##Intro
+This markdown defines 
+
+
+###RDS Pull
+```{r}
+library(rgeos)
+library(rgdal)
+library(raster)
+library(tidyverse)
+library(RPostgreSQL)
+# loads the PostgreSQL driver
+drv <- dbDriver("PostgreSQL")
+
+# creates a connection to the postgres database
+# note that "con" will be used later in each connection to the database
+con <- dbConnect(drv, dbname = "dssg2018uw",
+                 host = "localhost", port = 9000,
+                 user = user, password = password) #local source credentials
+
+#get reschool_programs
+reschool_programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs")
+
+#disconnect
+dbDisconnect(con) 
+dbUnloadDriver(drv)
+```
+
+###Establishing Cost Thresholds and Umbrella Program Types
+```{r}
+reschool_programs$academic <- ifelse(reschool_programs$has_academic==TRUE | reschool_programs$has_stem==TRUE,TRUE,FALSE) 
+
+reschool_programs$art <- ifelse(reschool_programs$has_arts==TRUE | reschool_programs$has_cooking==TRUE | 
+                                  reschool_programs$has_dance==TRUE | reschool_programs$has_drama==TRUE
+                                | reschool_programs$has_music==TRUE,
+                                TRUE,FALSE)
+
+#cost thresolds, to be updated w/ time data from selam
+reschool_programs$free <- ifelse(reschool_programs$session_cost==0,TRUE,FALSE)
+reschool_programs$lowcost <- ifelse(reschool_programs$session_cost<=50,TRUE,FALSE)
+reschool_programs$highcost <- ifelse(reschool_programs$session_cost>50,TRUE,FALSE)
+```
+
+
+###Functions for Flexible Access Index Calculation
 ```{r}
 type <- c("academic","art") #needs to be a vector of whatever get's passed to shiny
 
@@ -40,9 +84,10 @@ decay_fxn_transit <- function(dataframe){
 ```
 
 ###User Script for Driving
+This is the exact script to use to query, for an example type.
 ```{r}
 #User specifies query (type)
-type <- c("academic","art")
+type <- c("academic","art") #"type" can include categories or cost thresholds. Pending cost per day calculations from Selam
 
 #subset dataframe by user selection
 user_set <- Make_Subset(reschool_programs,type)
@@ -86,6 +131,9 @@ system.time(summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FU
 
 ###Plot Summary Index
 ```{r}
+library(leaflet)
+library(RColorBrewer)
+
 #Ordering
 census_blocks <- census_blocks[order(census_blocks$Id2),]
 merged_set <- merged_set[order(merged_set$Id2),]
