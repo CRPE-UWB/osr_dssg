@@ -17,7 +17,7 @@ con <- dbConnect(drv, dbname = "dssg2018uw",
                  host = "localhost", port = 9000,
                  user = user, password = password) #local source credentials
 
-#dbListTables(con) #list tables 
+dbListTables(con) #list tables 
 ```
 
 ###Download the blockgroup shapefiles
@@ -75,7 +75,7 @@ Here we run an extended loop with start times at 08:00 am, noon, and 5:00 pm, fo
 library(googleway)
 block_distance <- reschool_addresses
 #for ease of testing
-block_distance <- block_distance[1:10,] #subset to first 30 block group centroids to make life easier for validation
+block_distance <- block_distance[1:30,] #subset to first 30 block groups centroids to make life easier for validation
 block_distance$blockID <- 0
 block_distance$driving_morning <- 0
 block_distance$walking_morning <- 0
@@ -89,7 +89,7 @@ block_distance$driving_evening <- 0
 block_distance$walking_evening <- 0
 block_distance$transit_evening <- 0
 
-for (i in 1:1){ 
+for (i in 1:length(unique(block_distance$blockID))){ 
   #to be replaced length(census_centroids), i.e, read every unique block centroid
   blockgroup.i <- census_centroids$blockID[i] #read arbitrary block n
   lat.i <- census_centroids$lat[i] #get coordinates
@@ -206,7 +206,6 @@ mean(block_distances$driving_morning_noon)
 
 ###Final Loop
 Given that differences in arrival times seem quite small, here we run the full loop for 08:00 departures to save us money/time/LIFE. 
-
 ```{r}
 library(googleway)
 block_distance <- reschool_addresses
@@ -269,80 +268,6 @@ system.time(for (i in 1:nrow(census_centroids)){
 #block_distance_final <- subset(block_distance,block_distance$blockID!=0) #remove our empty ID level, we don't want to cut till we done
 block_distance <- subset(block_distance,block_distance$blockID!=0)
 colnames(block_distance)[colnames(block_distance)=="blockID"] <- "Id2"
-```
-
-Spot fix 355, maybe 322?, def 390. We're def missing 3. AFTER we convert to numeric, remove partial duplicates (things where the ID got fucked up) we see unique = 478, != 484
-
-So we should have 114,720 rows. We have 116,643. So there are some duplicates, somewhere, not getting removed with unique(df). Possibly fucked up lat longs? When we include the three remaining block groups we should have a total of 115,440.
-
-###Spot fix a handful of blocks that are missing
-"80310157004","80319800001","80319801001"
-```{r}
-library(googleway)
-missing_blocks <- c("080310157004","080319800001","080319801001")
-missing_centroids <-census_centroids[census_centroids$blockID %in% missing_blocks,] #create a subset of missing blocks
-block_mover <- subset(block_distance,block_distance$Id2==block_distance$Id2[1]) #make a new empty subset so we can rerun the same loop
-block_mover$driving_morning <- 0
-block_mover$transit_morning <- 0
-block_mover$walking_morning <- 0
-block_mover$kilometers <- 0
-block_mover$Id2 <- 0
-block_distance <- rbind(block_distance,block_mover)
-
-system.time(for (i in 1:length(missing_blocks)){  
-  #to be replaced length(census_centroids), i.e, read every unique block centroid
-  blockgroup.i <- missing_centroids$blockID[i] #read arbitrary block ID
-  lat.i <- missing_centroids$lat[i] #get coordinates
-  long.i <- missing_centroids$long[i]
-  lat.long <- c(lat.i,long.i) #combine blockgroup coordinates for mapdist function
-  lat.long <- paste(lat.long,collapse=" ") #see above
-  block_mover <- subset(block_distance,block_distance$Id2==0) #make a new subset that is original length
-  for (x in 1:nrow(block_mover)){
-    #setting up block subset
-    block_mover$Id2 <- blockgroup.i
-    lat.x <- block_mover$lat[x] #get coordinates for OSRs
-    long.x <- block_mover$lon[x] 
-    lat.long.x <- c(lat.x,long.x) #combine OSR coordinates for use in mapdist
-    lat.long.x <- paste(lat.long.x,collapse=" ")
-    #distance calculations with arrival time = 08:00am on a weekday
-    
-    distance.x <- google_distance(origin=c(lat.i,long.i),
-    destination = c(lat.x,long.x),
-    mode="driving",
-    arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"), #autocorrect to PST, so we adjust for the dif from MST to MT
-    key = google_api_key)
-    
-   distance_walking.x <- google_distance(origin=c(lat.i,long.i),
-    destination = c(lat.x,long.x),
-    mode="walking",
-    arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"),
-    key = google_api_key)
-
-    distance_transit.x <- google_distance(origin=c(lat.i,long.i),
-    destination = c(lat.x,long.x),
-    mode="transit",
-    arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"),
-    key = google_api_key)
-
-    #grabbing our dataframe list items
-    distance.x <- as.data.frame(distance.x$rows$elements)
-    distance_walking.x <- as.data.frame(distance_walking.x$rows$elements)
-    distance_transit.x <- as.data.frame(distance_transit.x$rows$elements)
-    if(distance_transit.x$status!="ZERO_RESULTS"){
-      block_mover$transit_morning[x] <- as.numeric(distance_transit.x$duration[2]/60)}
-    
-    #indexing the piece of the dataframes we need
-    block_mover$driving_morning[x] <- as.numeric(distance.x$duration[2]/60) #paste drive time, etc, in minutes
-    block_mover$walking_morning[x] <- as.numeric(distance_walking.x$duration[2]/60)
-    block_mover$kilometers[x] <- distance.x$distance[[1]]
-    if(x %% 10 == 0){
-      print(paste("working...",x,i))
-      print(nrow(block_distance))#print iterations to note breaks in case something goes wrong with the maps api 
-    }
-}
-  block_distance <- rbind(block_distance,block_mover) #merge new distance into the base dataframe
-  })
-block_distance <- subset(block_distance,block_distance$Id2!=0)
 ```
 
 ###Data Cleaning
@@ -465,3 +390,88 @@ block_distance <- unique(block_distance)
 block_distance$Id2 <- as.character(block_distance$Id2) #convert Ids back to characters
 colnames(block_distance)
 ```
+
+###Check if we have blockgroups that didn't run
+```{r}
+na_check <- subset(block_distance,is.na(block_distance$driving_morning)==TRUE)
+na_check$Id2 #these block groups are missing distance calculations
+```
+
+###Rerun distances for missing blockgroups
+If we have missing block groups, i.e a handful that didn't calculate distances, we run the code below, which is essentially the same distance calculation as above, but subset for missing blockgroups. 
+```{r}
+###Spot fix a handful of blocks that are missing
+library(googleway)
+missing_blocks <- c(as.numeric(na_check$Id2))
+missing_centroids <- census_centroids
+missing_centroids$blockID <- as.numeric(missing_centroids$blockID)
+missing_centroids <- missing_centroids[missing_centroids$blockID %in% missing_blocks,] #create a subset of missing blocks
+block_mover <- subset(block_distance,block_distance$Id2==block_distance$Id2[1]) #make a new empty subset so we can rerun the same loop
+block_mover$driving_morning <- 0
+block_mover$transit_morning <- 0
+block_mover$walking_morning <- 0
+block_mover$kilometers <- 0
+block_mover$Id2 <- 0
+block_distance <- rbind(block_distance,block_mover)
+
+system.time(for (i in 1:length(missing_blocks)){  
+  #to be replaced length(census_centroids), i.e, read every unique block centroid
+  blockgroup.i <- missing_centroids$blockID[i] #read arbitrary block ID
+  lat.i <- missing_centroids$lat[i] #get coordinates
+  long.i <- missing_centroids$long[i]
+  lat.long <- c(lat.i,long.i) #combine blockgroup coordinates for mapdist function
+  lat.long <- paste(lat.long,collapse=" ") #see above
+  block_mover <- subset(block_distance,block_distance$Id2==0) #make a new subset that is original length
+  for (x in 1:nrow(block_mover)){
+    #setting up block subset
+    block_mover$Id2 <- blockgroup.i
+    lat.x <- block_mover$lat[x] #get coordinates for OSRs
+    long.x <- block_mover$lon[x] 
+    lat.long.x <- c(lat.x,long.x) #combine OSR coordinates for use in mapdist
+    lat.long.x <- paste(lat.long.x,collapse=" ")
+    #distance calculations with arrival time = 08:00am on a weekday
+    
+    distance.x <- google_distance(origin=c(lat.i,long.i),
+    destination = c(lat.x,long.x),
+    mode="driving",
+    arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"), #autocorrect to PST, so we adjust for the dif from MST to MT
+    key = google_api_key)
+    
+   distance_walking.x <- google_distance(origin=c(lat.i,long.i),
+    destination = c(lat.x,long.x),
+    mode="walking",
+    arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"),
+    key = google_api_key)
+
+    distance_transit.x <- google_distance(origin=c(lat.i,long.i),
+    destination = c(lat.x,long.x),
+    mode="transit",
+    arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"),
+    key = google_api_key)
+
+    #grabbing our dataframe list items
+    distance.x <- as.data.frame(distance.x$rows$elements)
+    distance_walking.x <- as.data.frame(distance_walking.x$rows$elements)
+    distance_transit.x <- as.data.frame(distance_transit.x$rows$elements)
+    if(distance_transit.x$status!="ZERO_RESULTS"){
+      block_mover$transit_morning[x] <- as.numeric(distance_transit.x$duration[2]/60)}
+    
+    #indexing the piece of the dataframes we need
+    block_mover$driving_morning[x] <- as.numeric(distance.x$duration[2]/60) #paste drive time, etc, in minutes
+    block_mover$walking_morning[x] <- as.numeric(distance_walking.x$duration[2]/60)
+    block_mover$kilometers[x] <- distance.x$distance[[1]]
+  if(x %% 25 == 0){
+      print(paste("working...",x,i))
+      print(nrow(block_distance))#print iterations to note breaks in case something goes wrong with the maps api 
+    }
+    }
+  block_distance <- rbind(block_distance,block_mover) #merge new distance into the base dataframe
+  })
+block_distance <- subset(block_distance,block_distance$Id2!=0)
+block_distance$Id2 <- as.numeric(block_distance$Id2)
+block_distance <- unique(block_distance)
+block_distance <- subset(block_distance,is.na(block_distance$driving_morning)==FALSE)
+block_distance$Id2 <- as.character(block_distance$Id2)
+```
+```
+
