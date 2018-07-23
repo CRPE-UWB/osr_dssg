@@ -1,19 +1,20 @@
 ---
 title: "Denver Open Data Processing - Programs and Resources"
-output: html_document
+output: md_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+Set up the workspace.
+
 ```{r}
 # Uncomment the line below if you're using RStudio to run the file
-# (don't use if you're running knitr)
-# setwd(dirname(rstudioapi::getActiveDocumentContext()$path))  # makes sure data files are saved in same location as this file
+# (don't use if you're running knitr!)
+# (makes sure data files are saved in same location as this file)
+# setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 ```
-
-Load the necessary libraries. 
 
 ```{r libs, message=FALSE, results="hide"}
 library(tidyverse)
@@ -21,90 +22,11 @@ library(rgdal)  # for working with spatial data frames
 library(rgeos)  # for working with spatial data frames
 library(splitstackshape)  # for splitting strings and turning into binary columns
 library(gsheet)  # only needed for the afterschool programs, to merge with annotated data
+
+source('open_data_functions.R')  # our functions
 ```
 
-Some functions we will need for data processing:
-
-```{r functions, message=FALSE, results="hide"}
-# Create a directory in the current working directory, if one with the given name doesn't exist yet
-#    input:   name of directory to create (string)
-#    output:  n/a
-MakeDir <- function(dirName) {
-  dataDir <- file.path(getwd(), dirName)
-  if (!dir.exists(dataDir)) {
-    dir.create(dataDir)
-  }
-}
-
-# Function to load data from Denver Open Data shapefiles
-#     input:   name of zip file - see url where data resides to find this (string)
-#     output:  SpatialPointsDataFrame or SpatialPolygonsDataFrame with shapefile data
-GetOpenData <- function(zipname) {
-  MakeDir("raw_data")  # make a raw data directory, if one doesn't exist yet
-  
-  # Download .zip to raw data directory, then unzip in temporary directory.
-  url <- paste("https://www.denvergov.org/media/gis/DataCatalog/", zipname, "/shape/", zipname, ".zip", sep="")
-  tempDir <- tempdir()
-  file <- file.path("raw_data", paste(zipname, ".zip", sep=""))
-  download.file(url, file)
-  unzip(file, exdir = tempDir)
-  
-  # Read in shapefile from unzipped data and return result
-  spdf <- readOGR(dsn = tempDir, zipname)
-  return(spdf)
-}
-
-# Function to turn a SpatialPolygonsDataFrame into a flat csv
-#    input:   SpatialPolygonsDataFrame and filename (string) for the saved csv
-#    output:  n/a
-#    note:    saves the csv to clean_data directory (within current working directory), 
-#             csv has SPDF data + centroid lat/long + polygon area in square feet
-SavePolygonsAsCSV <- function(spdf, filename) {
-  # Compute centroids of polygons and save to data frame
-  centroids <- SpatialPointsDataFrame(gCentroid(spdf, byid=TRUE), spdf@data, match.ID=FALSE) 
-  centroids <- as.data.frame(centroids)
-  colnames(centroids)[colnames(centroids)=="x"] <- "long"  # for consistency across files
-  colnames(centroids)[colnames(centroids)=="y"] <- "lat"  # for consistency across files
-  
-  # Compute area in sqft of each polygon and add to data frame
-  equalAreaProj <- spTransform(spdf, CRS("+proj=laea +lat_0=45 +lon_0=-100 +x_0=0 +y_0=0 +a=6370997 +b=6370997 +units=ft +no_defs"))
-  centroids$sqft <- gArea(equalAreaProj, byid=TRUE)
-  
-  # Save result to csv
-  MakeDir("clean_data")  # make a clean data directory, if one doesn't exist yet
-  write.csv(centroids, file=file.path("clean_data",filename), row.names=FALSE, na = "")
-}
-
-# Function to turn a SpatialPointsDataFrame into a flat csv
-#    input:   SpatialPointsDataFrame and filename (string) for the saved csv
-#    output:  n/a
-#    note:    saves the csv to clean_data directory (within current working directory), 
-#             csv has SPDF data + lat/long
-SavePointsAsCSV <- function(spdf, filename) {
-  # Get and format lat/long info
-  df <- as.data.frame(spdf)
-  colnames(df)[colnames(df)=="coords.x1"] <- "long"  # for consistency across files
-  colnames(df)[colnames(df)=="coords.x2"] <- "lat"  # for consistency across files
- 
-  # Save result to csv
-  MakeDir("clean_data") # make a clean data directory, if one doesn't exist yet 
-  write.csv(df, file=file.path("clean_data",filename), row.names=FALSE, na = "")
-}
-
-# Function to split a column that contains comma-separated lists into separate binary columns
-#    input:   dataframe, column name (string) containing comma-separated lists to split
-#    output:  dataframe, with binary (0/1) columns replacing the specified column
-SplitCommas <- function(df, colname) {
-  df[[colname]] <- as.character(df[[colname]])
-  dfSplit <- cSplit_e(df, colname, sep = ",", mode = "binary",
-         type = "character", fill = 0, drop = TRUE)
-  return(dfSplit)
-}
-```
-
-Now we're ready to get into the data!
-
-## Afterschool Programs
+### Afterschool Programs
 
 First we look at afterschool programs.
 
@@ -142,13 +64,7 @@ colnames(afterSchoolFinal@data) <- c('location', 'organization', 'has_academic',
 head(afterSchoolFinal)
 ```
 
-All done! We save the result as a csv.
-
-```{r}
-SavePointsAsCSV(afterSchoolFinal, "afterschool.csv")
-```
-
-## Rec Centers
+### Rec Centers
 
 Next, we look at recreation centers.
 
@@ -216,13 +132,7 @@ colnames(recFinal@data)[10:17] <- c("has_arts_culture", "has_day_camps", "has_ed
 head(recFinal)
 ```
 
-All done! We save the result as a csv.
-
-```{r}
-SavePointsAsCSV(recFinal, "rec_centers.csv")
-```
-
-## Athletic fields
+### Athletic fields
 
 Next, look at athletic fields.
 
@@ -238,18 +148,12 @@ head(fields@data)
 Subset to useful variables and rename columns for simplicity.
 
 ```{r}
-fieldsSmall <- fields[, c('FEATURE', 'LOCATION', 'FIELD_TIER', 'CLASS_CATE')]
-colnames(fieldsSmall@data) <- c('sport', 'location', 'tier', 'class')
-head(fieldsSmall@data)
+fieldsFinal <- fields[, c('FEATURE', 'LOCATION', 'FIELD_TIER', 'CLASS_CATE')]
+colnames(fieldsFinal@data) <- c('sport', 'location', 'tier', 'class')
+head(fieldsFinal@data)
 ```
 
-Save final product as a csv.
-
-```{r}
-SavePolygonsAsCSV(fieldsSmall, "fields.csv")
-```
-
-## Playgrounds
+### Playgrounds
 
 Next, look at playgrounds.
 
@@ -274,15 +178,10 @@ levels(playgroundsSmall@data$year_rehab)
 levels(playgroundsSmall@data$year_rehab) <- gsub("unknown", NA, levels(playgroundsSmall@data$year_rehab))
 levels(playgroundsSmall@data$year_rehab) <- gsub("2015 - partial upgrade", "2015", levels(playgroundsSmall@data$year_rehab))
 
+playgroundsFinal <- playgroundsSmall
 ```
 
-Save final product as a csv.
-
-```{r}
-SavePolygonsAsCSV(playgroundsSmall, "playgrounds.csv")
-```
-
-## Skate Parks
+### Skate Parks
 
 Next, look at skate parks. There are only 5 of them.
 
@@ -295,15 +194,13 @@ Look at data and subset to useful values, then save.
 ```{r}
 head(skateParks@data)
 
-skateParks <- skateParks[,c(1,4)]
-colnames(skateParks@data) <- c('location', 'size')
-levels(skateParks@data$size) <- c("large", "small")
-head(skateParks@data)
-
-SavePolygonsAsCSV(skateParks, "skate_parks.csv")
+skateParksFinal <- skateParks[,c(1,4)]
+colnames(skateParksFinal@data) <- c('location', 'size')
+levels(skateParksFinal@data$size) <- c("large", "small")
+head(skateParksFinal@data)
 ```
 
-## Rec Court Surfaces
+### Rec Court Surfaces
 
 Next look at recreational court surfaces. From the description on Denver Open Data, these are: "Polygon representation of recreational courts or other playing surfaces such as basketball, tennis, handball, bocce, sand volleyball, horseshoepits, and lawn bowling in parks, golf courses, and other areas maintained by the Department of Parks and Recreation in the City and County of Denver."
 
@@ -325,10 +222,11 @@ levels(courtsSmall@data$year_resurfaced) <- gsub("<Null>", NA, levels(courtsSmal
 # Also weirdly one year is labeled as 2014 - Patch... replace with 2014
 levels(courtsSmall@data$year_resurfaced) <- gsub("2014 - Patch", "2014", levels(courtsSmall@data$year_resurfaced))
 
-SavePolygonsAsCSV(courtsSmall, "courts.csv")
+courtsFinal <- courtsSmall
+head(courtsFinal@data)
 ```
 
-## Libraries
+### Libraries
 
 Next we look at libraries.
 
@@ -343,21 +241,19 @@ Look at the data, subset, retype columns, and then save result.
 ```{r}
 head(libraries)
 
-libraries <- libraries[,c(1,9,10,11)]
-names(libraries) <- c("name","patron_count","circulation_volume","sqft")
+librariesFinal <- libraries[,c(1,9,10,11)]
+names(librariesFinal) <- c("name","patron_count","circulation_volume","sqft")
 
 # make sure the types are correct
-libraries[["name"]] <- as.character(libraries[["name"]])
-libraries[["patron_count"]] <- as.numeric(as.character(libraries[["patron_count"]]))
-libraries[["circulation_volume"]] <- as.numeric(as.character(libraries[["circulation_volume"]]))
-libraries[["sqft"]] <- as.numeric(as.character(libraries[["sqft"]]))
+librariesFinal[["name"]] <- as.character(librariesFinal[["name"]])
+librariesFinal[["patron_count"]] <- as.numeric(as.character(librariesFinal[["patron_count"]]))
+librariesFinal[["circulation_volume"]] <- as.numeric(as.character(librariesFinal[["circulation_volume"]]))
+librariesFinal[["sqft"]] <- as.numeric(as.character(librariesFinal[["sqft"]]))
 
-head(libraries)
-
-SavePointsAsCSV(libraries, "libraries.csv")
+head(librariesFinal)
 ```
 
-## Swimming Pools
+### Swimming Pools
 
 Next we look at swimming pools.
 
@@ -365,18 +261,15 @@ Next we look at swimming pools.
 pools <- GetOpenData("swimming_pools")
 ```
 
-Look at and subset the data, then save to csv.
+Look at and subset the data.
 
 ```{r}
-pools <- pools[,c(1,3,11)]
-names(pools) <- c("name","type","location")
-
-head(pools)
-
-SavePointsAsCSV(pools, "pools.csv")
+poolsFinal <- pools[,c(1,3,11)]
+names(poolsFinal) <- c("name","type","location")
+head(poolsFinal)
 ```
 
-## Licensed Childcare Facilities
+### Licensed Childcare Facilities
 
 Next we look at childcare facilities.
 
@@ -389,17 +282,14 @@ Look at and subset data, then save.
 ```{r}
 summary(care)
 
-care <- care[c(2,5)]
-names(care) <- c("name", "license_type")
-levels(care@data$license_type) <- c("center", "home")
+careFinal <- care[c(2,5)]
+names(careFinal) <- c("name", "license_type")
+levels(careFinal@data$license_type) <- c("center", "home")
 
-head(care)
-
-SavePointsAsCSV(care, "licensed_child_care.csv")
-
+head(careFinal)
 ```
 
-## Parks
+### Parks
 
 Finally, look at parks.
 
@@ -412,45 +302,91 @@ Look at and subset parks data.
 ```{r}
 head(parks@data)
 
-parks <- parks[c(2,5,23)]
-names(parks) <- c("name","class","facilities")
-parks[["name"]] <- as.character(parks[["name"]])
+parksFinal <- parks[c(2,5,23)]
+names(parksFinal) <- c("name","class","facilities")
+parksFinal[["name"]] <- as.character(parksFinal[["name"]])
 ```
 
 Split facilities lists into separate columns. Only keep 
 
 ```{r}
-parks <- SplitCommas(parks, "facilities")
-colSums(parks@data[,3:194])
+parksFinal <- SplitCommas(parksFinal, "facilities")
+colSums(parksFinal@data[,3:194])
 
 # What columns do we have now?
-colnames(parks@data)
+colnames(parksFinal@data)
 
 # Add variable about whether the park has some kind of natural area
-natureBool <- grepl("Nature|nature|NATURE|Natural|natural|NATURAL", colnames(parks@data))
-colnames(parks@data)[natureBool]  # look at what columns you're getting
-parks@data$has_nature <- apply(parks@data[,natureBool], 1, max)
+natureBool <- grepl("Nature|nature|NATURE|Natural|natural|NATURAL", colnames(parksFinal@data))
+colnames(parksFinal@data)[natureBool]  # look at what columns you're getting
+parksFinal@data$has_nature <- apply(parksFinal@data[,natureBool], 1, max)
 
 # Add variable about whether the park has a garden
-gardenBool <- grepl("Garden|garden|GARDEN", colnames(parks@data))
-colnames(parks@data)[gardenBool]  # look at what columns you're getting
-parks@data$has_garden <- apply(parks@data[,gardenBool], 1, max)
+gardenBool <- grepl("Garden|garden|GARDEN", colnames(parksFinal@data))
+colnames(parksFinal@data)[gardenBool]  # look at what columns you're getting
+parksFinal@data$has_garden <- apply(parksFinal@data[,gardenBool], 1, max)
 
 # Add variable about whether the park has a trail.
-trailBool <- grepl("Trail|trail|TRAIL", colnames(parks@data))
-colnames(parks@data)[trailBool]  # look at what columns you're getting
-parks@data$has_trail <- apply(parks@data[,trailBool], 1, max)
-parks@data$has_trail <- NULL  # actually ignore this variable because they all have trails (lol)
+trailBool <- grepl("Trail|trail|TRAIL", colnames(parksFinal@data))
+colnames(parksFinal@data)[trailBool]  # look at what columns you're getting
+parksFinal@data$has_trail <- apply(parksFinal@data[,trailBool], 1, max)
+parksFinal@data$has_trail <- NULL  # actually ignore this variable because they all have trails (lol)
 
 # bike paths
-bikeBool <- grepl("Bike|bike|BIKE|cycle|Cycle|CYCLE", colnames(parks@data))
-colnames(parks@data)[bikeBool]  # look at what columns you're getting
-parks@data$has_biking <- apply(parks@data[,bikeBool], 1, max)
+bikeBool <- grepl("Bike|bike|BIKE|cycle|Cycle|CYCLE", colnames(parksFinal@data))
+colnames(parksFinal@data)[bikeBool]  # look at what columns you're getting
+parksFinal@data$has_biking <- apply(parksFinal@data[,bikeBool], 1, max)
 
 # delete the extra variables
-parks@data[,3:194] <- NULL
+parksFinal@data[,3:194] <- NULL
 
-SavePolygonsAsCSV(parks, "parks.csv")
+head(parksFinal@data)
+```
+
+## Adding neighborhoods to each dataset, from lat/longs
+
+
+
+
+
+
+
+## Uploading to RDS
+
+Savings to csvs:
+
+```{r}
+SavePointsAsCSV(afterSchoolFinal, "afterschool.csv")
+SavePointsAsCSV(recFinal, "rec_centers.csv")
+SavePolygonsAsCSV(fieldsFinal, "fields.csv")
+SavePolygonsAsCSV(playgroundsFinal, "playgrounds.csv")
+SavePolygonsAsCSV(skateParksFinal, "skate_parks.csv")
+SavePolygonsAsCSV(courtsFinal, "rec_courts.csv")
+SavePointsAsCSV(librariesFinal, "libraries.csv")
+SavePointsAsCSV(poolsFinal, "pools.csv")
+SavePointsAsCSV(careFinal, "licensed_child_care.csv")
+SavePolygonsAsCSV(parksFinal, "parks.csv")
+```
+
+Uploading directly to RDS:
+
+```{r}
+# load the function
+mypath <- getwd()
+rds_file <- file.path(dirname(mypath), "update_rds.R")
+source(rds_file)
+
+# # upload everything
+# update_rds(afterSchoolFinal, "clean", "afterschool")
+# update_rds(recFinal, "clean", "rec_centers")
+# update_rds(fieldsFinal, "clean", "fields")
+# update_rds(playgroundsFinal, "clean", "playgrounds")
+# update_rds(skateParksFinal, "clean", "skate_parks")
+# update_rds(courtsFinal, "clean", "rec_courts")
+# update_rds(librariesFinal, "clean", "libraries")
+# update_rds(poolsFinal, "clean", "pools")
+# update_rds(careFinal, "clean", "child_care")
+# update_rds(parksFinal, "clean", "parks")
 ```
 
 ## Make the codebook
@@ -458,7 +394,9 @@ SavePolygonsAsCSV(parks, "parks.csv")
 Build the codebook, i.e. get variable names for each csv saved above in clean_data. Save the results as a csv for easy referencing later.
 
 ```{r}
-filenameList <- c("afterschool.csv", "courts.csv", "fields.csv", "libraries.csv", "licensed_child_care.csv", "parks.csv", "playgrounds.csv", "pools.csv", "rec_centers.csv", "skate_parks.csv")
+filenameList <- c("afterschool.csv", "rec_centers.csv", "fields.csv", "playgrounds.csv", 
+                  "skate_parks.csv", "rec_courts.csv", "libraries.csv", "pools.csv", 
+                  "licensed_child_care.csv", "parks.csv")
 
 maxVars <- 50
 codebook <- data.frame(matrix(nrow=maxVars, ncol=0))
