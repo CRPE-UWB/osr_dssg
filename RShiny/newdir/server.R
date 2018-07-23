@@ -90,7 +90,7 @@ shinyServer(
         %% Students who use transportation = %g%% <br/> %% Students with disability = %g%% ",
         shape_census@data$AGE_5_T, shape_census@data$count, shape_census@data$perc_hispanic_students, shape_census@data$perc_nonenglish_students,
         shape_census@data$perc_with_transport_students, shape_census@data$perc_disable_students) %>% lapply(htmltools::HTML)
-      
+    
       #Text in the pop up markers
       marker_popup_text <- sprintf(
         "Session name = %s, <br/> Organization name = %s, <br/> Session start date = %s, <br/> Session end date = %s, <br/> Session cost = %i,  <br/> Special needs offerings = %s,
@@ -168,7 +168,6 @@ shinyServer(
         
       }
       
-      
       else if(input$demographics == "High school degree or equivalent(%)") {
         
         demographic_maps(pal_edu,"PCT_HSD")
@@ -193,19 +192,8 @@ shinyServer(
       }
       
     })
-    
 
     
   })  
     
     
-    
-    
-    
-    
-  
-
-
-
-
-
