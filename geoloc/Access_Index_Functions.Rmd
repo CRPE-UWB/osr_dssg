@@ -10,8 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ##Intro
-This markdown defines 
-
+This markdown defines functions for use in calculating an access index per user specifications on filtering reschool program data. Additionally, this markdown provides leaflet code for plotting the results of the index by census block group. This markdown reads census_centroids as a shapefile from my machine, as we haven't pushed this to the RDS yet. 
 
 ###RDS Pull
 ```{r}
