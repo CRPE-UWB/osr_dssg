@@ -5,84 +5,45 @@ date: "7/19/2018"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r}
+library(RPostgreSQL)
+# loads the PostgreSQL driver
+drv <- dbDriver("PostgreSQL")
+
+# creates a connection to the postgres database
+# note that "con" will be used later in each connection to the database
+con <- dbConnect(drv, dbname = "dssg2018uw",
+                 host = "localhost", port = 9000,
+                 user = user, password = password)
+```
+
+First get the block group distances from the RDS.
+```{r}
+block_distance <- dbGetQuery(con, "select * from clean.block_distance")
+```
+
+Read in the shape census file
+```{r}
+#double note: update the link below to your directory
+spdf <- readOGR("../census_block_groups/shape_census.shp") #reads the shapefile, NOTE: you need all shapefiles in the directory present
 ```
 
 #Intro
 This notebook takes the block group distances, adds in additional data needed to calculate the Access Index, and then as of 07/20/18, shows our loops for running the equation on the access index for **overall** programs. **HOWEVER** the plots at the end make use of the aggregated dataframes used to merge into the block_distance data-frame, so use your judgement. Maybe see the block_group_distances notebook to get those aggregations. Or don't, I don't care, we're going to change this in the next day or two. 
 
-###Gravity Access index loop
-Here we write a loop to calculate an access index score per each unique address, rescale the results per address, store each unique address result in a data frame in the style of block distances, and store the average access index in a summary dataframe **at the block group level**. This loop uses the "gravity" model, where k = 1.5. 
-```{r}
-library(scales)
-block_mover$Access_Index <- 0
-access_indexices <- as.data.frame(setNames(replicate(16,character(0), simplify = F), colnames(block_distance))) #make an empty data frame identical to block distances
-summary_index <- census_centroids
-summary_index$Access_Index <- 0
+Now let's define our access index function. 
 
-for (i in 1:length(block_list)){
-  block.i <- block_list[i]
-  block_mover <- subset(block_distance,block_distance$Id2==block.i)
-  for (x in 1:nrow(block_mover)){
-    Car <- block_mover$PCT_Vhcl_w[x]/100
-    Tc <- block_mover$driving_morning[x]
-    Tp <- block_mover$transit_morning[x]
-    k <- 1.5
-    n <- block_mover$n[x]
-    Ai <- ifelse(is.na(Tp)==FALSE,((Car*(1/Tc^k)+(1-Car)*(1/Tp^k))*n),1*((1/Tc^k)*n)) #note here, there are some locations with no transit access, for these we assume only access by transit, hence if transit=NA, the equation is equaly to 100% driving access
-    block_mover$Access_Index[x] <- Ai
-    if( x %% 100 == 0){
-      print(paste(i,x,"working..."))}
-    }
-  block_mover$Access_Index <- rescale(block_mover$Access_Index,to = c(0, 100))
-  access_indexices <- rbind(block_mover,access_indexices)
-  summary_index$Access_Index[i] <- mean(block_mover$Access_Index)}
-
-#block n = 80319801001, has no info on % of car ownership. Thinking drop it
-```
-
-###Exponential Function 
-Defined for use in the exponential function model for decay. 
 ```{r}
 fxn <- function(vector, scale){
   #2^(-vector/scale)
-  ifelse(vector<=scale,1,(1/(vector/scale))^2)}
+  ifelse(vector<=scale,1,(1/(vector/scale))^2)
+}
 
 driving_commute_denver <- 10 #wow these seem arbitrary huh?
 transit_commute_denver <- 20 #HUH?
 ```
 
-###Exp Access index loop
-Here we use a loop to calculate the access index in the same fashion as above, using a different decay function. 
-```{r}
-library(scales)
-block_list <- unique(block_distance$Id2)
-block_mover$Access_Index <- 0
-access_indexices <- as.data.frame(setNames(replicate(16,character(0), simplify = F), colnames(block_distance))) #make an empty data frame identical to block distances
-summary_index <- census_centroids
-summary_index$Access_Index <- 0
-
-for (i in 1:length(block_list)){
-  block.i <- block_list[i]
-  block_mover <- subset(block_distance,block_distance$Id2==block.i)
-  for (x in 1:nrow(block_mover)){
-    Car <- block_mover$PCT_Vhcl_w[x]/100
-    Tc <- block_mover$driving_morning[x]
-    Tp <- block_mover$transit_morning[x]
-    n <- block_mover$n[x]
-    Ai <- ifelse(is.na(Tp)==FALSE,((Car*(fxn(Tc,driving_commute_denver))+(1-Car)*(fxn(Tp,transit_commute_denver)))*n),1*((fxn(Tc,transit_commute_denver))*n))
-    block_mover$Access_Index[x] <- Ai
-    ifelse((i %% 200 == 0),print(paste(i,"working...")),"")
-    }
-  #block_mover$Access_Index <- rescale(block_mover$Access_Index,to = c(0, 100)) #here we comment out rescaling to test validation
-  access_indexices <- rbind(block_mover,access_indexices)
-  summary_index$Access_Index[i] <- mean(block_mover$Access_Index)}
-```
-
-###Exp Access Index Loop Simplified, return max
-This is the same as the above but we no longer multiply by the number of programs at each site, and we return the max Ai value not the average for all destinations. The idea here being we want to distance **just** the role of travel times to locations to validate if we've written our equation correctly. In particular, we are concernced about a few block groups with very unequal access, despite being adjacent, (see the next chunk for plotting). Spot checking these block groups confirms that travel time calculcations appear correct. 
-
+###Access index loop
 ```{r}
 block_list <- unique(block_distance$Id2)
 block_mover <- block_distance
@@ -100,24 +61,24 @@ block_list <- sort(block_list)
 summary_index$blockID <- as.numeric(summary_index$blockID)
 summary_index <- summary_index[order(summary_index$blockID),]
 
-for (i in 1:length(block_list)){
+for (i in 1:length(block_list)) {
   block.i <- block_list[i]
-  block_mover <- subset(block_distance,block_distance$Id2==block.i)
+  block_mover <- subset(block_distance, block_distance$Id2 == block.i)
   summary.i <- summary_index
-  for (x in 1:nrow(block_mover)){
+  for (x in 1:nrow(block_mover)) {
     #Car <- block_mover$PCT_Vhcl_w[x]/100
     Car <- 1
     Tc <- block_mover$driving_morning[x]
     Tp <- block_mover$transit_morning[x]
     n <- block_mover$n[x]
-    Ai <- Car*(fxn(Tc,5))
+    Ai <- Car * (fxn(Tc, 5))
     block_mover$Access_Index[x] <- Ai
-    if( i %% 200 == 0){
-      print(paste(i,x,"working..."))}
-    }
-  #block_mover$Access_Index <- rescale(block_mover$Access_Index,to = c(0, 100))
-  access_indexices <- rbind(block_mover,access_indexices)
-  summary_index$Access_Index[i] <- mean(block_mover$Access_Index,na.rm=TRUE)}
+    #block_mover$Access_Index <- rescale(block_mover$Access_Index,to = c(0, 100))
+    access_indexices <- rbind(block_mover, access_indexices)
+    summary_index$Access_Index[i] <-
+    mean(block_mover$Access_Index, na.rm = TRUE)
+  }
+}
 ```
 
 ###Plotting the Access Index and number of programs
@@ -149,7 +110,7 @@ Ai_leaflet <- leaflet(census_blocks) %>%
               popup=paste(summary_index$blockID,summary_index$Access_Index,census_blocks$Id2),
               highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
   addLegend(pal = pal, values = ~summary_index$Access_Index, opacity = 1) %>%
-  addCircles(data = total_programs, opacity = 0.4,weight=7, color="red",popup=info) %>%
+  addCircles(data = total_programs, opacity = 0.4,weight=7, color="red", popup=info) %>%
   addCircles(data = census_centroids, opacity = 0.4, weight=7,color="purple",popup=census_centroids$blockID) %>%
   setView(lat=39.7,lng=-104.9,zoom=11)
 ```

@@ -5,10 +5,6 @@ date: "7/9/2018"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 ###Get SQL Data
 ```{r}
 library(RPostgreSQL)
@@ -27,11 +23,8 @@ con <- dbConnect(drv, dbname = "dssg2018uw",
 ###Download the blockgroup shapefiles
 Specifically made for this project vis-a-vi Haowen. Future iterations of this will pull the shape file directly from GitHub. However, because you need all shape files, not just the .shp file for this to function, for now you'll need to update the location to .shp file in your directory.
 ```{r}
-library(rgeos)
-library(rgdal)
-library(raster)
 #double note: update the link below to your directory
-spdf <- shapefile("/Users/Andrew/osr_dssg2018-3/census_block_groups/shape_census.shp") #reads the shapefile, NOTE: you need all shapefiles in the directory present
+spdf <- readOGR("../census_block_groups/shape_census.shp") #reads the shapefile, NOTE: you need all shapefiles in the directory present
 ```
 
 ###Find Census Blockgroup Center Points
@@ -44,18 +37,14 @@ census_centroids <- SpatialPointsDataFrame(gCentroid(spdf, byid=TRUE), spdf@data
 census_centroids <- as.data.frame(census_centroids)
 colnames(census_centroids)[colnames(census_centroids)=="x"] <- "long"  # for consistency across files
 colnames(census_centroids)[colnames(census_centroids)=="y"] <- "lat"
-census_centroids <- census_centroids %>% select(Id2, lat, long)
+census_centroids <- census_centroids[,c("Id2", "lat", "long")]
 colnames(census_centroids)[colnames(census_centroids)=="Id2"] <- "blockID" #updating for loop consistency
 ```
 
 ###Getting Unique ReSchool Addresses
 ```{r}
-library(rgeos)
-library(rgdal)
-library(raster)
-library(tidyverse)
 reschool_programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs") #for getting unique program addresses
-reschool_addresses <- reschool_programs %>% select(session_address_1,lat,long)
+reschool_addresses <- reschool_programs[,c("session_address_1","lat","long")]
 reschool_addresses <- unique(reschool_addresses)
 rownames(reschool_addresses) <- NULL
 ```
@@ -63,10 +52,10 @@ rownames(reschool_addresses) <- NULL
 ###Spot fix an incorrectly geocoded reschool address
 **Note:** we spot checked all addresses outside metropolitan areas to confirm if this is was the correct address for drop off. It is, only the below address needs to be updated. 
 ```{r}
-library(ggmap)
-spot_fix <- geocode("26th & Quebec St, Denver, 80207, usa",output="latlona",source=c("google","dsk"))
-reschool_addresses$lat[129] <- spot_fix[,2] #putting in lat/lons from new geocode 
-reschool_addresses$long[129] <- spot_fix[,1]
+reschool_addresses$lat[1] <- 39.75437 
+reschool_addresses$long[1] <- -104.9035
+reschool_addresses$lat[158] <- 39.75488
+reschool_addresses$long[158] <- -105.0440
 ```
 
 ###Close RDS Connection
@@ -415,23 +404,23 @@ programs_nature <- subset(programs_nature, programs_nature$has_nature==TRUE)
 
 #trimming and creating unique colnames for merge 
 colnames(programs_academic)[colnames(programs_academic)=="n"] <- "n_academic"
-programs_academic <- programs_academic %>% select(n_academic, session_address_1)
+programs_academic <- programs_academic[c("n_academic", "session_address_1")]
 
 colnames(programs_arts)[colnames(programs_arts)=="n"] <- "n_arts"
-programs_arts <- programs_arts %>% select(n_arts, session_address_1)
+programs_arts <- programs_arts[,c("n_arts", "session_address_1")]
 
 colnames(programs_sports)[colnames(programs_sports)=="n"] <- "n_sports"
-programs_sports <- programs_sports %>% select(n_sports, session_address_1)
+programs_sports <- programs_sports[c("n_sports", "session_address_1")]
 
 colnames(programs_nature)[colnames(programs_nature)=="n"] <- "n_nature"
-programs_nature <- programs_nature %>% select(n_nature, session_address_1)
+programs_nature <- programs_nature[,c("n_nature", "session_address_1")]
 
 #Create a car owners data frame to merge
 #note we could do this in one step from the full census data.frame, but this is much simpler and less error prone
 census_car_owners <- as.data.frame(census_blocks)
 colnames(census_car_owners)[colnames(census_car_owners)=="INTPTLA"] <- "lat"  # for consistency across files
 colnames(census_car_owners)[colnames(census_car_owners)=="INTPTLO"] <- "long"
-census_car_owners <- census_car_owners %>% select(Id2, PCT_Vhcl_w, lat, long)
+census_car_owners <- census_car_owners[,c("Id2", "PCT_Vhcl_w", "lat", "long")]
 ```
 
 ###Merge in additional data
