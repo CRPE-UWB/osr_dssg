@@ -13,7 +13,7 @@ Set up the workspace.
 # Uncomment the line below if you're using RStudio to run the file
 # (don't use if you're running knitr!)
 # (makes sure data files are saved in same location as this file)
-# setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 ```
 
 ```{r libs, message=FALSE, results="hide"}
@@ -44,9 +44,10 @@ gsheetData <- as.data.frame(gsheet2tbl(gurl))
 # Merge the annotations into the original data
 afterSchoolFull <- merge(x = afterSchool, y = gsheetData)
 
-# Replace NA's by 0's in annotated columns.
+# Replace NA's by 0's in annotated columns, then cast 1/0 as TRUE/FALSE.
 for (colnum in 14:29) {
   afterSchoolFull@data[is.na(afterSchoolFull@data[,colnum]),colnum] <- 0
+  afterSchoolFull@data[,colnum] <- as.logical(afterSchoolFull@data[,colnum])
 }
 
 # Sanity checks about the results
@@ -129,6 +130,10 @@ recFinal@data[,10:11] <- NULL
 # Rename the rest of the binary columns
 colnames(recFinal@data)[10:17] <- c("has_arts_culture", "has_day_camps", "has_educ_programs", "has_fitness_health_programs", "has_senior_programs", "has_social_enrich_clubs", "has_special_events", "has_sports")
 
+# Cast binary columns as TRUE/FALSE
+for (colnum in 7:18) {
+  recFinal@data[,colnum] <- as.logical(recFinal@data[,colnum])
+}
 head(recFinal)
 ```
 
@@ -340,20 +345,15 @@ parksFinal@data$has_biking <- apply(parksFinal@data[,bikeBool], 1, max)
 # delete the extra variables
 parksFinal@data[,3:194] <- NULL
 
+# cast 0/1 as true/false
+for (colnum in 3:5){
+  parksFinal@data[,colnum] <- as.logical(parksFinal@data[,colnum])
+}
+
 head(parksFinal@data)
 ```
 
-## Adding neighborhoods to each dataset, from lat/longs
-
-
-
-
-
-
-
-## Uploading to RDS
-
-Savings to csvs:
+### Saving to csvs:
 
 ```{r}
 SavePointsAsCSV(afterSchoolFinal, "afterschool.csv")
@@ -368,25 +368,36 @@ SavePointsAsCSV(careFinal, "licensed_child_care.csv")
 SavePolygonsAsCSV(parksFinal, "parks.csv")
 ```
 
-Uploading directly to RDS:
+### Adding block groups to each dataset, from lat / longs, and uploading to RDS
 
 ```{r}
-# load the function
-mypath <- getwd()
-rds_file <- file.path(dirname(mypath), "update_rds.R")
-source(rds_file)
+# Clear the environment
+rm(list=ls())
 
-# # upload everything
-# update_rds(afterSchoolFinal, "clean", "afterschool")
-# update_rds(recFinal, "clean", "rec_centers")
-# update_rds(fieldsFinal, "clean", "fields")
-# update_rds(playgroundsFinal, "clean", "playgrounds")
-# update_rds(skateParksFinal, "clean", "skate_parks")
-# update_rds(courtsFinal, "clean", "rec_courts")
-# update_rds(librariesFinal, "clean", "libraries")
-# update_rds(poolsFinal, "clean", "pools")
-# update_rds(careFinal, "clean", "child_care")
-# update_rds(parksFinal, "clean", "parks")
+# Source the necessary files
+mypath <- getwd()
+source( file.path(mypath, "coords_to_blockgroups.R") )
+source( file.path( dirname(mypath), "update_rds.R") )
+
+filenameList <- c("afterschool.csv", "rec_centers.csv", "fields.csv", "playgrounds.csv", 
+                  "skate_parks.csv", "rec_courts.csv", "libraries.csv", "pools.csv", 
+                  "licensed_child_care.csv", "parks.csv")
+
+for (filename in filenameList) {
+  # load csv into workspace
+  file <- file.path("clean_data", filename)
+  df <- read.csv(file)
+  
+  # add the block groups
+  dfnew <- coords_to_blockgroups(df)
+  
+  # overwrite the csv 
+  write.csv(dfnew, file, row.names = FALSE, na = "")
+  
+  # upload to RDS
+  tableName <- sub('\\.csv$', '', filename)
+  update_rds(dfnew, "clean", tableName, overwrite = TRUE)
+}
 ```
 
 ## Make the codebook

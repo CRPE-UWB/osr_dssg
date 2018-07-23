@@ -21,7 +21,7 @@ geocodeAddress <- function(address) {
 }
 
 # Read in museum addresses, which were manually extracted from Google Maps.
-museumdata = read.csv(file = "C:/Users/Sreekanth/Desktop/DSSG Project/museum_locations.csv",  
+museumdata <- read.csv(file = "C:/Users/Sreekanth/Desktop/DSSG Project/museum_locations.csv",  
                       na.strings = "")
 
 # Initialize
@@ -39,4 +39,31 @@ for (i in 1:nrow(museumdata)) {
 new <- Sys.time() - old # calculate difference
 print(new)
 
-museumdata_final = museumdata
+####### Add the block group ids
+
+# get block group polygons
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+mypath <- getwd()
+dataPath <- file.path(dirname(mypath), "data", "census_clean", "shape_census")
+blockGroups <- readOGR(dsn = dataPath, 'shape_census')
+
+# figure out which block group each program is in
+coords <- data.frame(museumdata$long, museumdata$lat)
+colnames(coords) <- c("long", "lat")
+spMuseums <- SpatialPoints(coords, proj4string = CRS(proj4string(blockGroups)))
+
+nests <- gIntersects(spMuseums, blockGroups, byid = TRUE)  # rows=bgroups, cols=programs
+true_idxs <- which(nests==TRUE, arr.ind=TRUE)  # col1 = bgroup idx, col2 = program idx
+bgroup_idxs  <- true_idxs[,1]
+museum_idxs <- true_idxs[,2]
+
+museum_bgs <- data.frame(coords[museum_idxs,],
+                         blockGroups$Id2[bgroup_idxs]
+)
+colnames(museum_bgs) <- c("long", "lat", "bgroup_id2")
+
+museum_bgs$bgroup_id2 <- as.character(as.numeric(as.character(museum_bgs$bgroup_id2))) # strip leading 0's
+head(museum_bgs)
+
+museumdata_final <- merge(museumdata, museum_bgs)
+head(museumdata_final)
