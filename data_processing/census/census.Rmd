@@ -461,3 +461,28 @@ dbDisconnect(con)
 dbUnloadDriver(drv)
 ```
 
+### 7. Create and add acs_denverchildren_race dataset to RDS
+
+```{r}
+kids.race <- read.csv("ACS_16_5YR_S0901.csv", skip = 1) #data on github: data/census_raw
+
+# take out the useful columns and rename them 
+kids.race$pct_white <- kids.race$Total..Estimate..RACE.AND.HISPANIC.OR.LATINO.ORIGIN...One.race...White
+kids.race$pct_black <- kids.race$Total..Estimate..RACE.AND.HISPANIC.OR.LATINO.ORIGIN...One.race...Black.or.African.American
+kids.race$pct_asian <- kids.race$Total..Estimate..RACE.AND.HISPANIC.OR.LATINO.ORIGIN...One.race...Asian
+kids.race$pct_americanindian <- kids.race$Total..Estimate..RACE.AND.HISPANIC.OR.LATINO.ORIGIN...One.race...American.Indian.and.Alaska.Native
+kids.race$pct_pacificislander <- kids.race$Total..Estimate..RACE.AND.HISPANIC.OR.LATINO.ORIGIN...One.race...Native.Hawaiian.and.Other.Pacific.Islander
+kids.race$pct_other <- kids.race$Total..Estimate..RACE.AND.HISPANIC.OR.LATINO.ORIGIN...One.race...Some.other.race
+kids.race$pct_two_or_more_races <- kids.race$Total..Estimate..RACE.AND.HISPANIC.OR.LATINO.ORIGIN...Two.or.more.races
+kids.race$pct_hispanic <- kids.race$Total..Estimate..Hispanic.or.Latino.origin..of.any.race.
+kids.race$pct_nonhispanicwhites <- kids.race$Total..Estimate..White.alone..not.Hispanic.or.Latino
+
+# get rid of the useless columns
+kids.race <- kids.race %>% filter(Id2 == 8031) %>% select(-contains("Margin")) %>% select(contains("pct"))
+
+# upload the data set to RDS
+# open connection
+dbWriteTable(con, c("clean", "acs_denverchildren_race"), value = kids.race, row.names = FALSE)
+```
+
+
