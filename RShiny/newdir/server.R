@@ -248,71 +248,117 @@ shinyServer(
     colm_other = reactive({
       input$program_other
     })
-   
-      parks_data = reactive({
-
+    
+    #Function to subset all the resource datasets based on the neighborhood selected
+    subset_for_neighborhoods = function(file){
+      
+      b = reactive({
+        
         if(input$neighborhoods_other != "No neighborhood selected" ) {
-          a = parks[which(parks[, "nbhd_name"] == input$neighborhoods_other),]
+          a = file[which(file[, "nbhd_name"] == input$neighborhoods_other),]
         }
         else {
-          a = parks
+          a = file
         }
         return(a) 
         
-    })
+      })
+      
+      return(b)
+      
+    }
     
-    libraries_data = reactive({
-      
-      if(input$neighborhoods_other != "No neighborhood selected" ) {
-        a = libraries[which(libraries[, "nbhd_name"] == input$neighborhoods_other),]
-      }
-      else {
-        a = libraries
-      }
-      return(a) 
-      
-    })
-      
-
-      output$mymap_other = renderLeaflet({
+    
+    #Calling the function to create the subsetted datasets
+    parks_data = subset_for_neighborhoods(parks)
+    libraries_data = subset_for_neighborhoods(libraries)
+    rec_centers_data = subset_for_neighborhoods(rec_centers)
+    museums_data = subset_for_neighborhoods(museums)
+    playgrounds_data = subset_for_neighborhoods(playgrounds)
+    fields_data = subset_for_neighborhoods(fields)
+    
+    
+    
+    #Creating reactive element for the map
+    output$mymap_other = renderLeaflet({
         
         parks_data1 = parks_data()
         libraries_data1 = libraries_data()
+        rec_centers_data1 = rec_centers_data()
+        museums_data1 = museums_data()
+        playgrounds_data1 = playgrounds_data()
+        fields_data1 = fields_data()
         
+        #Creating the base map
         m = leaflet()  %>% setView(lng = -104.991531, lat = 39.742043,zoom = 10) %>% addTiles()
         
+        #Creating a function to add circle markers on the map depending on the resource selected through the checkbox input
+        add_circle_markers = function(m, file, color_code){
+         
+         addCircleMarkers(m , data = file, lng = jitter(file$long, factor = 1, amount = 0.0005), 
+                          lat = jitter(file$lat, factor = 1, amount = 0.0005), 
+                          radius = 6,
+                          stroke = FALSE,
+                          weight = 1,
+                          fillColor = color_code,
+                          fillOpacity = 0.5) 
+        
+       }
+        
+        #Creating a loop to plot the loactions depending on the resource selected through the checkbox input 
         for (col in colm_other()){
-          print(col)
+        
          if(col == "Parks"){
-           print(head(parks_data1))
+           
 
-           map <- m %>% addMarkers(map = m, lng = jitter(parks_data1$long), lat = jitter(parks_data1$lat))
+           m = m %>% add_circle_markers(parks_data1, "yellow")
+            
 
          }
 
           if(col == "Libraries"){
-            print(col)
+        
+           
+           m = m %>% add_circle_markers(libraries_data1, "red")
+          
 
-            map %>% addMarkers(map, lng = jitter(libraries_data1$long), lat = jitter(libraries_data1$lat))
-
+          }
+          
+          if(col == "Rec Centers"){
+            
+            
+            m = m %>% add_circle_markers(rec_centers_data1, "blue")
+            
+            
+          }
+          
+          if(col == "Playgrounds"){
+            
+            
+            m = m %>% add_circle_markers(playgrounds_data1, "green")
+            
+            
+          }
+          
+          if(col == "Museums"){
+            
+            
+            m = m %>% add_circle_markers(museums_data1, "purple")
+            
+            
+          }
+          
+          if(col == "Fields"){
+            
+            
+            m = m %>% add_circle_markers(fields_data1, "orange")
+            
+            
           }
 
         }
         
-        
-        
-       #  
-       #  if(input$program_other == "Libraries"){
-       #    
-       #    map <- map %>% addMarkers(lng = jitter(libraries_data1$long), lat = jitter(libraries_data1$lat)) 
-       #  }   
-       #  
-       #  
-       # else if(input$program_other == "Parks"){
-       #   
-       #   map <- map %>%
-       #     addMarkers(lng = jitter(parks_data1$long), lat = jitter(parks_data1$lat)) 
-       # }
+        return(m)
         
         
         
