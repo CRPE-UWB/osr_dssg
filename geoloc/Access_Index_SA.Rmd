@@ -1,0 +1,706 @@
+---
+title: "Access_Index_SA"
+author: "Andrew Taylor"
+date: "7/24/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Intro
+This markdown performs the sensitivity analysis on the access index equation, comparing the changes in blockgroup access index scores/ranks (as they compare to other blockgroups), for the 1/r^2 function with indifference threshold of 5-15 minutes, as well as for the exp function with indifference threshold of 5-15 minutes, and the gravity model, which we test with scale 5-15 minutes though there is no change in rank at any stage. This code also produces visualizations to describe these results. **Note** the markdown makes use of the Access Index Functions defined in the Access_Index_Functions markdown, as well as "census_centroids" which is currently running off our machines individualls. You'll need to grab those functions and the centroid file to run this markdown. 
+
+###RDS Pull
+```{r}
+library(rgeos)
+library(rgdal)
+library(raster)
+library(tidyverse)
+library(RPostgreSQL)
+# loads the PostgreSQL driver
+drv <- dbDriver("PostgreSQL")
+
+# creates a connection to the postgres database
+# note that "con" will be used later in each connection to the database
+con <- dbConnect(drv, dbname = "dssg2018uw",
+                 host = "localhost", port = 9000,
+                 user = user, password = password) #local source credentials
+
+#get reschool_programs
+reschool_programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs")
+
+#disconnect
+dbDisconnect(con) 
+dbUnloadDriver(drv)
+```
+
+###Sensitivity Analysis Driving Test
+Because we are to some extent selecting an arbitrary indifference threshold of five minutes, it is critical that we assess how sensitive our conclusions are to threshold. So here we test different indifference thresholds and see how the order of top block groups changes. Basically, we scale up the threshold from 5 five minutes to 15 minutes, checking changes in the order of the block groups at each minute threshold. 
+```{r}
+#run overall access index driving
+library(scales)
+#User specifies query (type), NULL = all
+type <- NULL
+cost <- NULL
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type,cost)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#calculate access index per location 
+merged_set$AccessIndex <- decay_fxn(merged_set,"drive") #why not apply? who knows
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) #critical that we use sum, not mean, BECAUSE, for some specifications some program lengths will drop
+
+#make base dataframe
+summary_index_user <- summary_index_user[order(summary_index_user$AccessIndex),]
+rownames(summary_index_user)  <- NULL
+summary_index_user$base_rank <- rownames(summary_index_user)
+
+for (i in 1:9){
+#generate overall
+type <- NULL
+cost <- NULL
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type,cost)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#alter decay function
+decay_fxn_sensitive <- function(dataframe,mode){
+  if (mode=="transit") {
+    scale = 5+i
+    column="transit_morning"
+  }
+  if (mode=="drive"){
+    scale = 5+i
+    column="driving_morning"
+  }
+  mode=mode
+  dataframe[,"n"]*(ifelse(dataframe[,column]<=scale,1,(1/(dataframe[,column]/scale))^2))
+}
+
+#apply decay function
+merged_set$AccessIndex <- decay_fxn_sensitive(merged_set,"drive")
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_mover <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+
+#order
+summary_index_mover <- summary_index_mover[order(summary_index_mover$AccessIndex),]
+
+#prep for merge
+rownames(summary_index_mover) <- NULL
+summary_index_mover$rank.i <- rownames(summary_index_mover)
+colnames(summary_index_mover)[colnames(summary_index_mover)=="rank.i"] <- paste("rank",i)
+
+#print summary of AI for validation on if this is working
+print(summary(summary_index_mover$AccessIndex))
+summary_index_mover$AccessIndex <- NULL
+
+#merge new data to dataframe
+summary_index_user <- merge(summary_index_user,summary_index_mover,by="Id2",all.y=TRUE)
+print(paste(i,"iteration..."))
+}
+
+#store as a new data frame
+sensitivity_frame <- summary_index_user 
+
+#get the total changes in rank from threshold of five minutes to 16 minutes
+sensitivity_frame$changes <- abs(as.numeric(sensitivity_frame$base_rank) - as.numeric(sensitivity_frame$`rank 9`))
+```
+
+###Plot driving changes in rank
+```{r}
+library(reshape2)
+library(ggplot2)
+library(gridExtra)
+#Prep & order frame
+sensitivity_frame <- summary_index_user 
+sensitivity_frame$base_rank <- as.numeric(sensitivity_frame$base_rank)
+sensitivity_frame <- sensitivity_frame[order(sensitivity_frame$base_rank),]
+
+#subsetframe
+top_25 <- sensitivity_frame[1:25,]
+sa_25_50 <- sensitivity_frame[1:50,]
+sa_50_75 <- sensitivity_frame[1:75,]
+sa_75_100 <- sensitivity_frame[1:100,]
+sa_tail <- sensitivity_frame[456:481,]
+sa_tailstart <- sensitivity_frame[406:481,]
+
+
+#Top 25 Plot
+df <- melt(top_25,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_Top_25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 25") + ylim(1,490)
+
+#Top 50 Plot
+df <- melt(sa_25_50,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_Top_50_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 50") + ylim(1,490)
+
+#Top 75 Plot
+df <- melt(sa_50_75,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_Top_75_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 75") + ylim(1,490)
+
+#Top 100 Plot
+df <- melt(sa_75_100,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_Top_100_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 100") + ylim(1,490)
+
+#Bottom 50
+df <- melt(sa_tail,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_Tail_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 50") + ylim(1,490)
+
+#Bottom 25
+df <- melt(sa_tailstart,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_Bottom25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 100") + ylim(1,490)
+
+grid.arrange(driving_Top_25_Plot,driving_Top_50_Plot,driving_Top_75_Plot,driving_Top_100_Plot,driving_Bottom25_Plot,driving_Tail_Plot,ncol=3)
+```
+
+###Redo with transit
+```{r}
+#run overall access index driving
+library(scales)
+#User specifies query (type)
+#type <- c("art") #"type" can include categories or cost thresholds. Pending cost per day calculations from Selam
+#cost <- c("free")
+type <- NULL
+cost <- NULL
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type,cost)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#calculate access index per location 
+merged_set$AccessIndex <- decay_fxn(merged_set,"transit") #why not apply? who knows
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) #critical that we use sum, not mean, BECAUSE, for some specifications some program lengths will drop
+
+#make base dataframe
+summary_index_user <- summary_index_user[order(summary_index_user$AccessIndex),]
+rownames(summary_index_user)  <- NULL
+summary_index_user$base_rank <- rownames(summary_index_user)
+
+for (i in 1:9){
+#generate overall
+type <- NULL
+cost <- NULL
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type,cost)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#alter decay function
+decay_fxn_sensitive <- function(dataframe,mode){
+  if (mode=="transit") {
+    scale = 5+i
+    column="transit_morning"
+  }
+  if (mode=="drive"){
+    scale = 5+i
+    column="driving_morning"
+  }
+  mode=mode
+  dataframe[,"n"]*(ifelse(dataframe[,column]<=scale,1,(1/(dataframe[,column]/scale))^2))
+}
+
+#apply decay function
+merged_set$AccessIndex <- decay_fxn_sensitive(merged_set,"transit")
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_mover <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+
+#order
+summary_index_mover <- summary_index_mover[order(summary_index_mover$AccessIndex),]
+
+#prep for merge
+rownames(summary_index_mover) <- NULL
+summary_index_mover$rank.i <- rownames(summary_index_mover)
+colnames(summary_index_mover)[colnames(summary_index_mover)=="rank.i"] <- paste("rank",i)
+
+#print summary of AI for validation on if this is working
+print(summary(summary_index_mover$AccessIndex))
+summary_index_mover$AccessIndex <- NULL
+
+#merge new data to dataframe
+summary_index_user <- merge(summary_index_user,summary_index_mover,by="Id2",all.y=TRUE)
+print(paste(i,"iteration..."))
+}
+
+#store as a new data frame
+sensitivity_frame_transit <- summary_index_user 
+
+#get the total changes in rank from threshold of five minutes to 16 minutes
+sensitivity_frame_transit$changes <- abs(as.numeric(sensitivity_frame_transit$base_rank) - as.numeric(sensitivity_frame_transit$`rank 9`))
+```
+
+###Plot transit changes in rank
+```{r}
+library(reshape2)
+library(ggplot2)
+library(gridExtra)
+#Prep & order frame
+sensitivity_frame_transit <- sensitivity_frame_transit 
+sensitivity_frame_transit$base_rank <- as.numeric(sensitivity_frame_transit$base_rank)
+sensitivity_frame_transit <- sensitivity_frame_transit[order(sensitivity_frame_transit$base_rank),]
+
+#subsetframe
+top_25 <- sensitivity_frame_transit[1:25,]
+sa_25_50 <- sensitivity_frame_transit[1:50,]
+sa_50_75 <- sensitivity_frame_transit[1:75,]
+sa_75_100 <- sensitivity_frame_transit[1:100,]
+sa_tail <- sensitivity_frame_transit[456:480,]
+sa_tailstart <- sensitivity_frame_transit[406:480,]
+
+
+#Top 25 Plot
+df <- melt(top_25,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+Top_25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 25") + ylim(1,490)
+
+#Top 50 Plot
+df <- melt(sa_25_50,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+Top_50_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 50") + ylim(1,490)
+
+#Top 75 Plot
+df <- melt(sa_50_75,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+Top_75_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 75") + ylim(1,490)
+
+#Top 100 Plot
+df <- melt(sa_75_100,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+Top_100_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 100") + ylim(1,490)
+
+#Bottom 50
+df <- melt(sa_tail,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+Tail_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 50") + ylim(1,490)
+
+#Bottom 25
+df <- melt(sa_tailstart,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+Bottom25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 100") + ylim(1,490)
+
+grid.arrange(Top_25_Plot,Top_50_Plot,Top_75_Plot,Top_100_Plot,Bottom25_Plot,Tail_Plot,ncol=3)
+```
+
+###Driving Exp Function
+```{r}
+#run overall access index driving
+library(scales)
+#User specifies query (type)
+#type <- c("art") #"type" can include categories or cost thresholds. Pending cost per day calculations from Selam
+#cost <- c("free")
+type <- NULL
+cost <- NULL
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type,cost)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#calculate access index per location 
+i <- 0
+merged_set$AccessIndex <- decay_fxn_exp_sensitive(merged_set,"drive") #why not apply? who knows
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) #critical that we use sum, not mean, BECAUSE, for some specifications some program lengths will drop
+
+#make base dataframe
+summary_index_user <- summary_index_user[order(summary_index_user$AccessIndex),]
+rownames(summary_index_user)  <- NULL
+summary_index_user$base_rank <- rownames(summary_index_user)
+
+for (i in 1:9){
+#generate overall
+type <- NULL
+cost <- NULL
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type,cost)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#alter decay function
+decay_fxn_exp_sensitive <- function(dataframe,mode){
+  if (mode=="transit") {
+    scale = 5+i
+    column="transit_morning"
+  }
+  if (mode=="drive"){
+    scale = 5+i
+    column="driving_morning"
+  }
+  mode=mode
+  dataframe[,"n"]*exp(-dataframe[,column]/scale)
+}
+
+#apply decay function
+merged_set$AccessIndex <- decay_fxn_exp_sensitive(merged_set,"drive")
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_mover <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+
+#order
+summary_index_mover <- summary_index_mover[order(summary_index_mover$AccessIndex),]
+
+#prep for merge
+rownames(summary_index_mover) <- NULL
+summary_index_mover$rank.i <- rownames(summary_index_mover)
+colnames(summary_index_mover)[colnames(summary_index_mover)=="rank.i"] <- paste("rank",i)
+
+#print summary of AI for validation on if this is working
+print(summary(summary_index_mover$AccessIndex))
+summary_index_mover$AccessIndex <- NULL
+
+#merge new data to dataframe
+summary_index_user <- merge(summary_index_user,summary_index_mover,by="Id2",all.y=TRUE)
+print(paste(i,"iteration..."))
+}
+
+#store as a new data frame
+sensitivity_frame_exp <- summary_index_user 
+
+#get the total changes in rank from threshold of five minutes to 16 minutes
+sensitivity_frame_exp$changes <- abs(as.numeric(sensitivity_frame_exp$base_rank) - as.numeric(sensitivity_frame_exp$`rank 9`))
+```
+
+###Plot Exp 
+```{r}
+library(reshape2)
+library(ggplot2)
+library(gridExtra)
+#Prep & order frame
+sensitivity_frame_exp <- sensitivity_frame_exp 
+sensitivity_frame_exp$base_rank <- as.numeric(sensitivity_frame_exp$base_rank)
+sensitivity_frame_exp <- sensitivity_frame_exp[order(sensitivity_frame_exp$base_rank),]
+
+#subsetframe
+top_25 <- sensitivity_frame_exp[1:25,]
+sa_25_50 <- sensitivity_frame_exp[1:50,]
+sa_50_75 <- sensitivity_frame_exp[1:75,]
+sa_75_100 <- sensitivity_frame_exp[1:100,]
+sa_tail <- sensitivity_frame_exp[456:480,]
+sa_tailstart <- sensitivity_frame_exp[406:480,]
+
+
+#Top 25 Plot
+df <- melt(top_25,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_exp_Top_25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 25") + ylim(1,490)
+
+#Top 50 Plot
+df <- melt(sa_25_50,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_exp_Top_50_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 50") + ylim(1,490)
+
+#Top 75 Plot
+df <- melt(sa_50_75,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_exp_Top_75_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 75") + ylim(1,490)
+
+#Top 100 Plot
+df <- melt(sa_75_100,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_exp_Top_100_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 100") + ylim(1,490)
+
+#Bottom 50
+df <- melt(sa_tail,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_exp_Tail_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 50") + ylim(1,490)
+
+#Bottom 25
+df <- melt(sa_tailstart,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_exp_Bottom25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 100") + ylim(1,490)
+
+grid.arrange(driving_exp_Top_25_Plot,driving_exp_Top_50_Plot,driving_exp_Top_75_Plot,driving_exp_Top_100_Plot,driving_exp_Bottom25_Plot,driving_exp_Tail_Plot,ncol=3)
+```
+
+###Compare Exp and Base
+1.) Make time series plot comparing dif ranks between exp and base 
+2.) Start w/ base scale =5, compare
+2.) Make like 9-10 plots, each a dif scale, comparing
+```{r}
+
+```
+
+
+###Gravity Model
+At the end of the day, scale in this case in a constant. However, it's fucked for dealing with close proximity tons.
+```{r}
+#run overall access index driving
+library(scales)
+#User specifies query (type)
+#type <- c("art") #"type" can include categories or cost thresholds. Pending cost per day calculations from Selam
+#cost <- c("free")
+type <- NULL
+cost <- NULL
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type,cost)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#calculate access index per location 
+i <- 0
+merged_set$AccessIndex <- decay_fxn_sensitive_gravity(merged_set,"drive") #why not apply? who knows
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) #critical that we use sum, not mean, BECAUSE, for some specifications some program lengths will drop
+
+#make base dataframe
+summary_index_user <- summary_index_user[order(summary_index_user$AccessIndex),]
+rownames(summary_index_user)  <- NULL
+summary_index_user$base_rank <- rownames(summary_index_user)
+
+for (i in 1:9){
+#generate overall
+type <- NULL
+cost <- NULL
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type,cost)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#alter decay function
+decay_fxn_sensitive_gravity <- function(dataframe,mode){
+  if (mode=="transit") {
+    scale = 5+i
+    column="transit_morning"
+  }
+  if (mode=="drive"){
+    scale = 5+i
+    column="driving_morning"
+  }
+  mode=mode
+  dataframe[,"n"]*((1/(dataframe[,column]/scale))^2)
+}
+
+#apply decay function
+merged_set$AccessIndex <- decay_fxn_sensitive_gravity(merged_set,"drive")
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_mover <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+
+#order
+summary_index_mover <- summary_index_mover[order(summary_index_mover$AccessIndex),]
+
+#prep for merge
+rownames(summary_index_mover) <- NULL
+summary_index_mover$rank.i <- rownames(summary_index_mover)
+colnames(summary_index_mover)[colnames(summary_index_mover)=="rank.i"] <- paste("rank",i)
+
+#print summary of AI for validation on if this is working
+print(summary(summary_index_mover$AccessIndex))
+summary_index_mover$AccessIndex <- NULL
+
+#merge new data to dataframe
+summary_index_user <- merge(summary_index_user,summary_index_mover,by="Id2",all.y=TRUE)
+print(paste(i,"iteration..."))
+}
+
+#store as a new data frame
+sensitivity_frame_gravity <- summary_index_user 
+
+#get the total changes in rank from threshold of five minutes to 16 minutes
+sensitivity_frame_gravity$changes <- abs(as.numeric(sensitivity_frame_gravity$base_rank) - as.numeric(sensitivity_frame_gravity$`rank 9`))
+```
+
+###Plot Gravity
+```{r}
+library(reshape2)
+library(ggplot2)
+library(gridExtra)
+#Prep & order frame
+sensitivity_frame_gravity <- sensitivity_frame_gravity 
+sensitivity_frame_gravity$base_rank <- as.numeric(sensitivity_frame_gravity$base_rank)
+sensitivity_frame_gravity <- sensitivity_frame_gravity[order(sensitivity_frame_gravity$base_rank),]
+
+#subsetframe
+top_25 <- sensitivity_frame_gravity[1:25,]
+sa_25_50 <- sensitivity_frame_gravity[1:50,]
+sa_50_75 <- sensitivity_frame_gravity[1:75,]
+sa_75_100 <- sensitivity_frame_gravity[1:100,]
+sa_tail <- sensitivity_frame_gravity[456:480,]
+sa_tailstart <- sensitivity_frame_gravity[406:480,]
+
+
+#Top 25 Plot
+df <- melt(top_25,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_gravity_Top_25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 25") + ylim(1,490)
+
+#Top 50 Plot
+df <- melt(sa_25_50,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_gravity_Top_50_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 50") + ylim(1,490)
+
+#Top 75 Plot
+df <- melt(sa_50_75,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_gravity_Top_75_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 75") + ylim(1,490)
+
+#Top 100 Plot
+df <- melt(sa_75_100,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_gravity_Top_100_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 100") + ylim(1,490)
+
+#Bottom 50
+df <- melt(sa_tail,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_gravity_Tail_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 50") + ylim(1,490)
+
+#Bottom 25
+df <- melt(sa_tailstart,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+driving_gravity_Bottom25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 100") + ylim(1,490)
+
+grid.arrange(driving_gravity_Top_25_Plot,driving_gravity_Top_50_Plot,driving_gravity_Top_75_Plot,driving_gravity_Top_100_Plot,driving_gravity_Bottom25_Plot,driving_gravity_Tail_Plot,ncol=3)
+```
+
+###Plot Gravity Blocks
+```{r}
+library(leaflet)
+library(RColorBrewer)
+test <- sensitivity_frame_gravity
+test$AccessIndex <- normalize(test$AccessIndex,max = max(test$AccessIndex))
+test$Id2 <- as.numeric(test$Id2)
+test <- test[order(test$Id2),]
+
+#Ordering
+census_blocks$Id2 <- as.numeric(census_blocks$Id2)
+merged_set$Id2 <- as.numeric(merged_set$Id2)
+summary_index_user$Id2 <- as.numeric(summary_index_user$Id2)
+
+census_blocks <- census_blocks[order(census_blocks$Id2),]
+merged_set <- merged_set[order(merged_set$Id2),]
+summary_index_user <- summary_index_user[order(summary_index_user$Id2),] 
+
+#specifiying color pallet
+colourCount <- length(unique(agg_set$n))
+getPalette <- colorRampPalette(brewer.pal(9,"Reds"))
+
+pal <- colorNumeric(
+  palette = "Blues",
+  domain =  0:1)
+
+pal2 <- colorNumeric(
+  palette = rev(getPalette(colourCount)),
+  domain = range(agg_set$n))
+
+#indicating one popup info
+info <- paste("n",agg_set$n)
+
+#creating leaflet map
+Ai_driving_gravity <- leaflet(census_blocks) %>%
+  addTiles() %>%
+  addPolygons(color = "Blues",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.75,
+              fillColor = ~pal(test$AccessIndex),
+              popup=paste(as.numeric(summary_index_user$Id2),as.numeric(test$AccessIndex),as.numeric(census_blocks$Id2)),
+              highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
+  
+  addLegend(pal = pal, values = ~test$AccessIndex, opacity = 1,title = "Driving Gravity AI Score") %>%
+  
+  addCircles(data = agg_set, 
+             opacity = 1,weight=7, popup=info,
+             color = ~pal2(agg_set$n) ) %>%
+  
+  setView(lat=39.7,lng=-104.9,zoom=11.5)
+```
