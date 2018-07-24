@@ -30,6 +30,7 @@ con <- dbConnect(drv, dbname = "dssg2018uw",
 
 #get reschool_programs
 reschool_programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs")
+block_distance <- dbGetQuery(con, "select * from clean.block_distance")
 
 #disconnect
 dbDisconnect(con) 
@@ -184,7 +185,7 @@ df$variable <- as.factor(df$variable)
 
 driving_Bottom25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 100") + ylim(1,490)
 
-grid.arrange(driving_Top_25_Plot,driving_Top_50_Plot,driving_Top_75_Plot,driving_Top_100_Plot,driving_Bottom25_Plot,driving_Tail_Plot,ncol=3)
+#grid.arrange(driving_Top_25_Plot,driving_Top_50_Plot,driving_Top_75_Plot,driving_Top_100_Plot,driving_Bottom25_Plot,driving_Tail_Plot,ncol=3)
 ```
 
 ###Redo with transit
@@ -359,6 +360,18 @@ agg_set <- Aggregate_Subset(user_set)
 merged_set <- Merge_Set(agg_set)
 
 #calculate access index per location 
+decay_fxn_exp_sensitive <- function(dataframe,mode){
+  if (mode=="transit") {
+    scale = 5+i
+    column="transit_morning"
+  }
+  if (mode=="drive"){
+    scale = 5+i
+    column="driving_morning"
+  }
+  mode=mode
+  dataframe[,"n"]*exp(-dataframe[,column]/scale)
+}
 i <- 0
 merged_set$AccessIndex <- decay_fxn_exp_sensitive(merged_set,"drive") #why not apply? who knows
 
@@ -493,13 +506,68 @@ grid.arrange(driving_exp_Top_25_Plot,driving_exp_Top_50_Plot,driving_exp_Top_75_
 ```
 
 ###Compare Exp and Base
-1.) Make time series plot comparing dif ranks between exp and base 
-2.) Start w/ base scale =5, compare
-2.) Make like 9-10 plots, each a dif scale, comparing
+Here we plot the difference between the exp and base models, ideally testing sensitivity between models. We find that at almost every iteration, differences are clustered primarily in the center ranks, with very limited changes along the tails, which are the areas we are primarily concerned with for an endogenous index. **GIVEN** that exp model is less sensitive to the threshold, and there seems to be marginal sensitivity between models, seems like we should go with the exp model over the threshold model, since the results will be less biased by a selection of an arbitrary cutoff.   
+
 ```{r}
+compare_exp_base <- merge(sensitivity_frame,sensitivity_frame_exp,by="Id2",all.y=TRUE)
+compare_exp_base$changes <- NULL
+compare_exp_base$AccessIndex.x <- NULL
 
+compare_exp_base$base_rank.x <- as.numeric(compare_exp_base$base_rank.x)
+compare_exp_base$base_rank.y <- as.numeric(compare_exp_base$base_rank.y)
+
+compare_exp_base$`rank 1.x` <- as.numeric(compare_exp_base$`rank 1.x`)
+compare_exp_base$`rank 1.y` <- as.numeric(compare_exp_base$`rank 1.y`)
+
+compare_exp_base$`rank 2.x` <- as.numeric(compare_exp_base$`rank 2.x`)
+compare_exp_base$`rank 2.y` <- as.numeric(compare_exp_base$`rank 2.y`)
+
+compare_exp_base$`rank 3.x` <- as.numeric(compare_exp_base$`rank 3.x`)
+compare_exp_base$`rank 3.y` <- as.numeric(compare_exp_base$`rank 3.y`)
+
+compare_exp_base$`rank 4.x` <- as.numeric(compare_exp_base$`rank 4.x`)
+compare_exp_base$`rank 4.y` <- as.numeric(compare_exp_base$`rank 4.y`)
+
+compare_exp_base$`rank 5.x` <- as.numeric(compare_exp_base$`rank 5.x`)
+compare_exp_base$`rank 5.y` <- as.numeric(compare_exp_base$`rank 5.y`)
+
+compare_exp_base$`rank 6.x` <- as.numeric(compare_exp_base$`rank 6.x`)
+compare_exp_base$`rank 6.y` <- as.numeric(compare_exp_base$`rank 6.y`)
+
+compare_exp_base$`rank 7.x` <- as.numeric(compare_exp_base$`rank 7.x`)
+compare_exp_base$`rank 7.y` <- as.numeric(compare_exp_base$`rank 7.y`)
+
+compare_exp_base$`rank 8.x` <- as.numeric(compare_exp_base$`rank 8.x`)
+compare_exp_base$`rank 8.y` <- as.numeric(compare_exp_base$`rank 8.y`)
+
+compare_exp_base$`rank 9.x` <- as.numeric(compare_exp_base$`rank 9.x`)
+compare_exp_base$`rank 9.y` <- as.numeric(compare_exp_base$`rank 9.y`)
+
+compare_exp_base$`rank 1.x` <- as.numeric(compare_exp_base$`rank 1.x`)
+compare_exp_base$`rank 1.y` <- as.numeric(compare_exp_base$`rank 1.y`)
+
+comp_one <- ggplot(compare_exp_base, aes(x=compare_exp_base$base_rank.x, y=compare_exp_base$base_rank.y)) + geom_point()
+
+comp_two <-ggplot(compare_exp_base, aes(x=compare_exp_base$`rank 1.x`, y=compare_exp_base$`rank 1.y`)) + geom_point()
+
+comp_three <-ggplot(compare_exp_base, aes(x=compare_exp_base$`rank 2.x`, y=compare_exp_base$`rank 2.y`)) + geom_point()
+
+comp_four <-ggplot(compare_exp_base, aes(x=compare_exp_base$`rank 3.x`, y=compare_exp_base$`rank 3.y`)) + geom_point()
+
+comp_five <-ggplot(compare_exp_base, aes(x=compare_exp_base$`rank 4.x`, y=compare_exp_base$`rank 4.y`)) + geom_point()
+
+comp_six <-ggplot(compare_exp_base, aes(x=compare_exp_base$`rank 5.x`, y=compare_exp_base$`rank 5.y`)) + geom_point()
+
+comp_seven <-ggplot(compare_exp_base, aes(x=compare_exp_base$`rank 6.x`, y=compare_exp_base$`rank 6.y`)) + geom_point()
+
+comp_eight <-ggplot(compare_exp_base, aes(x=compare_exp_base$`rank 7.x`, y=compare_exp_base$`rank 7.y`)) + geom_point()
+
+comp_nine <-ggplot(compare_exp_base, aes(x=compare_exp_base$`rank 8.x`, y=compare_exp_base$`rank 8.y`)) + geom_point()
+
+comp_ten <-ggplot(compare_exp_base, aes(x=compare_exp_base$`rank 9.x`, y=compare_exp_base$`rank 9.y`)) + geom_point()
+
+grid.arrange(comp_one,comp_two,comp_three,comp_four,comp_five,comp_six,comp_seven,comp_eight,comp_nine,comp_ten,ncol=4)
 ```
-
 
 ###Gravity Model
 At the end of the day, scale in this case in a constant. However, it's fucked for dealing with close proximity tons.
@@ -704,3 +772,131 @@ Ai_driving_gravity <- leaflet(census_blocks) %>%
   
   setView(lat=39.7,lng=-104.9,zoom=11.5)
 ```
+
+###Plot Exp Blocks
+```{r}
+library(leaflet)
+library(RColorBrewer)
+test <- sensitivity_frame_exp
+test$AccessIndex <- normalize(test$AccessIndex,max = max(test$AccessIndex))
+test$Id2 <- as.numeric(test$Id2)
+test <- test[order(test$Id2),]
+
+#Ordering
+census_blocks$Id2 <- as.numeric(census_blocks$Id2)
+merged_set$Id2 <- as.numeric(merged_set$Id2)
+summary_index_user$Id2 <- as.numeric(summary_index_user$Id2)
+
+census_blocks <- census_blocks[order(census_blocks$Id2),]
+merged_set <- merged_set[order(merged_set$Id2),]
+summary_index_user <- summary_index_user[order(summary_index_user$Id2),] 
+
+#specifiying color pallet
+colourCount <- length(unique(agg_set$n))
+getPalette <- colorRampPalette(brewer.pal(9,"Reds"))
+
+pal <- colorNumeric(
+  palette = "Blues",
+  domain =  0:1)
+
+pal2 <- colorNumeric(
+  palette = rev(getPalette(colourCount)),
+  domain = range(agg_set$n))
+
+#indicating one popup info
+info <- paste("n",agg_set$n)
+
+#creating leaflet map
+Ai_driving_exp <- leaflet(census_blocks) %>%
+  addTiles() %>%
+  addPolygons(color = "Blues",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.75,
+              fillColor = ~pal(test$AccessIndex),
+              popup=paste(as.numeric(summary_index_user$Id2),as.numeric(test$AccessIndex),as.numeric(census_blocks$Id2)),
+              highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
+  
+  addLegend(pal = pal, values = ~test$AccessIndex, opacity = 1,title = "Driving Exp AI Score") %>%
+  
+  addCircles(data = agg_set, 
+             opacity = 1,weight=7, popup=info,
+             color = ~pal2(agg_set$n) ) %>%
+  
+  setView(lat=39.7,lng=-104.9,zoom=11.5)
+```
+
+###Plot Driving Base
+```{r}
+library(leaflet)
+library(RColorBrewer)
+type <- NULL
+cost <- NULL
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type,cost)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#calculate access index per location 
+merged_set$AccessIndex <- decay_fxn(merged_set,"drive") #why not apply? who knows
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) #critical that
+
+#normalize
+max_access <- max(summary_index_user$AccessIndex)
+summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_access)
+
+#Ordering
+census_blocks$Id2 <- as.numeric(census_blocks$Id2)
+merged_set$Id2 <- as.numeric(merged_set$Id2)
+summary_index_user$Id2 <- as.numeric(summary_index_user$Id2)
+
+census_blocks <- census_blocks[order(census_blocks$Id2),]
+merged_set <- merged_set[order(merged_set$Id2),]
+summary_index_user <- summary_index_user[order(summary_index_user$Id2),] 
+
+#specifiying color pallet
+colourCount <- length(unique(agg_set$n))
+getPalette <- colorRampPalette(brewer.pal(9,"Reds"))
+
+pal <- colorNumeric(
+  palette = "Blues",
+  domain =  0:1)
+
+pal2 <- colorNumeric(
+  palette = rev(getPalette(colourCount)),
+  domain = range(agg_set$n))
+
+#indicating one popup info
+info <- paste("n",agg_set$n)
+
+#creating leaflet map
+Ai_driving <- leaflet(census_blocks) %>%
+  addTiles() %>%
+  addPolygons(color = "Blues",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.75,
+              fillColor = ~pal(summary_index_user$AccessIndex),
+              popup=paste(as.numeric(summary_index_user$Id2),summary_index_user$AccessIndex,as.numeric(census_blocks$Id2)),
+              highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
+  
+  addLegend(pal = pal, values = ~summary_index_user$AccessIndex, opacity = 1,title = "Driving AI Score") %>%
+  
+  addCircles(data = agg_set, 
+             opacity = 1,weight=7, popup=info,
+             color = ~pal2(agg_set$n) ) %>%
+  
+  setView(lat=39.7,lng=-104.9,zoom=11.5)
+```
+
+###Compare Exp and Base Blocks
+The main difference between these is that block groups close to addresses with many programs are more heavily weighted. Hence, we have a trade off between the base model which is more sensitive to the arbitrary threshold chosen, vs. the exp model which is more sensitivte to addresses with many sessions. Because the latter is founded on the data and conceptually valid, while the former introduces arbitrary indifference assumption (n of minutes) when we have already aggregated starting points to an arbitrary spot (centroids), the exp model seems more valid to me. 
+```{r}
+Ai_driving_exp
+Ai_driving
+grid.arrange(comp_one,comp_two,comp_three,comp_four,comp_five,comp_six,comp_seven,comp_eight,comp_nine,comp_ten,ncol=4)
+grid.arrange(driving_exp_Top_25_Plot,driving_exp_Top_50_Plot,driving_exp_Top_75_Plot,driving_exp_Top_100_Plot,driving_exp_Bottom25_Plot,driving_exp_Tail_Plot,ncol=3)
+grid.arrange(driving_Top_25_Plot,driving_Top_50_Plot,driving_Top_75_Plot,driving_Top_100_Plot,driving_Bottom25_Plot,driving_Tail_Plot,ncol=3)
+```
+

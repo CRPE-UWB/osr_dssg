@@ -30,6 +30,7 @@ con <- dbConnect(drv, dbname = "dssg2018uw",
 
 #get reschool_programs
 reschool_programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs")
+block_distance <- dbGetQuery(con, "select * from clean.block_distance")
 
 #disconnect
 dbDisconnect(con) 
@@ -57,6 +58,7 @@ reschool_programs$highcost <- ifelse(reschool_programs$session_cost>50,TRUE,FALS
 type <- c("academic","art") #needs to be a vector of whatever get's passed to shiny
 
 Make_Subset <- function(dataframe,type=NULL,cost=NULL){
+  dataframe$n <- 1
   if(is.null(type)){
     dataframe <- dataframe
     }
