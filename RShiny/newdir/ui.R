@@ -10,19 +10,6 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                               
                               # Sidebar panel for making selections about reschool programs
                               sidebarPanel(
-                                selectInput("neighborhoods", "Select a neighborhood in Denver:", 
-                                            choices = c("No neighborhood selected", 
-                                                        neighborhoods_reshoolprograms)
-                                            ),
-                                br(),
-                                sliderInput("slider", "Select a range for program cost:", 
-                                            min = minprice_reschoolprograms, 
-                                            max = maxprice_reschoolprograms , 
-                                            value = c(minprice_reschoolprograms, 
-                                                      maxprice_reschoolprograms),
-                                            pre = "$"
-                                            ),
-                                br(),
                                 checkboxGroupInput("program", "Select one or more program types:", 
                                                    choices = c("Academic" = 13, "Arts" = 14, 
                                                                "Cooking" = 15, "Dance" = 16, 
@@ -32,21 +19,39 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                                    selected = 13,
                                                    inline = TRUE
                                                    ),
-                                br(),
+                                #br(),
+                                sliderInput("slider", "Select a range for program cost:", 
+                                            min = minprice_reschoolprograms, 
+                                            max = maxprice_reschoolprograms , 
+                                            value = c(minprice_reschoolprograms, 
+                                                      maxprice_reschoolprograms),
+                                            pre = "$"
+                                ),
+                                #br(),
                                 radioButtons("demographics", 
-                                             "Select a demographics variable to visualize for each neighborhood:", 
-                                             choices = c("Median household income ($)", 
+                                             "Select a demographics variable to visualize:", 
+                                             choiceNames = list("Median household income ($)", 
                                                          "High school degree or equivalent (%)",
+                                                         HTML("Language other than English spoken (%)<br><br>
+                                                              <i>Race/Ethnicity Variables</i>"),
                                                          "Hispanic population (%)", 
                                                          "Black population (%)",
-                                                         "Asian population (%)",
-                                                         "Native American / Hawaiian population (%)",
-                                                         "White population (%)",
-                                                         "Other races (%)",
-                                                         "Non-English speakers (%)"),
+                                                         "White population (%)"
+                                                         ),
+                                             choiceValues = list("Median household income ($)", 
+                                                         "High school degree or equivalent (%)",
+                                                         "Non-English speakers (%)",
+                                                         "Hispanic population (%)", 
+                                                         "Black population (%)",
+                                                         "White population (%)"
+                                             ),
                                              selected = character(0)
                                              ),
                                 br(),
+                                selectInput("neighborhoods", "Restrict to one neighborhood:", 
+                                            choices = c("No neighborhood selected", 
+                                                        neighborhoods_reshoolprograms)
+                                ),
                                 width = 4
                               ),
                               
@@ -54,7 +59,7 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                               mainPanel(
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
-                                                     leafletOutput("mymap", height = 640)
+                                                     leafletOutput("mymap", height = 520)
                                                      ),
                                             tabPanel("Data",
                                                      DT::dataTableOutput("datatable")
@@ -71,31 +76,46 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                             fluidPage(sidebarLayout(
                               
                               sidebarPanel(
-                                selectInput("neighborhoods_other", 
-                                            "Select the neighborhood from the dataset", 
-                                            choices = c("No neighborhood selected", neighborhoods_other)
-                                            ),
-                                br(),
-                                checkboxGroupInput("program_other", "Select the type of the program", 
-                                                   choices = c("Parks", "Playgrounds", "Rec Centers", "Libraries", 
+                                checkboxGroupInput("program_other", 
+                                                   "Select one or more resource types:", 
+                                                   choices = c("Parks", "Playgrounds", 
+                                                               "Rec Centers", "Libraries", 
                                                                "Museums", "Fields"), 
-                                                   selected = "Parks"
+                                                   selected = "Parks", 
+                                                   inline = TRUE
                                                    ),
                                 br(),
-                                radioButtons("demographics_other", "Select the demographics variable", 
-                                             choices = c("Median household income ($)",
-                                                         "High school degree or equivalent(%)",
-                                                         "Hispanic population (%)", 
-                                                         "Non native English speakers (%)"), 
-                                             selected = character(0)
+                                radioButtons("demographics_other", 
+                                             "Select a demographics variable to visualize:", 
+                                             choiceNames = list("Median household income ($)", 
+                                                                "High school degree or equivalent (%)",
+                                                                HTML("Language other than English spoken (%)<br><br>
+                                                              <i>Race/Ethnicity Variables</i>"),
+                                                                "Hispanic population (%)", 
+                                                                "Black population (%)",
+                                                                "White population (%)"
                                              ),
+                                             choiceValues = list("Median household income ($)", 
+                                                                 "High school degree or equivalent (%)",
+                                                                 "Non-English speakers (%)",
+                                                                 "Hispanic population (%)", 
+                                                                 "Black population (%)",
+                                                                 "White population (%)"
+                                             ),
+                                             selected = character(0)
+                                ),
+                                br(),
+                                selectInput("neighborhoods_other", 
+                                            "Restrict to one neighborhood:", 
+                                            choices = c("No neighborhood selected", neighborhoods_other)
+                                ),
                                 br()
                               ),
                               
                               mainPanel(
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
-                                                     leafletOutput("mymap_other", height = 650)),
+                                                     leafletOutput("mymap_other", height = 520)),
                                             tabPanel("Data",
                                                      DT::dataTableOutput("datatable_other")),
                                             tabPanel("Summary analysis")
