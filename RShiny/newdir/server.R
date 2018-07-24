@@ -124,9 +124,9 @@ shinyServer(
       
       legendTitles <- list(MED_HH_ = "Median HH Income ($)",
                            PCT_HS_ = "HS Degree <br> Or Equiv. (%)",
-                           PCT_HIS = "Hispanic (%)",
-                           PCT_BLA = "Black (%)",
-                           PCT_WHI = "White (%)",
+                           PCT_HIS = "% Hispanic",
+                           PCT_BLA = "% Black",
+                           PCT_WHI = "% White",
                            PCT_NON = "Lang. Besides <br>English (%)"
                            )
       
