@@ -15,15 +15,17 @@
 
 shinyServer(
   
+  ############################################################ReSchool Programs tab##################################################################
   function(input, output) {
     
-    
+    #Getting column numbers depending on the type of the program selected. Used to subset the data in the next step
     colm = reactive({
       
       as.numeric(input$program)
       
     })
     
+    #Subsetting the data for the type of the program selected
     program_category_data = reactive({
       
       
@@ -37,6 +39,7 @@ shinyServer(
     })
     
     
+    #Subsetting the data for the neighborhood and the cost of the program selected
     neighborhood_data = reactive({
       
       summer_program_data = program_category_data()
@@ -62,7 +65,7 @@ shinyServer(
     
     
     
-    
+    #Displaying the relevant data in the data tab based on the selections
     output$datatable = DT::renderDataTable({
       
       
@@ -75,14 +78,17 @@ shinyServer(
     
     
     
-    
+    #Plotting the map based on the selections made. 
     output$mymap = renderLeaflet({
       
       neighborhood_data1 = neighborhood_data()
       
+      
       #Creating the variables to be used in the leaflet to show median household data
       bins <- c(0, 20000, 40000, 60000, 80000, 100000, Inf)
       pal <- colorBin("viridis", domain = shape_census@data$MED_HH_, bins = bins)
+      
+     
       
       #Hovering on the neighborhood text
       labels <- sprintf(
@@ -90,7 +96,7 @@ shinyServer(
         %% Students who use transportation = %g%% <br/> %% Students with disability = %g%% ",
         shape_census@data$AGE_5_T, shape_census@data$count, shape_census@data$perc_hispanic_students, shape_census@data$perc_nonenglish_students,
         shape_census@data$perc_with_transport_students, shape_census@data$perc_disable_students) %>% lapply(htmltools::HTML)
-    
+      
       #Text in the pop up markers
       marker_popup_text <- sprintf(
         "Session name = %s, <br/> Organization name = %s, <br/> Session start date = %s, <br/> Session end date = %s, <br/> Session cost = %i,  <br/> Special needs offerings = %s,
@@ -107,7 +113,7 @@ shinyServer(
       
       #Creating the variables to be used in the leaflet to show percentage of hispanic population
       bins_hispanic <- c(0, 10, 20,30,40,50,60,70,80,Inf)
-      pal_hispanic <- colorBin("viridis", domain = shape_census@data$PCT_HIS, bins = bins_hispanic)
+      pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS, bins = bins_hispanic)
       
       #Creating the variables to be used in the leaflet to show percentage of non-english population
       bins_language <- c(0, 10, 20,30,40,50,60,70,Inf)
@@ -144,7 +150,7 @@ shinyServer(
                                                                         labelOptions = labelOptions(
                                                                           style = list("font-weight" = "normal", padding = "3px 8px"),
                                                                           textsize = "15px",
-                                                                          direction = "auto")) %>%
+                                                                          direction = "auto"), layerId = shape_census@data$nbhd_name) %>%
           addLegend(pal = pal_type, values = shape_census@data[,column_name], opacity = 0.7, title = NULL,
                     position = "bottomright")
         
@@ -168,6 +174,7 @@ shinyServer(
         
       }
       
+      
       else if(input$demographics == "High school degree or equivalent(%)") {
         
         demographic_maps(pal_edu,"PCT_HSD")
@@ -178,7 +185,12 @@ shinyServer(
       
       else if(input$demographics == "Hispanic population (%)") {
         
-        demographic_maps(pal_hispanic, "PCT_HIS")
+        demographic_maps(pal_hispanic, "PCT_HIS") %>% addMinicharts(
+          shape_census@data$x, shape_census@data$y,
+          chartdata = shape_census@data[, c("xxx", "yyy")], 
+          width = 30, layerId = shape_census@data$nbhd_name
+        )
+
         
         
         
@@ -192,8 +204,120 @@ shinyServer(
       }
       
     })
+    
+    ####################################Other out of school resources tab###################################################################
+    colm_other = reactive({
+      
+      input$program_other
+      
+    })
+   
+      
+      parks_data = reactive({
+        
+        
+        if(input$neighborhoods_other != "No neighborhood selected" ) {
+          
+          a = parks[which(parks[, "nbhd_name"] == input$neighborhoods_other),]
+          
+        }
+        
+        else {
+          
+          a = parks
+      
+        }
+        
+        return(a) 
+    })
+    
+    
+    libraries_data = reactive({
+      
+      
+      if(input$neighborhoods_other != "No neighborhood selected" ) {
+        
+        a = libraries[which(libraries[, "nbhd_name"] == input$neighborhoods_other),]
+        
+      }
+      
+      else {
+        
+        a = libraries
+        
+      }
+      
+      return(a) 
+    })
+      
+    
+    
+      
+     
+      
+      output$mymap_other = renderLeaflet({
+        
+      
+        
+        parks_data1 = parks_data()
+        libraries_data1 = libraries_data()
+        
+        m = leaflet()  %>% setView(lng = -104.991531, lat = 39.742043,zoom = 10) %>% addTiles()
+        
+  
+        for (col in colm_other()){
+          print(col)
+         if(col == "Parks"){
+           print(head(parks_data1))
+
+           map <- m %>% addMarkers(map = m, lng = jitter(parks_data1$long), lat = jitter(parks_data1$lat))
+
+
+         }
+
+          if(col == "Libraries"){
+            print(col)
+
+            map %>% addMarkers(map, lng = jitter(libraries_data1$long), lat = jitter(libraries_data1$lat))
+
+
+          }
+
+        }
+        
+        
+        
+       #  
+       #  if(input$program_other == "Libraries"){
+       #    
+       #    map <- map %>% addMarkers(lng = jitter(libraries_data1$long), lat = jitter(libraries_data1$lat)) 
+       #  }   
+       #  
+       #  
+       # else if(input$program_other == "Parks"){
+       #   
+       #   map <- map %>%
+       #     addMarkers(lng = jitter(parks_data1$long), lat = jitter(parks_data1$lat)) 
+       # }
+        
+        
+        
+      })
+    
+    
+   
 
     
   })  
     
     
+    
+    
+    
+    
+  
+
+
+
+
+
