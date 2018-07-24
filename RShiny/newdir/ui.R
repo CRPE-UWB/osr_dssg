@@ -43,18 +43,18 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                                          "Native American / Hawaiian population (%)",
                                                          "White population (%)",
                                                          "Other races (%)",
-                                                         "Non-native English speakers (%)"),
+                                                         "Non-English speakers (%)"),
                                              selected = character(0)
                                              ),
                                 br(),
-                                width = 3
+                                width = 4
                               ),
                               
                               # Main panel for reschool programs: map tab + data tab + analysis tab
                               mainPanel(
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
-                                                     leafletOutput("mymap", height = 500)
+                                                     leafletOutput("mymap", height = 640)
                                                      ),
                                             tabPanel("Data",
                                                      DT::dataTableOutput("datatable")
@@ -65,9 +65,45 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                               ))
                             ),
                    
-                   ## OPEN DATA TAB - Parks, Libraries, etc.
-                   tabPanel("Other Resources"),
                    
+                   ## OPEN DATA TAB - Parks, Libraries, etc.
+                   tabPanel("Other Resources",
+                            fluidPage(sidebarLayout(
+                              
+                              sidebarPanel(
+                                selectInput("neighborhoods_other", 
+                                            "Select the neighborhood from the dataset", 
+                                            choices = c("No neighborhood selected", neighborhoods_other)
+                                            ),
+                                br(),
+                                checkboxGroupInput("program_other", "Select the type of the program", 
+                                                   choices = c("Parks", "Playgrounds", "Rec Centers", "Libraries", 
+                                                               "Museums", "Fields"), 
+                                                   selected = "Parks"
+                                                   ),
+                                br(),
+                                radioButtons("demographics_other", "Select the demographics variable", 
+                                             choices = c("Median household income ($)",
+                                                         "High school degree or equivalent(%)",
+                                                         "Hispanic population (%)", 
+                                                         "Non native English speakers (%)"), 
+                                             selected = character(0)
+                                             ),
+                                br()
+                              ),
+                              
+                              mainPanel(
+                                tabsetPanel(type = "tab",
+                                            tabPanel("Map",
+                                                     leafletOutput("mymap_other", height = 650)),
+                                            tabPanel("Data",
+                                                     DT::dataTableOutput("datatable_other")),
+                                            tabPanel("Summary analysis")
+                                )
+                              )
+                            ))
+                            ), 
+
                    ## RESCHOOL SEARCH DATA TAB
                    tabPanel("B4S Searches"),
                    
