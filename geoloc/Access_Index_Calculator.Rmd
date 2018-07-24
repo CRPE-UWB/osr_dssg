@@ -10,89 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 #Intro
-This notebook takes the block group distances, adds in additional data needed to calculate the Access Index, and then as of 07/20/18, shows our loops for running the equation on the access index for **overall** programs. **NOTE** that the "block_distance" data frame is already aggregated, so there's no need to run the first few code chunks to merge the dataframe. **HOWEVER** the plots at the end make use of the aggregated dataframes used to merge into the block_distance data-frame, so use your judgement. 
-
-###Aggregate number of programs per unique address
-```{r}
-library(tidyverse)
-#total sessions
-reschool_programs$n <- 1
-total_programs <- aggregate(n ~ session_address_1 + lat + long, data=reschool_programs, sum)
-
-#sessions by category
-#re-do for each discrete, I KNOW IT SUCKS, but you got a better idea?
-#creating aggregated categories
-reschool_programs$academic <- ifelse(reschool_programs$has_academic==TRUE | reschool_programs$has_stem==TRUE,TRUE,FALSE) 
-reschool_programs$art <- ifelse(reschool_programs$has_arts==TRUE | reschool_programs$has_cooking==TRUE | 
-                                  reschool_programs$has_dance==TRUE | reschool_programs$has_drama==TRUE
-                                | reschool_programs$has_music==TRUE,
-                                TRUE,FALSE)
-
-#aggregating for agg categories and discrete categories
-programs_academic <- aggregate(n ~ session_address_1+academic, data=reschool_programs,sum)
-programs_arts <- aggregate(n ~ session_address_1+art, data=reschool_programs,sum)
-programs_sports <- aggregate(n ~ session_address_1+has_sports, data=reschool_programs,sum)
-programs_nature <- aggregate(n ~ session_address_1+has_nature, data=reschool_programs,sum)
-
-programs_academic <- subset(programs_academic,programs_academic$academic==TRUE)
-programs_arts <- subset(programs_arts, programs_arts$art==TRUE)
-programs_sports <- subset(programs_sports, programs_sports$has_sports==TRUE)
-programs_nature <- subset(programs_nature, programs_nature$has_nature==TRUE)
-
-#trimming and creating unique colnames for merge 
-colnames(programs_academic)[colnames(programs_academic)=="n"] <- "n_academic"
-programs_academic <- programs_academic %>% select(n_academic, session_address_1)
-
-colnames(programs_arts)[colnames(programs_arts)=="n"] <- "n_arts"
-programs_arts <- programs_arts %>% select(n_arts, session_address_1)
-
-colnames(programs_sports)[colnames(programs_sports)=="n"] <- "n_sports"
-programs_sports <- programs_sports %>% select(n_sports, session_address_1)
-
-colnames(programs_nature)[colnames(programs_nature)=="n"] <- "n_nature"
-programs_nature <- programs_nature %>% select(n_nature, session_address_1)
-
-#Create a car owners data frame to merge
-#note we could do this in one step from the full census data.frame, but this is much simpler and less error prone
-census_car_owners <- as.data.frame(census_blocks)
-colnames(census_car_owners)[colnames(census_car_owners)=="INTPTLA"] <- "lat"  # for consistency across files
-colnames(census_car_owners)[colnames(census_car_owners)=="INTPTLO"] <- "long"
-census_car_owners <- census_car_owners %>% select(Id2, PCT_Vhcl_w, lat, long)
-```
-
-###Merge in additional data
-```{r}
-#merging total programs
-block_distance <- merge(block_distance, total_programs, by="session_address_1")
-
-#programs by category
-block_distance <- merge(block_distance,programs_academic,all.x=TRUE)
-block_distance <- merge(block_distance,programs_arts,all.x=TRUE)
-block_distance <- merge(block_distance,programs_nature,all.x=TRUE)
-block_distance <- merge(block_distance,programs_sports,all.x=TRUE)
-
-#nas to 0s
-block_distance$n_academic[is.na(block_distance$n_academic)==TRUE] <- 0
-block_distance$n_arts[is.na(block_distance$n_arts)==TRUE] <- 0
-block_distance$n_nature[is.na(block_distance$n_nature)==TRUE] <- 0
-block_distance$n_sports[is.na(block_distance$n_sports)==TRUE] <- 0
-
-#hit a strange bug here, where some census centroid IDs lost there suffix or prefix 0s. Converting them to numeric is a work around, unit tested that they are still unique, and they are. 
-#For validation, we now also merge in census centroid lat/lons to this data frame in case the Id2 will break future merges
-block_distance$Id2 <- as.numeric(block_distance$Id2) 
-census_car_owners$Id2 <- as.numeric(census_car_owners$Id2)
-block_distance <- merge(block_distance, census_car_owners, by="Id2")
-
-#update names for new lat/long combos
-colnames(block_distance)[colnames(block_distance)=="lat.x"] <- "lat"
-colnames(block_distance)[colnames(block_distance)=="long.x"] <- "long"
-colnames(block_distance)[colnames(block_distance)=="lat.y"] <- "block_lat"
-colnames(block_distance)[colnames(block_distance)=="long.y"] <- "block_long"
-block_distance$Id2 <- as.character(block_distance$Id2) #convert Ids back to characters
-
-#final removal of duplictes, double check nothing messed around from merging
-block_list <- unique(block_distance$Id2)
-```
+This notebook takes the block group distances, adds in additional data needed to calculate the Access Index, and then as of 07/20/18, shows our loops for running the equation on the access index for **overall** programs. **HOWEVER** the plots at the end make use of the aggregated dataframes used to merge into the block_distance data-frame, so use your judgement. Maybe see the block_group_distances notebook to get those aggregations. Or don't, I don't care, we're going to change this in the next day or two. 
 
 ###Gravity Access index loop
 Here we write a loop to calculate an access index score per each unique address, rescale the results per address, store each unique address result in a data frame in the style of block distances, and store the average access index in a summary dataframe **at the block group level**. This loop uses the "gravity" model, where k = 1.5. 
@@ -128,7 +46,8 @@ for (i in 1:length(block_list)){
 Defined for use in the exponential function model for decay. 
 ```{r}
 fxn <- function(vector, scale){
-  2^(-vector/scale)}
+  #2^(-vector/scale)
+  ifelse(vector<=scale,1,(1/(vector/scale))^2)}
 
 driving_commute_denver <- 10 #wow these seem arbitrary huh?
 transit_commute_denver <- 20 #HUH?
@@ -154,10 +73,9 @@ for (i in 1:length(block_list)){
     n <- block_mover$n[x]
     Ai <- ifelse(is.na(Tp)==FALSE,((Car*(fxn(Tc,driving_commute_denver))+(1-Car)*(fxn(Tp,transit_commute_denver)))*n),1*((fxn(Tc,transit_commute_denver))*n))
     block_mover$Access_Index[x] <- Ai
-    if( i %% 200 == 0){
-      print(paste(i,x,"working..."))}
+    ifelse((i %% 200 == 0),print(paste(i,"working...")),"")
     }
-  #block_mover$Access_Index <- rescale(block_mover$Access_Index,to = c(0, 100)) #here we comment out rescaling for to test validation
+  #block_mover$Access_Index <- rescale(block_mover$Access_Index,to = c(0, 100)) #here we comment out rescaling to test validation
   access_indexices <- rbind(block_mover,access_indexices)
   summary_index$Access_Index[i] <- mean(block_mover$Access_Index)}
 ```
@@ -165,36 +83,41 @@ for (i in 1:length(block_list)){
 ###Exp Access Index Loop Simplified, return max
 This is the same as the above but we no longer multiply by the number of programs at each site, and we return the max Ai value not the average for all destinations. The idea here being we want to distance **just** the role of travel times to locations to validate if we've written our equation correctly. In particular, we are concernced about a few block groups with very unequal access, despite being adjacent, (see the next chunk for plotting). Spot checking these block groups confirms that travel time calculcations appear correct. 
 
-HERES THE F******* PROBLEM
-1.) even when we only return max for plotting, we see block groups that seem confusing
-2.) this may be due to the threshold we've picked, verify with alt thresholds
-3.) conversly it may be a problem the visualization, though this seems unlikely
-4.) samsies- let's all pray it's not a problem with the travel times. Fucking can't see why it should be, but we just don't know hey. 
-
 ```{r}
 block_list <- unique(block_distance$Id2)
+block_mover <- block_distance
 block_mover$Access_Index <- 0
 access_indexices <- as.data.frame(setNames(replicate(16,character(0), simplify = F), colnames(block_distance))) #make an empty data frame identical to block distances
 summary_index <- census_centroids
 summary_index$Access_Index <- 0
 
-for (i in 1:length(block_list)){
+block_distance$Id2 <- as.numeric(block_distance$Id2)
+block_distance <- block_distance[order(block_distance$Id2),]
+
+block_list <- as.numeric(block_list)
+block_list <- sort(block_list)
+
+summary_index$blockID <- as.numeric(summary_index$blockID)
+summary_index <- summary_index[order(summary_index$blockID),]
+
+system.time(for (i in 1:length(block_list)){
   block.i <- block_list[i]
   block_mover <- subset(block_distance,block_distance$Id2==block.i)
+  summary.i <- summary_index
   for (x in 1:nrow(block_mover)){
     #Car <- block_mover$PCT_Vhcl_w[x]/100
     Car <- 1
     Tc <- block_mover$driving_morning[x]
     Tp <- block_mover$transit_morning[x]
     n <- block_mover$n[x]
-    Ai <- Car*(fxn(Tc,driving_commute_denver))
+    Ai <- (Car*(fxn(Tc,5)))*n
     block_mover$Access_Index[x] <- Ai
-    if( i %% 200 == 0){
+  }
+  if( i %% 200 == 0){
       print(paste(i,x,"working..."))}
-    }
   #block_mover$Access_Index <- rescale(block_mover$Access_Index,to = c(0, 100))
   access_indexices <- rbind(block_mover,access_indexices)
-  summary_index$Access_Index[i] <- max(block_mover$Access_Index)}
+  summary_index$Access_Index[i] <- mean(block_mover$Access_Index,na.rm=TRUE)})
 ```
 
 ###Plotting the Access Index and number of programs
@@ -202,42 +125,46 @@ Note that you need to have the reschool programs data set defined as "reschool_p
 ```{r}
 library(leaflet)
 library(RColorBrewer)
+#ensure ids are one:one match
+block_distance$Id2 <- as.character(block_distance$Id2)
+summary_index$blockID <- as.character(summary_index$blockID)
+block_distance$Id2 <- paste0("0", block_distance$Id2)
+summary_index$blockID <- paste0("0",summary_index$blockID)
+
+#Ordering
+census_blocks <- census_blocks[order(census_blocks$Id2),]
+block_distance <- block_distance[order(block_distance$Id2),]
+summary_index <- summary_index[order(summary_index$blockID),] 
+
+colourCount <- length(unique(total_programs$n))
+getPalette <- colorRampPalette(brewer.pal(9,"Reds"))
+
 pal <- colorNumeric(
   palette = "Blues",
   domain = summary_index$Access_Index)
+
+pal2 <- colorNumeric(
+  palette = rev(getPalette(colourCount)),
+  domain = range(total_programs$n))
 
 info <- paste("n",total_programs$n)
 
-new <- leaflet(census_blocks) %>%
+Ai_leaflet <- leaflet(census_blocks) %>%
   addTiles() %>%
   addPolygons(color = "Blues",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.75,
               fillColor = ~pal(summary_index$Access_Index),
-              popup=census_blocks$Id2,
+              popup=paste(as.numeric(summary_index$blockID),summary_index$Access_Index,as.numeric(census_blocks$Id2)),
               highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
-  addLegend(pal = pal, values = ~summary_index$Access_Index, opacity = 1) %>%
-  addCircles(data = total_programs, opacity = 0.4,weight=10, color="red",popup=info) %>%
- setView(lat=39.7,lng=-104.9,zoom=10)
+  
+  addLegend(pal = pal, values = ~summary_index$Access_Index, opacity = 1,title = "Access Index Score") %>%
+  
+  addCircles(data = total_programs, 
+             opacity = 1,weight=7, popup=info,
+             color = ~pal2(total_programs$n) ) %>%
+  
+  setView(lat=39.7,lng=-104.9,zoom=11)
+
+#%>%
+  #addCircles(data = census_centroids, opacity = 0.4,
+             #weight=7,color="purple",popup=census_centroids$blockID) #originally we included centroids for validation, now we don't need them
 ```
-
-###Leaflet example using the access_indexices data frame
-```{r}
-pal <- colorNumeric(
-  palette = "Blues",
-  domain = summary_index$Access_Index)
-
-info <- paste("n",access_indexices$n)
-
-test <- leaflet(census_blocks) %>%
-  addTiles() %>%
-  addPolygons(color = "Blues",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 1,
-              fillColor = ~pal(summary_index$Access_Index),
-              popup=census_blocks$Id2,
-              highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
-  addLegend(pal = pal, values = ~summary_index$Access_Index, opacity = 1) %>%
-  addCircles(data = access_indexices,lat= access_indexices$lat,
-             lng= access_indexices$long,
-             opacity = 0.4,weight=10, color="red",
-             popup=info) %>%
- setView(lat=39.7,lng=-104.9,zoom=10)
-```
-
