@@ -99,23 +99,20 @@ shinyServer(
       
       # Variables for (median household income) in leaflet map
       bins_income <- c(0, 20000, 40000, 60000, 80000, 100000, Inf)
-      pal_income <- colorBin("Greys", domain = shape_census@data$MED_HH_, bins = bins_income)
+      pal_income <- colorBin("Greens", domain = shape_census@data$MED_HH_, bins = bins_income)
       
       # Variables for (% people over 25 with at least a high school diploma) in leaflet map
       bins_edu <- c(0, 5, 10, 15, 20, 25)
-      pal_edu <- colorBin("Blues", domain = shape_census@data$PCT_HSD, bins = bins_edu)
+      pal_edu <- colorBin("Purples", domain = shape_census@data$PCT_HSD, bins = bins_edu)
+      
+      # Variables for language other than english
+      pal_language <- colorBin("Blues", domain = shape_census@data$PCT_NON)
       
       # Variables for (% race) in leaflet map
-      bins_hispanic <- c(0, 10, 20, 30, 40, 50, 60, 70, 80, 100)
-      pal_hispanic <- colorBin("Blues", domain = shape_census@data$PCT_HIS) #, bins = bins_hispanic)
-      
+      #bins_hispanic <- c(0, 10, 20, 30, 40, 50, 60, 70, 80, 100)
+      pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS) #, bins = bins_hispanic)
       pal_black <- colorBin("Blues", domain = shape_census@data$PCT_BLA, bins = 5)
-      pal_asian <- colorBin("Blues", domain = shape_census@data$PCT_ASI, bins = 5)
-      pal_white <- colorBin("Blues", domain = shape_census@data$PCT_WHI, bins = 5)
-      pal_native <- colorBin("Blues", domain = shape_census@data$PCT_NAT)
-      pal_other_races <- colorBin("Blues", domain = shape_census@data$PCT_OTH)
-
-      pal_language <- colorBin("Blues", domain = shape_census@data$PCT_NON)
+      pal_white <- colorBin("Purples", domain = shape_census@data$PCT_WHI, bins = 5)
       
       # Function to make the base map
       make_base_map <- function() {
@@ -124,6 +121,14 @@ shinyServer(
           #addTiles() %>%
           addProviderTiles(providers$CartoDB.Positron)
       }
+      
+      legendTitles <- list(MED_HH_ = "Median HH Income ($)",
+                           PCT_HS_ = "HS Degree <br> Or Equiv. (%)",
+                           PCT_HIS = "Hispanic (%)",
+                           PCT_BLA = "Black (%)",
+                           PCT_WHI = "White (%)",
+                           PCT_NON = "Lang. Besides <br>English (%)"
+                           )
       
       # Function to add the demographic info to the map
       add_demographic_map <- function(map, pal_type, column_name){
@@ -149,7 +154,7 @@ shinyServer(
         addLegend(pal = pal_type,
                   values = shape_census@data[,column_name],
                   opacity = 0.7,
-                  title = NULL,
+                  title = as.character(legendTitles[column_name]),
                   position = "bottomright"
                   )
       }
@@ -207,36 +212,21 @@ shinyServer(
       else if(input$demographics == "Hispanic population (%)") {
         make_base_map() %>%
           add_demographic_map(pal_hispanic, "PCT_HIS") %>%
-          add_program_markers(neighborhood_data1, lat, long)  %>% 
-          addMinicharts(
-            shape_census@data$x, shape_census@data$y,
-            chartdata = shape_census@data[, c("xxx", "yyy")], 
-            width = 30, layerId = shape_census@data$nbhd_name
-          )
+          add_program_markers(neighborhood_data1, lat, long)  # %>% 
+          # addMinicharts(
+          #   shape_census@data$x, shape_census@data$y,
+          #   chartdata = shape_census@data[, c("xxx", "yyy")], 
+          #   width = 30, layerId = shape_census@data$nbhd_name
+          # )
       }
       else if(input$demographics == "Black population (%)") {
         make_base_map() %>%
           add_demographic_map(pal_black, "PCT_BLA") %>%
           add_program_markers(neighborhood_data1, lat, long)
       }
-      else if(input$demographics == "Asian population (%)") {
-        make_base_map() %>%
-          add_demographic_map(pal_asian, "PCT_ASI") %>%
-          add_program_markers(neighborhood_data1, lat, long)
-      }
-      else if(input$demographics == "Native American / Hawaiian population (%)") {
-        make_base_map() %>%
-          add_demographic_map(pal_native, "PCT_NAT") %>%
-          add_program_markers(neighborhood_data1, lat, long)
-      }
       else if(input$demographics == "White population (%)") {
         make_base_map() %>%
           add_demographic_map(pal_white, "PCT_WHI") %>%
-          add_program_markers(neighborhood_data1, lat, long)
-      }
-      else if(input$demographics == "Other races (%)") {
-        make_base_map() %>%
-          add_demographic_map(pal_other_races, "PCT_OTH") %>%
           add_program_markers(neighborhood_data1, lat, long)
       }
       else if(input$demographics == "Non-English speakers (%)") {
