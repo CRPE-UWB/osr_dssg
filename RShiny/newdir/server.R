@@ -324,7 +324,7 @@ shinyServer(
         }
         
         # Function to add circle markers on the map depending on the resource type(s) selected
-        add_circle_markers = function(m, file, legend_title, color_code){
+        add_circle_markers = function(m, file, legend_title, color_code, popup_html = NULL){
          addCircleMarkers(m , data = file, 
                           lng = jitter(file$long, factor = 1, amount = 0.0005), 
                           lat = jitter(file$lat, factor = 1, amount = 0.0005), 
@@ -332,7 +332,8 @@ shinyServer(
                           stroke = FALSE,
                           weight = 1,
                           fillColor = color_code,
-                          fillOpacity = 0.5
+                          fillOpacity = 0.5,
+                          popup = popup_html
                           )  %>%
             addLegend(
               position = "bottomright",
@@ -346,7 +347,15 @@ shinyServer(
         for (col in colm_other()){
         
           if(col == "Parks"){
-            open_resource_map <- open_resource_map %>% add_circle_markers(parks_data1, col, "green")
+            parks_popup <- sprintf(
+                "<b>%s</b><br/>
+                %3f sq ft<br/>",
+                parks_data1$name,
+                parks_data1$sqft
+              ) %>% lapply(htmltools::HTML)
+            
+            open_resource_map <- open_resource_map %>% 
+              add_circle_markers(parks_data1, col, "green", parks_popup)
           }
          
           if(col == "Libraries"){
