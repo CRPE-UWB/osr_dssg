@@ -29,10 +29,8 @@ dbDisconnect(con)
 dbUnloadDriver(drv)
 
 #######################Getting the shape file to plot the bock groups on the map##############################
-shape_census <- readOGR(dsn = "/Users/kelliemacphee/Desktop/dssg2018/GITHUB_osr_dssg2018/data/nbhd_dem_shapes", layer = "nbhd_dem_shapes")
-#Getting the percentages for the two columns
-shape_census@data$PCT_HSD = shape_census@data$PCT_HSD * 100
-shape_census@data$PCT_NON = shape_census@data$PCT_NON * 100
+shape_census <- readOGR(dsn = "/Users/kelliemacphee/Desktop/dssg2018/GITHUB_osr_dssg2018/data/nbhd_dem_shapes", 
+                        layer = "nbhd_dem_shapes")
 
 #Joining the 'number of sessions' information with the census shape file
 shape_census <- geo_join(shape_census, aggregate_session_nbhds, "NBHD_NA", "nbhd_name", how = "left")
