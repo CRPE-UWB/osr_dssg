@@ -27,16 +27,9 @@ con <- dbConnect(drv, dbname = "dssg2018uw",
 ```
 
 ```{r}
-block_locations <- dbGetQuery(con, "select * from clean.dps_block_locations")
-students <- dbGetQuery(con, "select * from clean.dps_students")
-choice <- dbGetQuery(con, "select * from clean.dps_choice")
-enrollment <- dbGetQuery(con, "select * from clean.dps_enrollment")
 google_analytics <- dbGetQuery(con, "select * from clean.google_analytics")
 programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs")
 census <- dbGetQuery(con, "select * from clean.acs_demographics")
-test <- dbGetQuery(con, "select * from clean.dps_cmas")
-star <- dbGetQuery(con, "select * from clean.dps_star_reading")
-discipline <- dbGetQuery(con, "select * from clean.dps_discipline")
 museums <- dbGetQuery(con, "select * from clean.museums")
 libraries <- dbGetQuery(con, "select * from clean.libraries")
 fields <- dbGetQuery(con, "select * from clean.fields")
@@ -45,6 +38,10 @@ fields <- dbGetQuery(con, "select * from clean.fields")
 Let's look at the percentage of students entering kindegarten, 6th, and 9th grade who are in the choice program. 
 
 ```{r}
+students <- dbGetQuery(con, "select * from clean.dps_students")
+choice <- dbGetQuery(con, "select * from clean.dps_choice")
+enrollment <- dbGetQuery(con, "select * from clean.dps_enrollment")
+
 parts <- data.frame()
 totals <- data.frame()
 for (grade in 0:12) {
@@ -73,7 +70,7 @@ students_with_locations <- unique(students$student_number[!is.na(students[,"bloc
 print(paste("Number of students who did choice enrollment but don't have address on record:",length(unique(choice$student_number)) - length(students_with_locations)))
 ```
 
-So we need to additionally get rid of those when considering the percentage of students for whom we have addresses: 
+So we need to additionally get rid of those when considering the percentage of students for whom we have addresses in the given year: 
 
 ```{r}
 parts_both <- data.frame()
@@ -106,9 +103,6 @@ totals_both <- data.frame()
 for (grade in 0:12) {
   for (given_year in 2014:2018) {
     
-    students_with_choice <- choice %>% filter(spring_year %in% given_year) %>% select(student_number)
-    students_with_choice <- students_with_choice$student_number
-    
     part <- enrollment %>% filter(spring_year %in% given_year) %>% filter(grade_level %in% grade) %>% filter(student_number %in% students_with_locations) %>% nrow
     
     total <- enrollment %>% filter(spring_year %in% given_year) %>% filter(grade_level %in% grade) %>% nrow
@@ -123,13 +117,11 @@ print("Percentage of students by grade and year who have address on record:")
 print(round(proportion_both*100,1))
 ```
 
-We can aggregate these numbers to get a better picture:
+As a final number, we can simply look at the percentage of students for whom we have addresses, for all years (2011-2018) and for years during which we had student choice (2014-2018):
 
 ```{r}
-print(apply(parts_both,MARGIN=1,sum))
-print(apply(totals_both,MARGIN=1,sum))
-print(apply(parts_both,MARGIN=2,sum))
-print(apply(totals_both,MARGIN=2,sum))
+paste("Percentage of students for whom we have addresses:",round(length(students_with_locations)/length(unique(enrollment$student_number))*100,1),"%")
+paste("Percentage of students enrolled somewhere between 2014 and 2018 for whom we have addresses:",round(length(students_with_locations)/length(unique(enrollment[enrollment$spring_year %in% 2014:2018,"student_number"]))*100,1),"%")
 ```
 
 Now we'd like to see how different our choice students are from all other choices, to see whether our sample is biased. 
@@ -152,6 +144,8 @@ for (column in columns) {
 Not too bad. Let's also check test scores.
 
 ```{r}
+test <- dbGetQuery(con, "select * from clean.dps_cmas")
+
 tmp_df <- data.frame()
 
 math_scores <- test[!is.na(test$math_scores),c("student_number","math_scores")]
@@ -171,6 +165,8 @@ barplot(t(tmp_df),beside=TRUE,main="Test Score Comparison",cex.names=1,las=2,leg
 ```
 
 ```{r}
+star <- dbGetQuery(con, "select * from clean.dps_star_reading")
+
 get_mode <- function(v) {
    uniqv <- unique(v)
    uniqv[which.max(tabulate(match(v, uniqv)))]
@@ -192,6 +188,8 @@ barplot(t(tmp_df),beside=TRUE,main="Reading Score Comparison",cex.names=1,las=2,
 Finally, we want to understand how discipline differs between the groups of students. 
 
 ```{r}
+discipline <- dbGetQuery(con, "select * from clean.dps_discipline")
+
 tmp_df <- data.frame()
 
 iss <- discipline[,c("student_number","number_iss")]
@@ -210,54 +208,95 @@ tmp_df["in_school_suspension","no_address"] <- mean(iss[!iss$student_number %in%
 tmp_df["out_of_school_suspension","no_address"] <- mean(!oss[oss$student_number %in% students_with_locations,"number_oss"])
 tmp_df["expulsion","no_address"] <- mean(expulsions[!expulsions$student_number %in% students_with_locations,"number_expulsions"])
 
-barplot(t(tmp_df),beside=TRUE,main="Average Discipline Record Comparison",cex.names=.5,las=2,legend.text = TRUE)
+barplot(t(tmp_df),beside=TRUE,main="Average Discipline Record Comparison",cex.names=.7,las=1,legend.text = TRUE)
 ```
 
 Now we want to consider how many students we have in each block group. First, we'll read in the shape file for block groups:
 
 ```{r}
-spdf <- readOGR(dsn = "/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/osr_dssg2018/data/census_clean/shape_census","shape_census")
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+mypath <- getwd()
+dataPath <- file.path(dirname(mypath), "data", "census_clean", "shape_census")
+spdf <- readOGR(dsn = dataPath,"shape_census")
 ```
 
-Now let's see where students lie in blocks:
+Now let's see where students lie in blocks. We can click on each of the dots (each representing a block) to see how many students live in that block. 
 
-```{r}
+```{r message=FALSE}
+block_locations <- dbGetQuery(con, "select * from clean.dps_block_locations")
+
 table_of_blocks <- table(students$block)
-blocks_with_frequencies <- data.frame("block"=names(table_of_blocks), "frequencies"=as.vector(table_of_blocks))
-merged <- merge(block_locations,blocks_with_frequencies,all.x=TRUE)
+blocks_with_student_pop <- data.frame("block"=names(table_of_blocks), "student_pop"=as.vector(table_of_blocks))
+merged <- merge(block_locations,blocks_with_student_pop,all.x=TRUE)
 
-normalize <- function(vec) {
-  return((vec-min(vec))/(max(vec)-min(vec)))
-}
+##############
+# set up for visualization:
+colors5 <- c('#ffffb2','#fecc5c','#fd8d3c','#f03b20','#bd0026') 
+
+merged$color <- 1
+merged$color[merged$student_pop>=3] <- 2
+merged$color[merged$student_pop>=6] <- 3
+merged$color[merged$student_pop>=9] <- 4
+merged$color[merged$student_pop>=12] <- 5
+
+lab_factor <- c("Less than 3", 
+                "Between 3 and 6", 
+                "Between 6 and 9", 
+                "Between 9 and 12",
+                "Greater than 12")
+
+merged$color <- factor(merged$color, label = lab_factor)
+# end set up for visualization
+##############
 
 leaflet() %>% 
   addProviderTiles("CartoDB.Positron") %>%
-  # addCircleMarkers(
-  #   data = google_analytics %>% filter(lat < 39.8 & long > -105.1 & lat > 39.6 & long < -104.8),
-  #   stroke = FALSE, fillOpacity = .5, color = 'blue'
-  # ) %>%
   addCircleMarkers(
     data = merged,
-    stroke = FALSE, fillOpacity = normalize(merged$frequencies), popup = paste("block",merged$block,"frequency:",merged$frequencies)
+    stroke = FALSE, fillOpacity = .1, popup = paste("Student population in block:",merged$student_pop),
+    color = ~colorFactor(colors5,merged$color)(merged$color)
   ) %>%
-  setView(lat=39.7,lng=-104.9,zoom=10)
+  addLegend(colors = colors5, labels = lab_factor)
 ```
 
 And in block groups:
 
 ```{r}
-merged_block_groups <- aggregate(frequencies ~ block_group, data=merged[,c("block_group","frequencies")], sum)
+merged_block_groups <- aggregate(student_pop ~ block_group, data=merged[,c("block_group","student_pop")], sum)
 merged_block_groups <- merge(spdf[,"Id2"],merged_block_groups,all.y=TRUE,by.y="block_group",by.x="Id2")
+
+popup_string="Black percentage:"
+col_name="PCT_Afr"
+
+##############
+# set up for visualization:
+colors5 <- c('#ffffb2','#fecc5c','#fd8d3c','#f03b20','#bd0026') 
+
+merged_block_groups@data$color <- 1
+merged_block_groups@data$color[merged_block_groups@data$student_pop>=50] <- 2
+merged_block_groups@data$color[merged_block_groups@data$student_pop>=100] <- 3
+merged_block_groups@data$color[merged_block_groups@data$student_pop>=150] <- 4
+merged_block_groups@data$color[merged_block_groups@data$student_pop>=200] <- 5
+
+lab_factor <- c("Less than 50", 
+                "Between 50 and 100", 
+                "Between 100 and 150", 
+                "Between 150 and 200",
+                "Greater 200")
+
+merged_block_groups@data$color <- factor(merged_block_groups@data$color, label = lab_factor)
+# end set up for visualization
+##############
 
 leaflet() %>% 
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
     data = merged_block_groups, weight=1,
-    fillColor = ~colorQuantile("YlOrRd",n=6,merged_block_groups$frequencies)(merged_block_groups$frequencies),
+    fillColor = ~colorFactor(colors5,merged_block_groups@data$color)(merged_block_groups@data$color),
     fillOpacity=10,
-    popup = paste("Student population:",merged_block_groups$frequencies)
-    ) %>%
-  setView(lat=39.7,lng=-104.9,zoom=10)
+    popup = paste("Student population:",merged_block_groups@data$student_pop)
+    ) 
+  
 ```
 
 There is a lot of spatial variation here, which is surprising since block groups are made to have an approximately fixed population size. Let's compare to census data by mapping the difference of the school choice population and the census population.  
@@ -265,17 +304,17 @@ There is a lot of spatial variation here, which is surprising since block groups
 In the following map, red means that students in the choice dataset are overrepresented, while yellow means they're underrepresented. 
 
 ```{r}
-merged_block_groups <- merge(merged_block_groups,census[,c("id2","age_5_to_9","age_10_to_14","age_15_to_17")],all.x=TRUE,by.x="Id2",by.y="id2")
-merged_block_groups@data$census_pop <- apply(X = merged_block_groups@data[,c("age_5_to_9","age_10_to_14","age_15_to_17")], FUN = sum, MARGIN=1)
-merged_block_groups@data[,c("age_5_to_9","age_10_to_14","age_15_to_17")] <- NULL
+age_subset <- c("age_5_to_9","age_10_to_14","age_15_to_17")
+block_and_census_pop <- merge(block_and_census_pop,census[,c("id2",age_subset)],all.x=TRUE,by.x="Id2",by.y="id2")
+block_and_census_pop@data$census_pop <- apply(X = block_and_census_pop@data[,age_subset], FUN = sum, MARGIN=1)
 
-differences = merged_block_groups@data$frequencies-merged_block_groups@data$census_pop
-percent_differences <- round(differences / merged_block_groups@data$frequencies,1)
+differences = block_and_census_pop@data$frequencies-block_and_census_pop@data$census_pop
+percent_differences <- round(differences / block_and_census_pop@data$frequencies,1)
 hist(percent_differences,xlab="(Student - Census)/Student")
 leaflet() %>% 
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
-    data = merged_block_groups, weight=1,
+    data = block_and_census_pop, weight=1,
     fillColor = ~colorQuantile("YlOrRd",n=6,percent_differences)(percent_differences),
     fillOpacity=10,
     popup = paste("percent off:",percent_differences,"%")
@@ -283,7 +322,23 @@ leaflet() %>%
   setView(lat=39.7,lng=-104.9,zoom=10)
 ```
 
-The census and student populations seem to match up quite well by block - most of the percent discrepencies are in the +/-5% range.  
+The census and student populations seem to match up quite well by block - most of the percent discrepencies are in the +/-5% range. 
+
+We also want to know how the demographics compare. Unfortunately, we don't have demographics on school age kids by race; we separately have demographics for given age groups and given ages. To first order, we will instead therefore just weight the demographics of each block group by the percent of people in the block who are school age (this assumes that the demographics within the block are the same for all ages, but captures the fact that, for example, a block with a retirement home and mostly old white people shouldn't contribute a lot of student white people to the demographic histogram).  
+
+```{r}
+tmp_df <- data.frame()
+student_races <- sort(unique(students[,"race"]))
+census_races <- c("asian","black","hispanic","americanindian","pacificislanders","two_or_more_races","white")
+
+for (i in 1:length(census_races)) {
+  tmp_df[student_races[i],"student"] <- round((sum((students$student_number %in% students_with_locations) & (students[,"race"]==student_races[i])) / length(students_with_locations))*100,1)
+  tmp_df[student_races[i],"census"] <- sum(census[,census_races[i]]*((apply(FUN=sum,X=census[,age_subset],MARGIN=1))/census[,"ttl_population"]))
+}
+tmp_df[,"census"] <- round(((tmp_df[,"census"])/sum(tmp_df[,"census"]))*100,1)
+print(tmp_df)
+barplot(t(tmp_df),beside=TRUE,main="Census vs Student Choice Demographics",cex.names=.5,las=2,legend.text = TRUE)
+```
 
 Now we'll move on to analyzing Blueprint4Summer search data, which includes the zip code searched for. 
 
