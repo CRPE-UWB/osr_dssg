@@ -169,9 +169,16 @@ shinyServer(
                            weight = 1,
                            fillColor = "yellow",
                            fillOpacity = 0.5,
-                           popup = marker_popup_text 
+                           popup = marker_popup_text
                            # clusterOptions = markerClusterOptions(spiderfyOnMaxZoom = TRUE)
-          ) 
+          ) %>%
+          addLegend(
+            position = "bottomright",
+            colors = c("yellow"),
+            opacity = 0.5,
+            
+            labels = "summer program"
+          )
       }
       
       # DRAW THE DEMOGRAPHICS MAP, based on input selection

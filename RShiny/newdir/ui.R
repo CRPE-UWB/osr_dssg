@@ -10,19 +10,6 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                               
                               # Sidebar panel for making selections about reschool programs
                               sidebarPanel(
-                                selectInput("neighborhoods", "Select a neighborhood in Denver:", 
-                                            choices = c("No neighborhood selected", 
-                                                        neighborhoods_reshoolprograms)
-                                            ),
-                                br(),
-                                sliderInput("slider", "Select a range for program cost:", 
-                                            min = minprice_reschoolprograms, 
-                                            max = maxprice_reschoolprograms , 
-                                            value = c(minprice_reschoolprograms, 
-                                                      maxprice_reschoolprograms),
-                                            pre = "$"
-                                            ),
-                                br(),
                                 checkboxGroupInput("program", "Select one or more program types:", 
                                                    choices = c("Academic" = 13, "Arts" = 14, 
                                                                "Cooking" = 15, "Dance" = 16, 
@@ -32,12 +19,21 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                                    selected = 13,
                                                    inline = TRUE
                                                    ),
-                                br(),
+                                #br(),
+                                sliderInput("slider", "Select a range for program cost:", 
+                                            min = minprice_reschoolprograms, 
+                                            max = maxprice_reschoolprograms , 
+                                            value = c(minprice_reschoolprograms, 
+                                                      maxprice_reschoolprograms),
+                                            pre = "$"
+                                ),
+                                #br(),
                                 radioButtons("demographics", 
-                                             "Select a demographics variable to visualize for each neighborhood:", 
+                                             "Select a demographics variable to visualize:", 
                                              choiceNames = list("Median household income ($)", 
                                                          "High school degree or equivalent (%)",
-                                                         HTML("Language other than English spoken (%)<br><br><i>Race / Ethnicity</i>"),
+                                                         HTML("Language other than English spoken (%)<br><br>
+                                                              <i>Race/Ethnicity Variables</i>"),
                                                          "Hispanic population (%)", 
                                                          "Black population (%)",
                                                          "White population (%)"
@@ -52,6 +48,10 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                              selected = character(0)
                                              ),
                                 br(),
+                                selectInput("neighborhoods", "Restrict to one neighborhood:", 
+                                            choices = c("No neighborhood selected", 
+                                                        neighborhoods_reshoolprograms)
+                                ),
                                 width = 4
                               ),
                               
@@ -59,7 +59,7 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                               mainPanel(
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
-                                                     leafletOutput("mymap", height = 640)
+                                                     leafletOutput("mymap", height = 520)
                                                      ),
                                             tabPanel("Data",
                                                      DT::dataTableOutput("datatable")
