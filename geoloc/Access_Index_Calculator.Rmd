@@ -78,7 +78,7 @@ for (i in 1:length(block_list)) {
       print(paste(i,x,"working..."))}
   #block_mover$Access_Index <- rescale(block_mover$Access_Index,to = c(0, 100))
   access_indexices <- rbind(block_mover,access_indexices)
-  summary_index$Access_Index[i] <- mean(block_mover$Access_Index,na.rm=TRUE)}
+  summary_index$Access_Index[i] <- mean(block_mover$Access_Index,na.rm=TRUE)})
 ```
 
 ###Plotting the Access Index and number of programs

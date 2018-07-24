@@ -47,8 +47,8 @@ crimeSmall <- crime[abs(crime@coords[,1])>.01 & abs(crime@coords[,2])>.01,]
 crimeSmall <- crime[c(3,5,6,18,19)]
 names(crimeSmall) <- c("offense_code","type","category","is_crime","is_traffic")
 
-# Save to csv
-SavePointsAsCSV(crimeSmall, "crimes.csv")
+crimeFinal <- crimeSmall
+head(crimeFinal)
 ```
 
 ## Hate Crimes
@@ -86,13 +86,9 @@ for(i in 1:nrow(hateSmall)) {
 }
 
 hateSmall$addressFull <- NULL
+hateFinal <- hateSmall
 
-head(hateSmall)
-```
-
-Save the result to a csv.
-```{r}
-write.csv(hateSmall, file=file.path("clean_data","hate_crimes.csv"), na="", row.names=FALSE)
+head(hateFinal)
 ```
 
 ## Foreclosures
@@ -107,12 +103,9 @@ foreclosures <- GetOpenData("foreclosures")
 head(foreclosures)
 
 # Subset and clean data
-foreclosuresSmall = foreclosures[c(4)]
-names(foreclosuresSmall) = c("year")
-foreclosuresSmall[["year"]]=as.numeric(as.character(foreclosuresSmall[["year"]]))
-
-# Save to csv
-SavePointsAsCSV(foreclosuresSmall, "foreclosures.csv")
+foreclosuresFinal = foreclosures[c(4)]
+names(foreclosuresFinal) = c("year")
+foreclosuresFinal[["year"]]=as.numeric(as.character(foreclosuresFinal[["year"]]))
 ```
 
 ## Police Shootings
@@ -130,12 +123,11 @@ head(polShoot)
 polShoot <- polShoot[abs(polShoot@coords[,1])<1000 & abs(polShoot@coords[,2])<1000,]
 
 # Subset the data
-polShootSmall <- polShoot[c(5,6,10,15,16,17,18,19,20,21)]
-names(polShootSmall) <- c("initiated_by","contact_basis","person_role","gender","age","race","ethnicity","armed_with","discharged_firearm","casualty_status")
-polShootSmall[["age"]] <- as.numeric(as.character(polShootSmall[["age"]]))
+polShootFinal <- polShoot[c(5,6,10,15,16,17,18,19,20,21)]
+names(polShootFinal) <- c("initiated_by","contact_basis","person_role","gender","age","race","ethnicity","armed_with","discharged_firearm","casualty_status")
+polShootFinal[["age"]] <- as.numeric(as.character(polShootFinal[["age"]]))
 
-# Save to csv
-SavePointsAsCSV(polShootSmall, "police_shootings.csv")
+head(polShootFinal)
 ```
 
 ## Police Stations
@@ -150,12 +142,21 @@ polStations <- GetOpenData("police_stations")
 head(polStations)
 
 # Subset and clean the data
-polStationsSmall = polStations[,c(1,3,12,13,15)]
-names(polStationsSmall) = c("id","name","district","type","is_publicly_accessible")
-polStationsSmall[["name"]]=as.character(polStationsSmall[["name"]])
+polStationsFinal = polStations[,c(1,3,12,13,15)]
+names(polStationsFinal) = c("id","name","district","type","is_publicly_accessible")
+polStationsFinal[["name"]]=as.character(polStationsFinal[["name"]])
 
-# Save to csv
-SavePointsAsCSV(polStationsSmall, "police_stations.csv")
+head(polStationsFinal)
+```
+
+## Save all the files to csvs
+
+```{r}
+SavePointsAsCSV(crimeFinal, "crimes.csv")
+write.csv(hateFinal, file=file.path("clean_data","hate_crimes.csv"), na="", row.names=FALSE)
+SavePointsAsCSV(foreclosuresFinal, "foreclosures.csv")
+SavePointsAsCSV(polShootFinal, "police_shootings.csv")
+SavePointsAsCSV(polStationsFinal, "police_stations.csv")
 ```
 
 ## Make the codebook
@@ -181,8 +182,6 @@ for (filename in filenameList) {
 
 write.csv(codebook, file=file.path("clean_data","codebook_demographic.csv"), row.names=FALSE)
 ```
-
-
 
 ```{r}
 # Function to get list of column names in a data frame

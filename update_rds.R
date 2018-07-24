@@ -8,7 +8,7 @@
 
 require("RPostgreSQL")
 
-update_rds <- function(data, schemaName, tableName) {
+update_rds <- function(data, schemaName, tableName, overwrite = FALSE) {
   # loads the PostgreSQL driver
   drv <- dbDriver("PostgreSQL")
   
@@ -26,7 +26,7 @@ update_rds <- function(data, schemaName, tableName) {
                c(schemaName, tableName),
                value = data,
                row.names = FALSE,
-               overwrite = TRUE  # overwrite an existing table
+               overwrite = overwrite  # overwrite an existing table
   )
   
   # when you're done, close the connection and unload the driver 
