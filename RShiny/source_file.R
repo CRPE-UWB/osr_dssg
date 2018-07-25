@@ -30,6 +30,7 @@ rec_centers = dbGetQuery(con, "SELECT * from shiny.rec_centers")
 parks = dbGetQuery(con, "SELECT * from shiny.parks")
 reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
+
 #######################Getting the shape file to plot the bock groups on the map##############################
 # shape_census <- readOGR(dsn = "C:/Users/Sreekanth/Desktop/osr_dssg2018-1/data/nbhd_dem_shapes", 
 #                         layer = "nbhd_dem_shapes")
@@ -55,7 +56,15 @@ neighborhoods_other = unique(all_neighbourhoods$nbhd_name)
 #Defining variables for choosing demographic information
 demographic_filters = c("Median Income", "Percent below poverty level")
 
-
+# Creating majority race variables for each neighborhood
+shape_census@data$majority_race <- max.col(as.matrix(
+          shape_census@data[ ,c("PCT_HIS", "PCT_WHI", "PCT_BLA","PCT_NAT","PCT_ASI")]
+                     ))
+shape_census@data$majority_race <- gsub(1, "Hispanic", shape_census@data$majority_race)
+shape_census@data$majority_race <- gsub(2, "White", shape_census@data$majority_race)
+shape_census@data$majority_race <- gsub(3, "Black", shape_census@data$majority_race)
+shape_census@data$majority_race <- gsub(4, "Native", shape_census@data$majority_race)
+shape_census@data$majority_race <- gsub(5, "Asian", shape_census@data$majority_race)
 
 # when you're done, close the connection and unload the driver 
 dbDisconnect(con) 

@@ -70,8 +70,8 @@ shinyServer(
         addProviderTiles(providers$CartoDB.Positron)
     }
     
-    # Construct demographic labels for hovering on the neighborhoods
-    labels <- sprintf(
+    # Construct demographic nbhd_labels for hovering on the neighborhoods
+    nbhd_labels <- sprintf(
       "<b>%s</b><br/>
       No. program sessions = %i <br/>
       No. children 5-17 yrs old = %i <br/> 
@@ -99,17 +99,20 @@ shinyServer(
     pal_black <- colorBin("Blues", domain = shape_census@data$PCT_BLA, bins = 5)
     pal_white <- colorBin("Purples", domain = shape_census@data$PCT_WHI, bins = 5)
     
+    pal_all_races <- colorFactor("Accent", domain = shape_census@data$majority_race)
+    
     # Legend titles for demographic maps
     legendTitles <- list(MED_HH_ = "Median HH Income ($)",
                          PCT_HS_ = "HS Degree <br> Or Equiv. (%)",
                          PCT_HIS = "% Hispanic",
                          PCT_BLA = "% Black",
                          PCT_WHI = "% White",
-                         PCT_NON = "Lang. Besides <br>English (%)"
+                         PCT_NON = "Lang. Besides <br>English (%)",
+                         majority_race = "Most Common<br>Race/Ethnicity"
     )
     
     # Function to add the demographic info to the map
-    add_demographic_map <- function(map, pal_type, column_name){
+    add_demographic_map <- function(map, pal_type, column_name, label_type){
       addPolygons(map, data = shape_census,
                   fillColor = ~pal_type(shape_census@data[,column_name]),
                   weight = 2,
@@ -122,7 +125,7 @@ shinyServer(
                     color = "#666",
                     bringToFront = FALSE
                   ),
-                  label = labels,
+                  label = label_type,
                   labelOptions = labelOptions(
                     style = list("font-weight" = "normal", padding = "3px 8px"),
                     textsize = "12px",
@@ -192,7 +195,7 @@ shinyServer(
       # Function to draw the base map + demographics + program markers
       make_reschool_map <- function(palette, col_name) {
         make_base_map() %>%
-          add_demographic_map(palette,col_name) %>%
+          add_demographic_map(palette,col_name,nbhd_labels) %>%
           add_program_markers(neighborhood_data1, lat, long)
       }
       
@@ -207,7 +210,7 @@ shinyServer(
                       opacity = 1.0,
                       fillColor = "#999",
                       fillOpacity = 0.5,
-                      label = labels,
+                      label = nbhd_labels,
                       labelOptions = labelOptions(
                         style = list("font-weight" = "normal", padding = "3px 8px"),
                         textsize = "12px",
@@ -243,6 +246,30 @@ shinyServer(
       }
       else if(input$demographics == "Non-English speakers (%)") {
         make_reschool_map(pal_language, "PCT_NON")
+      }
+      else if(input$demographics == "All races") {
+        labels_race_breakdown <- sprintf(
+          "<b>%s</b><br/>
+           No. program sessions = %i <br/>
+           No. children 5-17 yrs old = %i ",
+          shape_census@data$NBHD_NA,
+          replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
+          shape_census@data$AGE_5_T
+        ) %>% lapply(htmltools::HTML)
+        
+        # adding an html plot using plotly
+        plot_widget <- as_widget(plot_ly(
+               x = c("White", "Hispanic", "Black"),
+               y = c(20, 14, 23),
+               name = "SF Zoo",
+               type = "bar"
+              ))
+        
+        labels_race_breakdown <- plot_widget
+        
+        make_base_map() %>%
+          add_demographic_map(pal_all_races, "majority_race", labels_race_breakdown) %>%
+          add_program_markers(neighborhood_data1, lat, long)
       }
       
     })
@@ -299,7 +326,7 @@ shinyServer(
                         opacity = 1.0,
                         fillColor = "#999",
                         fillOpacity = 0.5,
-                        label = labels,
+                        label = nbhd_labels,
                         labelOptions = labelOptions(
                           style = list("font-weight" = "normal", padding = "3px 8px"),
                           textsize = "12px",
