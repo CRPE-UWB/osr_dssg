@@ -1,7 +1,5 @@
 # User Interface for Shiny App
 
-library(shiny)
-
 shinyUI(navbarPage("Denver Out-of-School Resources",
                    
                    ## RESCHOOL PROGRAMS TAB

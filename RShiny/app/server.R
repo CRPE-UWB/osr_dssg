@@ -7,6 +7,8 @@ library(shiny)
 library(DT)
 library(leaflet)
 library(sp)
+library(leaflet.minicharts)
+library(mapview)
 
 shinyServer(
   

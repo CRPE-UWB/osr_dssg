@@ -1,13 +1,9 @@
 #########################Connecting to the sql database#####################################################
-require("RPostgreSQL")
-library(shiny)
 library(dplyr)
-library(leaflet)
 library(rgdal)
 library(tigris)
 library(rgeos)
-library(leaflet.minicharts)
-library(mapview)
+require("RPostgreSQL")
 
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
