@@ -1,0 +1,101 @@
+---
+title: "Analysis NoteBook"
+author: "Andrew Taylor"
+date: "7/25/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Analysis Notebook
+This is notebook for calculations for the analysis in the report. In theory, you should just be able to run these code chunks and return the correlations requested per whatever specific access index we want. 
+
+###RDS Pull
+```{r}
+library(rgeos)
+library(rgdal)
+library(raster)
+library(tidyverse)
+library(RPostgreSQL)
+# loads the PostgreSQL driver
+drv <- dbDriver("PostgreSQL")
+
+# creates a connection to the postgres database
+# note that "con" will be used later in each connection to the database
+con <- dbConnect(drv, dbname = "dssg2018uw",
+                 host = "localhost", port = 9000,
+                 user = user, password = password) #local source credentials
+
+#get reschool_programs
+#reschool_programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs")
+acs_demographics <- dbGetQuery(con, "select * from clean.acs_demographics")
+
+#disconnect
+dbDisconnect(con) 
+dbUnloadDriver(drv)
+```
+
+###Census Merge
+```{r}
+acs_demographics$id2 <- as.numeric(acs_demographics$id2)
+acs_demographics <- acs_demographics[order(acs_demographics$id2),]
+
+#order access index dataframe by Id2 and extract Ai scores
+summary_index_user <- summary_index_user[order(summary_index_user$Id2),]
+AI <- summary_index_user$AccessIndex
+
+#merge access index with census block data
+acs_AI <- cbind(acs_demographics,AI)
+colnames(acs_AI)
+```
+
+###Census Race Correlations
+```{r}
+library(haven)
+acs_AI$pct_white <- acs_AI$pct_white/100
+acs_AI$pct_african <- acs_AI$pct_african/100
+acs_AI$pct_americanindian <- acs_AI$pct_americanindian/100
+acs_AI$pct_asian <- acs_AI$pct_asian/100
+acs_AI$pct_hispanic <- acs_AI$pct_hispanic/100
+
+#Stat Sig
+white_cor <- cor.test(acs_AI$pct_white, acs_AI$AI, method=c("pearson"))
+black_cor <- cor.test(acs_AI$pct_african, acs_AI$AI, method=c("pearson"))
+hsp_cor <- cor.test(acs_AI$pct_hispanic, acs_AI$AI, method=c("pearson"))
+
+
+#Not Stat Sig
+asn_cor <- cor.test(acs_AI$pct_asian, acs_AI$AI, method=c("pearson"))
+AmI_cor <- cor.test(acs_AI$pct_americanindian, acs_AI$AI, method=c("pearson"))
+PcI_cor <- cor.test(acs_AI$pct_pacificislander,acs_AI$AI,method=c("pearson"))
+```
+
+###Income Correlations
+Add single mom & dad? / Single parent? 
+```{r}
+acs_AI$poverty_pct_hh <- acs_AI$poverty_pct_hh/100
+
+#sig
+median_income_cor <- cor.test(acs_AI$median_hh_income,acs_AI$AI,method=c("pearson"))
+
+#not sig
+poverty_cor <- cor.test(acs_AI$poverty_pct_hh,acs_AI$AI,method=c("pearson"))
+```
+
+###Language Correlations
+```{r}
+#make percent of ESLs
+acs_AI$pcnt_english <- acs_AI$lng_english/acs_AI$ttpop_18plus_lng
+acs_AI$pcnt_ESL <- 1-acs_AI$pcnt_english
+
+ESL_cor <- cor.test(acs_AI$pcnt_ESL,acs_AI$AI,methods=c("pearson"))
+```
+
+###Geospatial Regression To Return Effect of race on access?
+Why? Besides that you want to do it what is the value?
+```{r}
+
+```
+

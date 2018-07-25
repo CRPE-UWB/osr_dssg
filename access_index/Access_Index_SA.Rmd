@@ -10,7 +10,11 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ##Intro
-This markdown performs the sensitivity analysis on the access index equation, comparing the changes in blockgroup access index scores/ranks (as they compare to other blockgroups), for the 1/r^2 function with indifference threshold of 5-15 minutes, as well as for the exp function with indifference threshold of 5-15 minutes, and the gravity model, which we test with scale 5-15 minutes though there is no change in rank at any stage. This code also produces visualizations to describe these results. **Note** the markdown makes use of the Access Index Functions defined in the Access_Index_Functions markdown, as well as "census_centroids" which is currently running off our machines individualls. You'll need to grab those functions and the centroid file to run this markdown. 
+This markdown performs the sensitivity analysis on the access index equation, comparing the changes in blockgroup access index scores/ranks (as they compare to other blockgroups), for the 1/r^2 function with indifference threshold of 5-15 minutes, as well as for the exp function with indifference threshold of 5-15 minutes, and the gravity model, which we test with scale 5-15 minutes though there is no change in rank at any stage. This code also produces visualizations to describe these results. 
+
+Additionally, the markdown performs sensitity analysis for the effects of k (k = 2 in 1/r^2 | k = e in exp(-dataframe[,column]/scale)) as a measure of how sensitive our conclusions are to the relatively arbitrary choice of exponent in the denominator for our decay function which serves a stand in WTP (or some other term? Willingness to travel)
+
+**Note** the markdown makes use of the Access Index Functions defined in the Access_Index_Functions markdown, as well as "census_blocks" which is currently running off our machines individualls. You'll need to grab those functions and the centroid file to run this markdown. 
 
 ###RDS Pull
 ```{r}
@@ -36,6 +40,8 @@ block_distance <- dbGetQuery(con, "select * from clean.block_distance")
 dbDisconnect(con) 
 dbUnloadDriver(drv)
 ```
+
+##Testing the effect of scale
 
 ###Sensitivity Analysis Driving Test
 Because we are to some extent selecting an arbitrary indifference threshold of five minutes, it is critical that we assess how sensitive our conclusions are to threshold. So here we test different indifference thresholds and see how the order of top block groups changes. Basically, we scale up the threshold from 5 five minutes to 15 minutes, checking changes in the order of the block groups at each minute threshold. 
@@ -900,3 +906,4 @@ grid.arrange(driving_exp_Top_25_Plot,driving_exp_Top_50_Plot,driving_exp_Top_75_
 grid.arrange(driving_Top_25_Plot,driving_Top_50_Plot,driving_Top_75_Plot,driving_Top_100_Plot,driving_Bottom25_Plot,driving_Tail_Plot,ncol=3)
 ```
 
+##Testing the effect of k 
