@@ -6,21 +6,32 @@ output: html_document
 ---
 
 ```{r}
-#install.packages("RPostgreSQL")
 require("RPostgreSQL")
 require("tidyverse")
 require("leaflet")
 require("leaflet.extras")
 require("rgdal")
+require("RColorBrewer")
 ```
 
 ```{r}
+setwd(mypath)
+mypath <- dirname(rstudioapi::getActiveDocumentContext()$path)
+
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
 
+# make a file called "cred.txt" of the form
+#
+# user: "YOUR_AWS_USERNAME"
+# password: "YOUR_AWS_PASSWORD"
+#
+# in the directory above the osr_dssg2018 folder
+
+source(file.path(dirname(dirname(mypath)),"cred.txt"))
+
 # creates a connection to the postgres database
 # note that "con" will be used later in each connection to the database
-# just create variables "user" and "password" with the RDS username and password (excluded for security)
 con <- dbConnect(drv, dbname = "dssg2018uw",
                  host = "localhost", port =9000,
                  user = user, password = password)
@@ -29,7 +40,6 @@ con <- dbConnect(drv, dbname = "dssg2018uw",
 ```{r}
 google_analytics <- dbGetQuery(con, "select * from clean.google_analytics")
 programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs")
-census <- dbGetQuery(con, "select * from clean.acs_demographics")
 museums <- dbGetQuery(con, "select * from clean.museums")
 libraries <- dbGetQuery(con, "select * from clean.libraries")
 fields <- dbGetQuery(con, "select * from clean.fields")
@@ -153,6 +163,11 @@ ela_scores <- test[!is.na(test$ela_scores),c("student_number","ela_scores")]
 math_scores <- aggregate(math_scores ~ student_number, data=math_scores, mean)
 ela_scores <- aggregate(ela_scores ~ student_number, data=ela_scores, mean)
 
+#to convert raw test scores to standardized z scores
+make_z_score <- function(vec) {
+  return((vec-mean(vec))/sd(vec))
+}
+
 math_scores$math_scores <- make_z_score(math_scores$math_scores)
 ela_scores$ela_scores <- make_z_score(ela_scores$ela_scores)
 
@@ -214,7 +229,6 @@ barplot(t(tmp_df),beside=TRUE,main="Average Discipline Record Comparison",cex.na
 Now we want to consider how many students we have in each block group. First, we'll read in the shape file for block groups:
 
 ```{r}
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 mypath <- getwd()
 dataPath <- file.path(dirname(mypath), "data", "census_clean", "shape_census")
 spdf <- readOGR(dsn = dataPath,"shape_census")
@@ -227,102 +241,117 @@ block_locations <- dbGetQuery(con, "select * from clean.dps_block_locations")
 
 table_of_blocks <- table(students$block)
 blocks_with_student_pop <- data.frame("block"=names(table_of_blocks), "student_pop"=as.vector(table_of_blocks))
-merged <- merge(block_locations,blocks_with_student_pop,all.x=TRUE)
+blocks_with_student_pop <- merge(block_locations,blocks_with_student_pop,all.x=TRUE)
 
 ##############
 # set up for visualization:
-colors5 <- c('#ffffb2','#fecc5c','#fd8d3c','#f03b20','#bd0026') 
+cutoffs <- c(0,2,4,6,8,10,12,14)
+color_vec <- brewer.pal(length(cutoffs),"YlOrRd")
 
-merged$color <- 1
-merged$color[merged$student_pop>=3] <- 2
-merged$color[merged$student_pop>=6] <- 3
-merged$color[merged$student_pop>=9] <- 4
-merged$color[merged$student_pop>=12] <- 5
+for (i in 1:length(cutoffs)) {
+  blocks_with_student_pop$color[blocks_with_student_pop$student_pop>=cutoffs[i]] <- i
+}
 
-lab_factor <- c("Less than 3", 
-                "Between 3 and 6", 
-                "Between 6 and 9", 
-                "Between 9 and 12",
-                "Greater than 12")
+lab_factor <- rep("",length(cutoffs))
+for (i in 1:length(cutoffs)-1) {
+  lab_factor[i] <- paste("Between",cutoffs[i],"and",cutoffs[i+1])
+}
+lab_factor[1] <- paste("Less than",cutoffs[2])
+lab_factor[length(cutoffs)] <- paste("Greater than",cutoffs[length(cutoffs)]) 
 
-merged$color <- factor(merged$color, label = lab_factor)
+blocks_with_student_pop$color <- factor(blocks_with_student_pop$color, label = lab_factor)
 # end set up for visualization
 ##############
 
 leaflet() %>% 
   addProviderTiles("CartoDB.Positron") %>%
   addCircleMarkers(
-    data = merged,
-    stroke = FALSE, fillOpacity = .1, popup = paste("Student population in block:",merged$student_pop),
-    color = ~colorFactor(colors5,merged$color)(merged$color)
+    data = blocks_with_student_pop,
+    stroke = FALSE, fillOpacity = .1, popup = paste("Student population in block:",blocks_with_student_pop$student_pop),
+    color = ~colorFactor(color_vec,blocks_with_student_pop$color)(blocks_with_student_pop$color)
   ) %>%
-  addLegend(colors = colors5, labels = lab_factor)
+  addLegend(colors = color_vec, labels = lab_factor)
 ```
 
 And in block groups:
 
 ```{r}
-merged_block_groups <- aggregate(student_pop ~ block_group, data=merged[,c("block_group","student_pop")], sum)
-merged_block_groups <- merge(spdf[,"Id2"],merged_block_groups,all.y=TRUE,by.y="block_group",by.x="Id2")
-
-popup_string="Black percentage:"
-col_name="PCT_Afr"
+block_groups_with_student_pop <- aggregate(student_pop ~ block_group, data=blocks_with_student_pop[,c("block_group","student_pop")], sum)
+block_groups_with_student_pop <- merge(spdf[,"Id2"],block_groups_with_student_pop,all.y=TRUE,by.y="block_group",by.x="Id2")
 
 ##############
 # set up for visualization:
-colors5 <- c('#ffffb2','#fecc5c','#fd8d3c','#f03b20','#bd0026') 
+cutoffs <- c(0,25,50,75,100,150,200,300,600)
+color_vec <- brewer.pal(length(cutoffs),"YlOrRd")
 
-merged_block_groups@data$color <- 1
-merged_block_groups@data$color[merged_block_groups@data$student_pop>=50] <- 2
-merged_block_groups@data$color[merged_block_groups@data$student_pop>=100] <- 3
-merged_block_groups@data$color[merged_block_groups@data$student_pop>=150] <- 4
-merged_block_groups@data$color[merged_block_groups@data$student_pop>=200] <- 5
+for (i in 1:length(cutoffs)) {
+  block_groups_with_student_pop@data$color[block_groups_with_student_pop@data$student_pop>=cutoffs[i]] <- i
+}
 
-lab_factor <- c("Less than 50", 
-                "Between 50 and 100", 
-                "Between 100 and 150", 
-                "Between 150 and 200",
-                "Greater 200")
+lab_factor <- rep("",length(cutoffs))
+for (i in 1:length(cutoffs)-1) {
+  lab_factor[i] <- paste("Between",cutoffs[i],"and",cutoffs[i+1])
+}
+lab_factor[1] <- paste("Less than",cutoffs[2])
+lab_factor[length(cutoffs)] <- paste("Greater than",cutoffs[length(cutoffs)]) 
 
-merged_block_groups@data$color <- factor(merged_block_groups@data$color, label = lab_factor)
+block_groups_with_student_pop@data$color <- factor(block_groups_with_student_pop@data$color, label = lab_factor)
 # end set up for visualization
 ##############
 
 leaflet() %>% 
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
-    data = merged_block_groups, weight=1,
-    fillColor = ~colorFactor(colors5,merged_block_groups@data$color)(merged_block_groups@data$color),
+    data = block_groups_with_student_pop, weight=1,
+    fillColor = ~colorFactor(color_vec,block_groups_with_student_pop@data$color)(block_groups_with_student_pop@data$color),
     fillOpacity=10,
-    popup = paste("Student population:",merged_block_groups@data$student_pop)
-    ) 
+    popup = paste("Student population:",block_groups_with_student_pop@data$student_pop)
+    ) %>%
+  addLegend(labels=lab_factor,colors = color_vec)
   
 ```
 
-There is a lot of spatial variation here, which is surprising since block groups are made to have an approximately fixed population size. Let's compare to census data by mapping the difference of the school choice population and the census population.  
-
-In the following map, red means that students in the choice dataset are overrepresented, while yellow means they're underrepresented. 
+Let's compare to census data. 
 
 ```{r}
-age_subset <- c("age_5_to_9","age_10_to_14","age_15_to_17")
-block_and_census_pop <- merge(block_and_census_pop,census[,c("id2",age_subset)],all.x=TRUE,by.x="Id2",by.y="id2")
-block_and_census_pop@data$census_pop <- apply(X = block_and_census_pop@data[,age_subset], FUN = sum, MARGIN=1)
+#census <- dbGetQuery(con, "select * from clean.acs_demographics")
 
-differences = block_and_census_pop@data$frequencies-block_and_census_pop@data$census_pop
-percent_differences <- round(differences / block_and_census_pop@data$frequencies,1)
-hist(percent_differences,xlab="(Student - Census)/Student")
+age_subset <- c("age_5_to_9","age_10_to_14","age_15_to_17")
+block_groups_with_student_and_census_pop <- merge(block_groups_with_student_pop,census[,c("id2",age_subset)],all.x=TRUE,by.x="Id2",by.y="id2")
+block_groups_with_student_and_census_pop@data$census_pop <- apply(X = block_groups_with_student_and_census_pop@data[,age_subset], FUN = sum, MARGIN=1)
+
+# block_groups_student_and_census_pop@data$pop_difference <- (block_groups_student_and_census_pop@data$student_pop-block_groups_student_and_census_pop@data$census_pop)
+
+##############
+# set up for visualization:
+cutoffs <- c(0,25,50,75,100,150,200,300,600)
+color_vec <- brewer.pal(length(cutoffs),"YlOrRd")
+
+for (i in 1:length(cutoffs)) {
+  block_groups_with_student_and_census_pop@data$color[block_groups_with_student_and_census_pop@data$census_pop>=cutoffs[i]] <- i
+}
+
+lab_factor <- rep("",length(cutoffs))
+for (i in 1:length(cutoffs)-1) {
+  lab_factor[i] <- paste("Between",cutoffs[i],"and",cutoffs[i+1])
+}
+lab_factor[1] <- paste("Less than",cutoffs[2])
+lab_factor[length(cutoffs)] <- paste("Greater than",cutoffs[length(cutoffs)]) 
+
+block_groups_with_student_and_census_pop@data$color <- factor(block_groups_with_student_and_census_pop@data$color, label = lab_factor)
+# end set up for visualization
+##############
+
 leaflet() %>% 
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
-    data = block_and_census_pop, weight=1,
-    fillColor = ~colorQuantile("YlOrRd",n=6,percent_differences)(percent_differences),
+    data = block_groups_with_student_and_census_pop, weight=1,
+    fillColor = ~colorFactor(color_vec,block_groups_with_student_and_census_pop@data$pop_difference)(block_groups_with_student_and_census_pop@data$pop_difference),
     fillOpacity=10,
-    popup = paste("percent off:",percent_differences,"%")
+    popup = paste(block_groups_with_student_and_census_pop@data$pop_difference, "Choice population:",block_groups_with_student_and_census_pop@data$student_pop,"Census population:",block_groups_with_student_and_census_pop@data$census_pop)
     ) %>%
-  setView(lat=39.7,lng=-104.9,zoom=10)
+  addLegend(labels=lab_factor,colors = color_vec)
 ```
-
-The census and student populations seem to match up quite well by block - most of the percent discrepencies are in the +/-5% range. 
 
 We also want to know how the demographics compare. Unfortunately, we don't have demographics on school age kids by race; we separately have demographics for given age groups and given ages. To first order, we will instead therefore just weight the demographics of each block group by the percent of people in the block who are school age (this assumes that the demographics within the block are the same for all ages, but captures the fact that, for example, a block with a retirement home and mostly old white people shouldn't contribute a lot of student white people to the demographic histogram).  
 
