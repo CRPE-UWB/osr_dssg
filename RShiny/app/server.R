@@ -458,13 +458,9 @@ shinyServer(
 
       })
     
+    # Make the data tables for the Other Resources Data Tab
     output$dt <- renderUI({
-      
-      
-      
       lapply(as.list(seq_len(length(as.list(colm_other())))), function(i) {
-        id <- paste0("dt", i)
-        
         id <- paste0("dt", i)
         DT::dataTableOutput(id)
       })
@@ -476,29 +472,40 @@ shinyServer(
         
         if(colm_other()[i] == "Parks"){
           output[[id]] <- DT::renderDataTable({
-            dat = datatable(parks_data()[, c(3,4,5,6,7,8,11)],options = list(pageLength = 3, initComplete = JS(
-              "function(settings, json) {",
-              "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
-              "}")),
-              caption = "Parks", style = "bootstrap") %>%
-              formatStyle(colnames(parks_data()[, c(3,4,5,6,7,8,11)]),backgroundColor = 'yellow')
+            dat <- datatable(parks_data()[, c(3,4,5,6,7,8,11)],
+                            options = list(pageLength = 3, 
+                                           initComplete = JS(
+                                             "function(settings, json) {",
+                                             "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+                                             "}")),
+                            caption = "Parks", 
+                            style = "bootstrap"
+                            ) %>%
+              formatStyle(colnames(parks_data()[, c(3,4,5,6,7,8,11)]),
+                          backgroundColor = 'light blue'
+                          )
             return(dat)    
           })}
         else if(colm_other()[i] == "Libraries"){
-          output[[id]] <- DT::renderDataTable(libraries_data(), options = list(lengthMenu = c(5, 10, 15), pageLength = 3))
+          output[[id]] <- DT::renderDataTable(libraries_data(), 
+                                              options = list(lengthMenu = c(5, 10, 15), pageLength = 3))
         }
         
         else if(colm_other()[i] == "Rec Centers"){
-          output[[id]] <- DT::renderDataTable(rec_centers_data(), options = list(lengthMenu = c(5, 10, 15), pageLength = 3))
+          output[[id]] <- DT::renderDataTable(rec_centers_data(), 
+                                              options = list(lengthMenu = c(5, 10, 15), pageLength = 3))
         }
         else if(colm_other()[i] == "Museums"){
-          output[[id]] <- DT::renderDataTable(museums_data(), options = list(lengthMenu = c(5, 10, 15), pageLength = 3))
+          output[[id]] <- DT::renderDataTable(museums_data(), 
+                                              options = list(lengthMenu = c(5, 10, 15), pageLength = 3))
         }
         else if(colm_other()[i] == "Fields"){
-          output[[id]] <- DT::renderDataTable(fields_data(), options = list(lengthMenu = c(5, 10, 15), pageLength = 3))
+          output[[id]] <- DT::renderDataTable(fields_data(), 
+                                              options = list(lengthMenu = c(5, 10, 15), pageLength = 3))
         }
         else if(colm_other()[i] == "Playgrounds"){
-          output[[id]] <- DT::renderDataTable(playgrounds_data(), options = list(lengthMenu = c(5, 10, 15), pageLength = 3))
+          output[[id]] <- DT::renderDataTable(playgrounds_data(), 
+                                              options = list(lengthMenu = c(5, 10, 15), pageLength = 3))
         }
         
       })
