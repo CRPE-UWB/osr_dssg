@@ -51,13 +51,33 @@ shinyServer(
       return(a) 
     })
     
+    
+    
+ 
+    
+    
     # Output the relevant data in the data tab based on the selections
     output$datatable <- DT::renderDataTable({
       data_table1 <- neighborhood_data()
       DT::datatable(data_table1[,-c(5,6,7)], 
-                    options = list(lengthMenu = c(5, 30, 50), 
-                                   pageLength = 5)
-                    )
+                    options = list(pageLength = 3, 
+                                   initComplete = JS(
+                                     "function(settings, json) {",
+                                     "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+                                     "}")),
+                    caption = htmltools::tags$caption(
+                      style = 'caption-side: top; text-align: center; color: black ;',
+                      htmltools::h3("ReSchool Programs")
+                    ), 
+                    style = "bootstrap",
+                    class = 'cell-border stripe',
+                    rownames = FALSE
+                    
+      ) %>%
+        formatStyle(colnames(data_table1[,-c(5,6,7)]),
+                    backgroundColor = 'lightblue'
+        )
+                    
     })
 
     ####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
@@ -466,46 +486,90 @@ shinyServer(
       })
     })
     
+    
+    #Function to get datatables for eaxh resources. Has a bunch of aesthetics
+    data_table_function = function(checkbox_input, data, column_names){
+      
+      datatable(data,
+                options = list(pageLength = 3, 
+                               initComplete = JS(
+                                 "function(settings, json) {",
+                                 "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+                                 "}")),
+                caption = htmltools::tags$caption(
+                  style = 'caption-side: top; text-align: center; color: black ;',
+                  htmltools::h3(checkbox_input)
+                ), 
+                style = "bootstrap",
+                class = 'cell-border stripe',
+                rownames = FALSE,
+                colnames = column_names
+      ) %>%
+        formatStyle(colnames(data),
+                    backgroundColor = 'lightblue'
+        )
+    }
+    
     observe(
       for (i in seq_len(length(colm_other()))) {
         id <- paste0("dt", i)
         
         if(colm_other()[i] == "Parks"){
           output[[id]] <- DT::renderDataTable({
-            dat <- datatable(parks_data()[, c(3,4,5,6,7,8,11)],
-                            options = list(pageLength = 3, 
-                                           initComplete = JS(
-                                             "function(settings, json) {",
-                                             "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
-                                             "}")),
-                            caption = "Parks", 
-                            style = "bootstrap"
-                            ) %>%
-              formatStyle(colnames(parks_data()[, c(3,4,5,6,7,8,11)]),
-                          backgroundColor = 'lightblue'
-                          )
+            dat <- data_table_function("Parks", parks_data()[, c(3,4,5,6,7,8,11)],
+                                       c("Park name", "Class", "Has nature", "Has garden", "Has biking", "Sqft", "Nbhd name"))
+              
+              
             return(dat)    
           })}
         else if(colm_other()[i] == "Libraries"){
-          output[[id]] <- DT::renderDataTable(libraries_data(), 
-                                              options = list(lengthMenu = c(5, 10, 15), pageLength = 3))
+          output[[id]] <- DT::renderDataTable({
+            dat <- data_table_function("Libraries", libraries_data()[, c(3,4,5,6,9)],
+                                       c("Library name", "Patron Count", "Circulation Vol", "Sqft", "Nbhd name"))
+            
+            
+            return(dat)    
+          })
         }
-        
+       
         else if(colm_other()[i] == "Rec Centers"){
-          output[[id]] <- DT::renderDataTable(rec_centers_data(), 
-                                              options = list(lengthMenu = c(5, 10, 15), pageLength = 3))
+          output[[id]] <- DT::renderDataTable({
+            dat <- data_table_function("Rec Centers", rec_centers_data()[, c(3,4,9:20, 23)],
+                                       c("Rec Center name", "Type", "Has cardio", "Has weights","Has gym",
+                                         "Has arts culture","Has day camps", "Has educ programs", "Has fitness health programs",
+                                         "Has senior programs","Has social enrich clubs", "Has special events",
+                                         "Has sports","Has aquatics", "Nbhd name"))
+            
+            
+            return(dat)    
+          })
         }
         else if(colm_other()[i] == "Museums"){
-          output[[id]] <- DT::renderDataTable(museums_data(), 
-                                              options = list(lengthMenu = c(5, 10, 15), pageLength = 3))
+          output[[id]] <- DT::renderDataTable({
+            dat <- data_table_function("Museums", museums_data()[, c(3,4,7)],
+                                       c("Museum name", "Address", "Nbhd name"))
+            
+            
+            return(dat)    
+          })
         }
         else if(colm_other()[i] == "Fields"){
-          output[[id]] <- DT::renderDataTable(fields_data(), 
-                                              options = list(lengthMenu = c(5, 10, 15), pageLength = 3))
+          output[[id]] <- DT::renderDataTable({
+            dat <- data_table_function("Fields", fields_data()[, c(3,4,5,6,7, 10)],
+                                       c("Sport", "Location", "Tier", "Class", "Sqft", "Nbhd name"))
+            
+            
+            return(dat)    
+          })
         }
         else if(colm_other()[i] == "Playgrounds"){
-          output[[id]] <- DT::renderDataTable(playgrounds_data(), 
-                                              options = list(lengthMenu = c(5, 10, 15), pageLength = 3))
+          output[[id]] <-DT::renderDataTable({
+            dat <- data_table_function("Playgrounds", playgrounds_data()[, c(3,4,5,6,9)],
+                                       c("Location", "Year rehabilitated", "Class", "Sqft", "Nbhd name"))
+            
+            
+            return(dat)    
+          })
         }
         
       })
