@@ -101,6 +101,19 @@ decay_fxn <- function(dataframe,mode){
   dataframe[,"n"]*(ifelse(dataframe[,column]<=scale,1,(1/(dataframe[,column]/scale))^2))
 }
 
+decay_fxn_exp <- function(dataframe,mode){
+  if (mode=="transit") {
+    scale = 5
+    column="transit_morning"
+  }
+  if (mode=="drive"){
+    scale = 5
+    column="driving_morning"
+  }
+  mode=mode
+  dataframe[,"n"]*exp(-dataframe[,column]/scale)
+}
+
 
 normalize <- function(vec,max) {
   return(vec/max)
@@ -126,8 +139,8 @@ merged_set <- Merge_Set(agg_set)
 merged_set$transit_morning[is.na(merged_set$transit_morning)] <- merged_set$walking_morning[is.na(merged_set$transit_morning)]
 merged_set$transit_morning[merged_set$transit_morning==0] <- merged_set$walking_morning[merged_set$transit_morning==0]
 
-merged_set$CarAccessIndex <- decay_fxn(merged_set,"drive") 
-merged_set$TransitAccessIndex <- decay_fxn(merged_set,"transit") 
+merged_set$CarAccessIndex <- decay_fxn_exp(merged_set,"drive") 
+merged_set$TransitAccessIndex <- decay_fxn_exp(merged_set,"transit") 
 
 
 #get average of AccessIndex col, return to summary dataframe by blockgroup ID
@@ -156,7 +169,7 @@ agg_set <- Aggregate_Subset(user_set)
 merged_set <- Merge_Set(agg_set)
 
 #calculate access index per location 
-merged_set$AccessIndex <- decay_fxn(merged_set,"drive") #why not apply? who knows
+merged_set$AccessIndex <- decay_fxn_exp(merged_set,"drive") #why not apply? who knows
 
 #get average of AccessIndex col, return to summary dataframe by blockgroup ID
 summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) #critical that we use sum, not mean, BECAUSE, for some specifications some program lengths will drop
@@ -187,7 +200,7 @@ merged_set$transit_morning[is.na(merged_set$transit_morning)] <- merged_set$walk
 merged_set$transit_morning[merged_set$transit_morning==0] <- merged_set$walking_morning[merged_set$transit_morning==0]
 
 #calculate access index per location, #get average of AccessIndex col, return to summary dataframe by blockgroup ID
-system.time(merged_set$AccessIndex <- decay_fxn(merged_set,"transit"))
+system.time(merged_set$AccessIndex <- decay_fxn_exp(merged_set,"transit"))
 system.time(summary_index_user_transit <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum))
 
 #normalize
