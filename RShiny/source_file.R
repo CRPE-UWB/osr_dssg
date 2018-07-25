@@ -4,6 +4,7 @@ library(rgdal)
 library(tigris)
 library(rgeos)
 require("RPostgreSQL")
+library(RColorBrewer)
 
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
@@ -65,6 +66,57 @@ shape_census@data$majority_race <- gsub(2, "White", shape_census@data$majority_r
 shape_census@data$majority_race <- gsub(3, "Black", shape_census@data$majority_race)
 shape_census@data$majority_race <- gsub(4, "Native", shape_census@data$majority_race)
 shape_census@data$majority_race <- gsub(5, "Asian", shape_census@data$majority_race)
+
+# Adding a custom html label for the racial distributions
+shape_census@data$racial_dist_html <- mapply(
+  
+  # Inputs: 
+  # neighborhood name (string),
+  # percents of different races (numerics),
+  # color palette generated from brewer.pal()
+  function(nbhd, pct_hisp, pct_white, pct_black, pct_native, pct_asian){
+    
+    pal <- brewer.pal(4, "Set2")  # color palette - match to the server.R code
+    color1 <- pal[1]
+    color2 <- pal[2]
+    color3 <- pal[3]
+    color4 <- pal[4]
+    
+    sprintf(
+      "<div style='font-size:12px;width:150px;float:left'>
+            <span style='font-size:16 px;font-weight:bold'>%s</span><br/>
+            <div style='width:80%%'>
+              <span style='background:%s;width:%s%%;position:absolute;left:0'>&nbsp;</span>
+              <span style='background:%s;width:%s%%;position:absolute;left:%s%%'>&nbsp;</span>
+              <span style='background:%s;width:%s%%;position:absolute;left:%s%%'>&nbsp;</span>
+              <span style='background:%s;width:%s%%;position:absolute;left:%s%%'>&nbsp;</span>
+              <br/>
+              <span style='color:%s;float:left'>%.2f%% Black</span><br/>
+              <span style='color:%s;float:left'>%.2f%% Hispanic</span><br/>
+              <span style='color:%s;float:left'>%.2f%% White</span><br/>
+              <span style='color:%s;float:left'>%.2f%% Other</span><br clear='all'/>
+            </div>
+        </div>",
+      nbhd,
+      color1, pct_black, 
+      color2, pct_hisp, pct_black,
+      color3, pct_white, pct_hisp + pct_black,
+      color4, 100 - (pct_white + pct_hisp + pct_black), pct_white + pct_hisp + pct_black,
+      color1, pct_black, 
+      color2, pct_hisp, 
+      color3, pct_white, 
+      color4, 100 - (pct_white + pct_hisp + pct_black)
+    ) %>% lapply(htmltools::HTML)
+  },
+  
+  shape_census@data$NBHD_NA,
+  shape_census@data$PCT_HIS,
+  shape_census@data$PCT_WHI,
+  shape_census@data$PCT_BLA,
+  shape_census@data$PCT_NAT,
+  shape_census@data$PCT_ASI
+  
+)
 
 # when you're done, close the connection and unload the driver 
 dbDisconnect(con) 

@@ -10,8 +10,6 @@ library(sp)
 library(leaflet.minicharts)
 library(mapview)
 
-# source('~/Desktop/dssg2018/GITHUB_osr_dssg2018/RShiny/source_file.R')
-
 shinyServer(
   
   #### ReSchool Programs tab ####
@@ -99,7 +97,7 @@ shinyServer(
     pal_black <- colorBin("Blues", domain = shape_census@data$PCT_BLA, bins = 5)
     pal_white <- colorBin("Purples", domain = shape_census@data$PCT_WHI, bins = 5)
     
-    pal_all_races <- colorFactor("Accent", domain = shape_census@data$majority_race)
+    pal_all_races <- colorFactor("Set2", domain = shape_census@data$majority_race)
     
     # Legend titles for demographic maps
     legendTitles <- list(MED_HH_ = "Median HH Income ($)",
@@ -248,27 +246,10 @@ shinyServer(
         make_reschool_map(pal_language, "PCT_NON")
       }
       else if(input$demographics == "All races") {
-        labels_race_breakdown <- sprintf(
-          "<b>%s</b><br/>
-           No. program sessions = %i <br/>
-           No. children 5-17 yrs old = %i ",
-          shape_census@data$NBHD_NA,
-          replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
-          shape_census@data$AGE_5_T
-        ) %>% lapply(htmltools::HTML)
-        
-        # adding an html plot using plotly
-        plot_widget <- as_widget(plot_ly(
-               x = c("White", "Hispanic", "Black"),
-               y = c(20, 14, 23),
-               name = "SF Zoo",
-               type = "bar"
-              ))
-        
-        labels_race_breakdown <- plot_widget
+        labels_race_breakdown <- shape_census@data$racial_dist_html
         
         make_base_map() %>%
-          add_demographic_map(pal_all_races, "majority_race", labels_race_breakdown) %>%
+          add_demographic_map(pal_all_races, "majority_race", ~labels_race_breakdown) %>%
           add_program_markers(neighborhood_data1, lat, long)
       }
       
