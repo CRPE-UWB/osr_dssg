@@ -76,31 +76,46 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                             fluidPage(sidebarLayout(
                               
                               sidebarPanel(
-                                selectInput("neighborhoods_other", 
-                                            "Select the neighborhood from the dataset", 
-                                            choices = c("No neighborhood selected", neighborhoods_other)
-                                            ),
-                                br(),
-                                checkboxGroupInput("program_other", "Select the type of the program", 
-                                                   choices = c("Parks", "Playgrounds", "Rec Centers", "Libraries", 
+                                checkboxGroupInput("program_other", 
+                                                   "Select one or more resource types:", 
+                                                   choices = c("Parks", "Playgrounds", 
+                                                               "Rec Centers", "Libraries", 
                                                                "Museums", "Fields"), 
-                                                   selected = "Parks"
+                                                   selected = "Parks", 
+                                                   inline = TRUE
                                                    ),
                                 br(),
-                                radioButtons("demographics_other", "Select the demographics variable", 
-                                             choices = c("Median household income ($)",
-                                                         "High school degree or equivalent(%)",
-                                                         "Hispanic population (%)", 
-                                                         "Non native English speakers (%)"), 
-                                             selected = character(0)
+                                radioButtons("demographics_other", 
+                                             "Select a demographics variable to visualize:", 
+                                             choiceNames = list("Median household income ($)", 
+                                                                "High school degree or equivalent (%)",
+                                                                HTML("Language other than English spoken (%)<br><br>
+                                                              <i>Race/Ethnicity Variables</i>"),
+                                                                "Hispanic population (%)", 
+                                                                "Black population (%)",
+                                                                "White population (%)"
                                              ),
+                                             choiceValues = list("Median household income ($)", 
+                                                                 "High school degree or equivalent (%)",
+                                                                 "Non-English speakers (%)",
+                                                                 "Hispanic population (%)", 
+                                                                 "Black population (%)",
+                                                                 "White population (%)"
+                                             ),
+                                             selected = character(0)
+                                ),
+                                br(),
+                                selectInput("neighborhoods_other", 
+                                            "Restrict to one neighborhood:", 
+                                            choices = c("No neighborhood selected", neighborhoods_other)
+                                ),
                                 br()
                               ),
                               
                               mainPanel(
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
-                                                     leafletOutput("mymap_other", height = 650)),
+                                                     leafletOutput("mymap_other", height = 520)),
                                             tabPanel("Data",
                                                      DT::dataTableOutput("datatable_other")),
                                             tabPanel("Summary analysis")
