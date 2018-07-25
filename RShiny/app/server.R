@@ -482,7 +482,7 @@ shinyServer(
                             style = "bootstrap"
                             ) %>%
               formatStyle(colnames(parks_data()[, c(3,4,5,6,7,8,11)]),
-                          backgroundColor = 'light blue'
+                          backgroundColor = 'lightblue'
                           )
             return(dat)    
           })}
