@@ -7,6 +7,10 @@ library(shiny)
 library(DT)
 library(leaflet)
 library(sp)
+library(leaflet.minicharts)
+library(mapview)
+
+# source('~/Desktop/dssg2018/GITHUB_osr_dssg2018/RShiny/source_file.R')
 
 shinyServer(
   
@@ -47,13 +51,33 @@ shinyServer(
       return(a) 
     })
     
+    
+    
+ 
+    
+    
     # Output the relevant data in the data tab based on the selections
     output$datatable <- DT::renderDataTable({
       data_table1 <- neighborhood_data()
       DT::datatable(data_table1[,-c(5,6,7)], 
-                    options = list(lengthMenu = c(5, 30, 50), 
-                                   pageLength = 5)
-                    )
+                    options = list(pageLength = 3, 
+                                   initComplete = JS(
+                                     "function(settings, json) {",
+                                     "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+                                     "}")),
+                    caption = htmltools::tags$caption(
+                      style = 'caption-side: top; text-align: center; color: black ;',
+                      htmltools::h3("ReSchool Programs")
+                    ), 
+                    style = "bootstrap",
+                    class = 'cell-border stripe',
+                    rownames = FALSE
+                    
+      ) %>%
+        formatStyle(colnames(data_table1[,-c(5,6,7)]),
+                    backgroundColor = 'lightblue'
+        )
+                    
     })
 
     ####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
@@ -142,9 +166,9 @@ shinyServer(
     
       # Construct pop-ups for when you click on a program marker
       marker_popup_text <- sprintf(
-        "<b>%s</b><br/> 
-         %s <br/> 
-         <i>%s</i><br/>
+        "<b>Program: %s</b><br/> 
+         Organization: %s <br/> 
+         <i>Description: %s</i><br/>
          $%i per session<br/>
          Starts: %s, Ends: %s <br/>  
          Special needs = %s,  
@@ -169,15 +193,19 @@ shinyServer(
                            weight = 1,
                            fillColor = "yellow",
                            fillOpacity = 0.5,
-                           popup = marker_popup_text
+                           label = marker_popup_text,
+                           labelOptions = labelOptions(
+                             style = list("font-weight" = "normal", padding = "3px 8px"),
+                             textsize = "12px",
+                             direction = "auto"
+                           )
                            # clusterOptions = markerClusterOptions(spiderfyOnMaxZoom = TRUE)
           ) %>%
           addLegend(
             position = "bottomright",
             colors = c("yellow"),
             opacity = 0.5,
-            
-            labels = "summer program"
+            labels = "program"
           )
       }
       
@@ -333,7 +361,12 @@ shinyServer(
                           weight = 1,
                           fillColor = color_code,
                           fillOpacity = 0.5,
-                          popup = popup_html
+                          label = popup_html,
+                          labelOptions = labelOptions(
+                            style = list("font-weight" = "normal", padding = "3px 8px"),
+                            textsize = "12px",
+                            direction = "auto"
+                          )
                           )  %>%
             addLegend(
               position = "bottomright",
@@ -349,9 +382,14 @@ shinyServer(
           if(col == "Parks"){
             parks_popup <- sprintf(
                 "<b>%s</b><br/>
-                %3f sq ft<br/>",
+                Nature: %s, 
+                Garden: %s, <br/>
+                Biking: %s",
                 parks_data1$name,
-                parks_data1$sqft
+                # parks_data1$sqft
+                parks_data1$has_nature,
+                parks_data1$has_garden,
+                parks_data1$has_biking
               ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
@@ -359,29 +397,181 @@ shinyServer(
           }
          
           if(col == "Libraries"){
-            open_resource_map <- open_resource_map %>% add_circle_markers(libraries_data1, col, "blue")
+            libraries_popup <- sprintf(
+              "<b>%s Library</b>",
+              libraries_data1$name
+            ) %>% lapply(htmltools::HTML)
+            
+            open_resource_map <- open_resource_map %>% 
+              add_circle_markers(libraries_data1, col, "blue", libraries_popup)
           }
           
           if(col == "Rec Centers"){
-            open_resource_map <- open_resource_map %>% add_circle_markers(rec_centers_data1, col, "orange")
+            rec_centers_popup <- sprintf(
+              "<b>%s</b><br/>
+               Cardio: %s <br/>
+               Weights: %s <br/>
+               Gym: %s <br/>
+               Arts and Culture: %s <br/>
+               Day Camps: %s <br/>
+               Education Programs: %s <br/>
+               Fitness and Health: %s <br/>
+               Senior Programs: %s <br/>
+               Social Enrich Clubs: %s <br/>
+               Special Events: %s <br/>
+               Sports: %s <br/>
+               Aquatics: %s <br/>
+              ",
+              rec_centers_data1$name,
+              rec_centers_data1$has_cardio,
+              rec_centers_data1$has_weights,
+              rec_centers_data1$has_gym,
+              rec_centers_data1$has_arts_culture,
+              rec_centers_data1$has_day_camps,
+              rec_centers_data1$has_educ_programs,
+              rec_centers_data1$has_fitness_health_programs,
+              rec_centers_data1$has_senior_programs,
+              rec_centers_data1$has_social_enrich_clubs,
+              rec_centers_data1$has_special_events,
+              rec_centers_data1$has_sports,
+              rec_centers_data1$has_aquatics
+            ) %>% lapply(htmltools::HTML)
+            
+            open_resource_map <- open_resource_map %>% 
+              add_circle_markers(rec_centers_data1, col, "orange", rec_centers_popup)
           }
           
           if(col == "Playgrounds"){
-            open_resource_map <- open_resource_map %>% add_circle_markers(playgrounds_data1, col, "red")
+            playgrounds_popup <- sprintf(
+              "<b>%s Playground</b>",
+              playgrounds_data1$location
+            ) %>% lapply(htmltools::HTML)
+            
+            open_resource_map <- open_resource_map %>% 
+              add_circle_markers(playgrounds_data1, col, "red", playgrounds_popup)
           }
           
           if(col == "Museums"){
-            open_resource_map <- open_resource_map %>% add_circle_markers(museums_data1, col, "purple")
+            museums_popup <- sprintf(
+              "<b>%s</b>",
+              museums_data1$name
+            ) %>% lapply(htmltools::HTML)
+            
+            open_resource_map <- open_resource_map %>% 
+              add_circle_markers(museums_data1, col, "purple", museums_popup)
           }
           
           if(col == "Fields"){
-            open_resource_map <- open_resource_map %>% add_circle_markers(fields_data1, col, "yellow")
+            fields_popup <- sprintf(
+              "<b>%s Field</b><br/>
+              %s",
+              fields_data1$sport,
+              fields_data1$location
+            ) %>% lapply(htmltools::HTML)
+            
+            open_resource_map <- open_resource_map %>% add_circle_markers(fields_data1, col, "yellow", fields_popup)
           }
 
         }
         
         return(open_resource_map)
 
+      })
+    
+    # Make the data tables for the Other Resources Data Tab
+    output$dt <- renderUI({
+      lapply(as.list(seq_len(length(as.list(colm_other())))), function(i) {
+        id <- paste0("dt", i)
+        DT::dataTableOutput(id)
+      })
+    })
+    
+    
+    #Function to get datatables for eaxh resources. Has a bunch of aesthetics
+    data_table_function = function(checkbox_input, data, column_names){
+      
+      datatable(data,
+                options = list(pageLength = 3, 
+                               initComplete = JS(
+                                 "function(settings, json) {",
+                                 "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+                                 "}")),
+                caption = htmltools::tags$caption(
+                  style = 'caption-side: top; text-align: center; color: black ;',
+                  htmltools::h3(checkbox_input)
+                ), 
+                style = "bootstrap",
+                class = 'cell-border stripe',
+                rownames = FALSE,
+                colnames = column_names
+      ) %>%
+        formatStyle(colnames(data),
+                    backgroundColor = 'lightblue'
+        )
+    }
+    
+    observe(
+      for (i in seq_len(length(colm_other()))) {
+        id <- paste0("dt", i)
+        
+        if(colm_other()[i] == "Parks"){
+          output[[id]] <- DT::renderDataTable({
+            dat <- data_table_function("Parks", parks_data()[, c(3,4,5,6,7,8,11)],
+                                       c("Park name", "Class", "Has nature", "Has garden", "Has biking", "Sqft", "Nbhd name"))
+              
+              
+            return(dat)    
+          })}
+        else if(colm_other()[i] == "Libraries"){
+          output[[id]] <- DT::renderDataTable({
+            dat <- data_table_function("Libraries", libraries_data()[, c(3,4,5,6,9)],
+                                       c("Library name", "Patron Count", "Circulation Vol", "Sqft", "Nbhd name"))
+            
+            
+            return(dat)    
+          })
+        }
+       
+        else if(colm_other()[i] == "Rec Centers"){
+          output[[id]] <- DT::renderDataTable({
+            dat <- data_table_function("Rec Centers", rec_centers_data()[, c(3,4,9:20, 23)],
+                                       c("Rec Center name", "Type", "Has cardio", "Has weights","Has gym",
+                                         "Has arts culture","Has day camps", "Has educ programs", "Has fitness health programs",
+                                         "Has senior programs","Has social enrich clubs", "Has special events",
+                                         "Has sports","Has aquatics", "Nbhd name"))
+            
+            
+            return(dat)    
+          })
+        }
+        else if(colm_other()[i] == "Museums"){
+          output[[id]] <- DT::renderDataTable({
+            dat <- data_table_function("Museums", museums_data()[, c(3,4,7)],
+                                       c("Museum name", "Address", "Nbhd name"))
+            
+            
+            return(dat)    
+          })
+        }
+        else if(colm_other()[i] == "Fields"){
+          output[[id]] <- DT::renderDataTable({
+            dat <- data_table_function("Fields", fields_data()[, c(3,4,5,6,7, 10)],
+                                       c("Sport", "Location", "Tier", "Class", "Sqft", "Nbhd name"))
+            
+            
+            return(dat)    
+          })
+        }
+        else if(colm_other()[i] == "Playgrounds"){
+          output[[id]] <-DT::renderDataTable({
+            dat <- data_table_function("Playgrounds", playgrounds_data()[, c(3,4,5,6,9)],
+                                       c("Location", "Year rehabilitated", "Class", "Sqft", "Nbhd name"))
+            
+            
+            return(dat)    
+          })
+        }
+        
       })
 
     

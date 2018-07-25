@@ -1,6 +1,7 @@
 # User Interface for Shiny App
 
 library(shiny)
+library(leaflet)
 
 shinyUI(navbarPage("Denver Out-of-School Resources",
                    
@@ -117,7 +118,7 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                             tabPanel("Map",
                                                      leafletOutput("mymap_other", height = 520)),
                                             tabPanel("Data",
-                                                     DT::dataTableOutput("datatable_other")),
+                                                     uiOutput("dt")),
                                             tabPanel("Summary analysis")
                                 )
                               )
