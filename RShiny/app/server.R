@@ -142,9 +142,9 @@ shinyServer(
     
       # Construct pop-ups for when you click on a program marker
       marker_popup_text <- sprintf(
-        "<b>%s</b><br/> 
-         %s <br/> 
-         <i>%s</i><br/>
+        "<b>Program: %s</b><br/> 
+         Organization: %s <br/> 
+         <i>Description: %s</i><br/>
          $%i per session<br/>
          Starts: %s, Ends: %s <br/>  
          Special needs = %s,  
@@ -169,15 +169,19 @@ shinyServer(
                            weight = 1,
                            fillColor = "yellow",
                            fillOpacity = 0.5,
-                           popup = marker_popup_text
+                           label = marker_popup_text,
+                           labelOptions = labelOptions(
+                             style = list("font-weight" = "normal", padding = "3px 8px"),
+                             textsize = "12px",
+                             direction = "auto"
+                           )
                            # clusterOptions = markerClusterOptions(spiderfyOnMaxZoom = TRUE)
           ) %>%
           addLegend(
             position = "bottomright",
             colors = c("yellow"),
             opacity = 0.5,
-            
-            labels = "summer program"
+            labels = "program"
           )
       }
       
@@ -333,7 +337,12 @@ shinyServer(
                           weight = 1,
                           fillColor = color_code,
                           fillOpacity = 0.5,
-                          popup = popup_html
+                          label = popup_html,
+                          labelOptions = labelOptions(
+                            style = list("font-weight" = "normal", padding = "3px 8px"),
+                            textsize = "12px",
+                            direction = "auto"
+                          )
                           )  %>%
             addLegend(
               position = "bottomright",
@@ -349,9 +358,14 @@ shinyServer(
           if(col == "Parks"){
             parks_popup <- sprintf(
                 "<b>%s</b><br/>
-                %3f sq ft<br/>",
+                Nature: %s, 
+                Garden: %s, <br/>
+                Biking: %s",
                 parks_data1$name,
-                parks_data1$sqft
+                # parks_data1$sqft
+                parks_data1$has_nature,
+                parks_data1$has_garden,
+                parks_data1$has_biking
               ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
@@ -359,23 +373,79 @@ shinyServer(
           }
          
           if(col == "Libraries"){
-            open_resource_map <- open_resource_map %>% add_circle_markers(libraries_data1, col, "blue")
+            libraries_popup <- sprintf(
+              "<b>%s Library</b>",
+              libraries_data1$name
+            ) %>% lapply(htmltools::HTML)
+            
+            open_resource_map <- open_resource_map %>% 
+              add_circle_markers(libraries_data1, col, "blue", libraries_popup)
           }
           
           if(col == "Rec Centers"){
-            open_resource_map <- open_resource_map %>% add_circle_markers(rec_centers_data1, col, "orange")
+            rec_centers_popup <- sprintf(
+              "<b>%s</b><br/>
+               Cardio: %s <br/>
+               Weights: %s <br/>
+               Gym: %s <br/>
+               Arts and Culture: %s <br/>
+               Day Camps: %s <br/>
+               Education Programs: %s <br/>
+               Fitness and Health: %s <br/>
+               Senior Programs: %s <br/>
+               Social Enrich Clubs: %s <br/>
+               Special Events: %s <br/>
+               Sports: %s <br/>
+               Aquatics: %s <br/>
+              ",
+              rec_centers_data1$name,
+              rec_centers_data1$has_cardio,
+              rec_centers_data1$has_weights,
+              rec_centers_data1$has_gym,
+              rec_centers_data1$has_arts_culture,
+              rec_centers_data1$has_day_camps,
+              rec_centers_data1$has_educ_programs,
+              rec_centers_data1$has_fitness_health_programs,
+              rec_centers_data1$has_senior_programs,
+              rec_centers_data1$has_social_enrich_clubs,
+              rec_centers_data1$has_special_events,
+              rec_centers_data1$has_sports,
+              rec_centers_data1$has_aquatics
+            ) %>% lapply(htmltools::HTML)
+            
+            open_resource_map <- open_resource_map %>% 
+              add_circle_markers(rec_centers_data1, col, "orange", rec_centers_popup)
           }
           
           if(col == "Playgrounds"){
-            open_resource_map <- open_resource_map %>% add_circle_markers(playgrounds_data1, col, "red")
+            playgrounds_popup <- sprintf(
+              "<b>%s Playground</b>",
+              playgrounds_data1$location
+            ) %>% lapply(htmltools::HTML)
+            
+            open_resource_map <- open_resource_map %>% 
+              add_circle_markers(playgrounds_data1, col, "red", playgrounds_popup)
           }
           
           if(col == "Museums"){
-            open_resource_map <- open_resource_map %>% add_circle_markers(museums_data1, col, "purple")
+            museums_popup <- sprintf(
+              "<b>%s</b>",
+              museums_data1$name
+            ) %>% lapply(htmltools::HTML)
+            
+            open_resource_map <- open_resource_map %>% 
+              add_circle_markers(museums_data1, col, "purple", museums_popup)
           }
           
           if(col == "Fields"){
-            open_resource_map <- open_resource_map %>% add_circle_markers(fields_data1, col, "yellow")
+            fields_popup <- sprintf(
+              "<b>%s Field</b><br/>
+              %s",
+              fields_data1$sport,
+              fields_data1$location
+            ) %>% lapply(htmltools::HTML)
+            
+            open_resource_map <- open_resource_map %>% add_circle_markers(fields_data1, col, "yellow", fields_popup)
           }
 
         }
