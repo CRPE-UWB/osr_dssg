@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 #Intro
-This notebook takes the block group distances, adds in additional data needed to calculate the Access Index, and then as of 07/20/18, shows our loops for running the equation on the access index for **overall** programs. **HOWEVER** the plots at the end make use of the aggregated dataframes used to merge into the block_distance data-frame, so use your judgement. Maybe see the block_group_distances notebook to get those aggregations. Or don't, I don't care, we're going to change this in the next day or two. 
+This markdown is an initia proof of concept for the Access Indedx **this code is out of date, but useful for now as a reference.** Now that we have functionalized this code, there is a far more flexible and efficient way to calcualte this information in the "Access_Index_Functions" markdown (name as of July 25th). 
 
 ###Gravity Access index loop
 Here we write a loop to calculate an access index score per each unique address, rescale the results per address, store each unique address result in a data frame in the style of block distances, and store the average access index in a summary dataframe **at the block group level**. This loop uses the "gravity" model, where k = 1.5. 
