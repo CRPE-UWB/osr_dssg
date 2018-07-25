@@ -1,13 +1,10 @@
 #########################Connecting to the sql database#####################################################
-require("RPostgreSQL")
-library(shiny)
 library(dplyr)
-library(leaflet)
 library(rgdal)
 library(tigris)
 library(rgeos)
-library(leaflet.minicharts)
-library(mapview)
+require("RPostgreSQL")
+library(RColorBrewer)
 
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
@@ -36,15 +33,15 @@ reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
 
 #######################Getting the shape file to plot the bock groups on the map##############################
-shape_census <- readOGR(dsn = "/Users/kelliemacphee/Desktop/dssg2018/GITHUB_osr_dssg2018/data/nbhd_dem_shapes", 
+# shape_census <- readOGR(dsn = "C:/Users/Sreekanth/Desktop/osr_dssg2018-1/data/nbhd_dem_shapes", 
+#                         layer = "nbhd_dem_shapes")
+shape_census <- readOGR(dsn = "/Users/kelliemacphee/Desktop/dssg2018/GITHUB_osr_dssg2018/data/nbhd_dem_shapes",
                         layer = "nbhd_dem_shapes")
-# shape_census <- readOGR(dsn = "C:/Users/Sreekanth/Desktop/DSSG Project/census_nbhd_dem_shapes", 
-#                        layer = "nbhd_dem_shapes")
 
-#Joining the 'number of sessions' information with the census shape file
+# Joining the 'number of sessions' information with the census shape file
 shape_census <- geo_join(shape_census, aggregate_session_nbhds, "NBHD_NA", "nbhd_name", how = "left")
 
-#Joining the aggregate dps students information to the census shape file
+# Joining the aggregate dps students information to the census shape file
 shape_census <- geo_join(shape_census, aggregate_dps_student_nbhds, "NBHD_NA", "nbhd_name", how = "left")
 
 
@@ -60,12 +57,66 @@ neighborhoods_other = unique(all_neighbourhoods$nbhd_name)
 #Defining variables for choosing demographic information
 demographic_filters = c("Median Income", "Percent below poverty level")
 
-######### Tried distribution of different races###################
-# centers <- data.frame(gCentroid(shape_census, byid = TRUE))
-# shape_census@data = cbind(shape_census@data, centers)
-# shape_census@data$xxx = 75
-# shape_census@data$yyy = 25
-# head(shape_census@data)
+# Creating majority race variables for each neighborhood
+shape_census@data$majority_race <- max.col(as.matrix(
+          shape_census@data[ ,c("PCT_HIS", "PCT_WHI", "PCT_BLA","PCT_NAT","PCT_ASI")]
+                     ))
+shape_census@data$majority_race <- gsub(1, "Hispanic", shape_census@data$majority_race)
+shape_census@data$majority_race <- gsub(2, "White", shape_census@data$majority_race)
+shape_census@data$majority_race <- gsub(3, "Black", shape_census@data$majority_race)
+shape_census@data$majority_race <- gsub(4, "Native", shape_census@data$majority_race)
+shape_census@data$majority_race <- gsub(5, "Asian", shape_census@data$majority_race)
+
+# Adding a custom html label for the racial distributions
+shape_census@data$racial_dist_html <- mapply(
+  
+  # Inputs: 
+  # neighborhood name (string),
+  # percents of different races (numerics),
+  # color palette generated from brewer.pal()
+  function(nbhd, pct_hisp, pct_white, pct_black, pct_native, pct_asian){
+    
+    pal <- brewer.pal(4, "Set2")  # color palette - match to the server.R code
+    color1 <- pal[1]
+    color2 <- pal[2]
+    color3 <- pal[3]
+    color4 <- pal[4]
+    
+    sprintf(
+      "<div style='font-size:12px;width:150px;float:left'>
+            <span style='font-size:16 px;font-weight:bold'>%s</span><br/>
+            <div style='width:80%%'>
+              <span style='background:%s;width:%s%%;position:absolute;left:0'>&nbsp;</span>
+              <span style='background:%s;width:%s%%;position:absolute;left:%s%%'>&nbsp;</span>
+              <span style='background:%s;width:%s%%;position:absolute;left:%s%%'>&nbsp;</span>
+              <span style='background:%s;width:%s%%;position:absolute;left:%s%%'>&nbsp;</span>
+              <br/>
+              <span style='color:%s;float:left'>%.2f%% Black</span><br/>
+              <span style='color:%s;float:left'>%.2f%% Hispanic</span><br/>
+              <span style='color:%s;float:left'>%.2f%% White</span><br/>
+              <span style='color:%s;float:left'>%.2f%% Other</span><br clear='all'/>
+            </div>
+        </div>",
+      nbhd,
+      color1, pct_black, 
+      color2, pct_hisp, pct_black,
+      color3, pct_white, pct_hisp + pct_black,
+      color4, 100 - (pct_white + pct_hisp + pct_black), pct_white + pct_hisp + pct_black,
+      color1, pct_black, 
+      color2, pct_hisp, 
+      color3, pct_white, 
+      color4, 100 - (pct_white + pct_hisp + pct_black)
+    ) %>% lapply(htmltools::HTML)
+  },
+  
+  shape_census@data$NBHD_NA,
+  shape_census@data$PCT_HIS,
+  shape_census@data$PCT_WHI,
+  shape_census@data$PCT_BLA,
+  shape_census@data$PCT_NAT,
+  shape_census@data$PCT_ASI
+  
+)
 
 # when you're done, close the connection and unload the driver 
 dbDisconnect(con) 

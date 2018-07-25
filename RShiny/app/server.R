@@ -7,6 +7,8 @@ library(shiny)
 library(DT)
 library(leaflet)
 library(sp)
+library(leaflet.minicharts)
+library(mapview)
 
 shinyServer(
   
@@ -47,13 +49,33 @@ shinyServer(
       return(a) 
     })
     
+    
+    
+ 
+    
+    
     # Output the relevant data in the data tab based on the selections
     output$datatable <- DT::renderDataTable({
       data_table1 <- neighborhood_data()
       DT::datatable(data_table1[,-c(5,6,7)], 
-                    options = list(lengthMenu = c(5, 30, 50), 
-                                   pageLength = 5)
-                    )
+                    options = list(pageLength = 3, 
+                                   initComplete = JS(
+                                     "function(settings, json) {",
+                                     "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+                                     "}")),
+                    caption = htmltools::tags$caption(
+                      style = 'caption-side: top; text-align: center; color: black ;',
+                      htmltools::h3("ReSchool Programs")
+                    ), 
+                    style = "bootstrap",
+                    class = 'cell-border stripe',
+                    rownames = FALSE
+                    
+      ) %>%
+        formatStyle(colnames(data_table1[,-c(5,6,7)]),
+                    backgroundColor = 'lightblue'
+        )
+                    
     })
 
     ####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
@@ -66,8 +88,8 @@ shinyServer(
         addProviderTiles(providers$CartoDB.Positron)
     }
     
-    # Construct demographic labels for hovering on the neighborhoods
-    labels <- sprintf(
+    # Construct demographic nbhd_labels for hovering on the neighborhoods
+    nbhd_labels <- sprintf(
       "<b>%s</b><br/>
       No. program sessions = %i <br/>
       No. children 5-17 yrs old = %i <br/> 
@@ -95,17 +117,20 @@ shinyServer(
     pal_black <- colorBin("Blues", domain = shape_census@data$PCT_BLA, bins = 5)
     pal_white <- colorBin("Purples", domain = shape_census@data$PCT_WHI, bins = 5)
     
+    pal_all_races <- colorFactor("Set2", domain = shape_census@data$majority_race)
+    
     # Legend titles for demographic maps
     legendTitles <- list(MED_HH_ = "Median HH Income ($)",
                          PCT_HS_ = "HS Degree <br> Or Equiv. (%)",
                          PCT_HIS = "% Hispanic",
                          PCT_BLA = "% Black",
                          PCT_WHI = "% White",
-                         PCT_NON = "Lang. Besides <br>English (%)"
+                         PCT_NON = "Lang. Besides <br>English (%)",
+                         majority_race = "Most Common<br>Race/Ethnicity"
     )
     
     # Function to add the demographic info to the map
-    add_demographic_map <- function(map, pal_type, column_name){
+    add_demographic_map <- function(map, pal_type, column_name, label_type){
       addPolygons(map, data = shape_census,
                   fillColor = ~pal_type(shape_census@data[,column_name]),
                   weight = 2,
@@ -118,7 +143,7 @@ shinyServer(
                     color = "#666",
                     bringToFront = FALSE
                   ),
-                  label = labels,
+                  label = label_type,
                   labelOptions = labelOptions(
                     style = list("font-weight" = "normal", padding = "3px 8px"),
                     textsize = "12px",
@@ -188,7 +213,7 @@ shinyServer(
       # Function to draw the base map + demographics + program markers
       make_reschool_map <- function(palette, col_name) {
         make_base_map() %>%
-          add_demographic_map(palette,col_name) %>%
+          add_demographic_map(palette,col_name,nbhd_labels) %>%
           add_program_markers(neighborhood_data1, lat, long)
       }
       
@@ -203,7 +228,7 @@ shinyServer(
                       opacity = 1.0,
                       fillColor = "#999",
                       fillOpacity = 0.5,
-                      label = labels,
+                      label = nbhd_labels,
                       labelOptions = labelOptions(
                         style = list("font-weight" = "normal", padding = "3px 8px"),
                         textsize = "12px",
@@ -239,6 +264,13 @@ shinyServer(
       }
       else if(input$demographics == "Non-English speakers (%)") {
         make_reschool_map(pal_language, "PCT_NON")
+      }
+      else if(input$demographics == "All races") {
+        labels_race_breakdown <- shape_census@data$racial_dist_html
+        
+        make_base_map() %>%
+          add_demographic_map(pal_all_races, "majority_race", ~labels_race_breakdown) %>%
+          add_program_markers(neighborhood_data1, lat, long)
       }
       
     })
@@ -295,7 +327,7 @@ shinyServer(
                         opacity = 1.0,
                         fillColor = "#999",
                         fillOpacity = 0.5,
-                        label = labels,
+                        label = nbhd_labels,
                         labelOptions = labelOptions(
                           style = list("font-weight" = "normal", padding = "3px 8px"),
                           textsize = "12px",
@@ -452,6 +484,102 @@ shinyServer(
         
         return(open_resource_map)
 
+      })
+    
+    # Make the data tables for the Other Resources Data Tab
+    output$dt <- renderUI({
+      lapply(as.list(seq_len(length(as.list(colm_other())))), function(i) {
+        id <- paste0("dt", i)
+        DT::dataTableOutput(id)
+      })
+    })
+    
+    
+    #Function to get datatables for eaxh resources. Has a bunch of aesthetics
+    data_table_function = function(checkbox_input, data, column_names){
+      
+      datatable(data,
+                options = list(pageLength = 3, 
+                               initComplete = JS(
+                                 "function(settings, json) {",
+                                 "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+                                 "}")),
+                caption = htmltools::tags$caption(
+                  style = 'caption-side: top; text-align: center; color: black ;',
+                  htmltools::h3(checkbox_input)
+                ), 
+                style = "bootstrap",
+                class = 'cell-border stripe',
+                rownames = FALSE,
+                colnames = column_names
+      ) %>%
+        formatStyle(colnames(data),
+                    backgroundColor = 'lightblue'
+        )
+    }
+    
+    observe(
+      for (i in seq_len(length(colm_other()))) {
+        id <- paste0("dt", i)
+        
+        if(colm_other()[i] == "Parks"){
+          output[[id]] <- DT::renderDataTable({
+            dat <- data_table_function("Parks", parks_data()[, c(3,4,5,6,7,8,11)],
+                                       c("Park name", "Class", "Has nature", "Has garden", "Has biking", "Sqft", "Nbhd name"))
+              
+              
+            return(dat)    
+          })}
+        else if(colm_other()[i] == "Libraries"){
+          output[[id]] <- DT::renderDataTable({
+            dat <- data_table_function("Libraries", libraries_data()[, c(3,4,5,6,9)],
+                                       c("Library name", "Patron Count", "Circulation Vol", "Sqft", "Nbhd name"))
+            
+            
+            return(dat)    
+          })
+        }
+       
+        else if(colm_other()[i] == "Rec Centers"){
+          output[[id]] <- DT::renderDataTable({
+            dat <- data_table_function("Rec Centers", rec_centers_data()[, c(3,4,9:20, 23)],
+                                       c("Rec Center name", "Type", "Has cardio", "Has weights","Has gym",
+                                         "Has arts culture","Has day camps", "Has educ programs", "Has fitness health programs",
+                                         "Has senior programs","Has social enrich clubs", "Has special events",
+                                         "Has sports","Has aquatics", "Nbhd name"))
+            
+            
+            return(dat)    
+          })
+        }
+        else if(colm_other()[i] == "Museums"){
+          output[[id]] <- DT::renderDataTable({
+            dat <- data_table_function("Museums", museums_data()[, c(3,4,7)],
+                                       c("Museum name", "Address", "Nbhd name"))
+            
+            
+            return(dat)    
+          })
+        }
+        else if(colm_other()[i] == "Fields"){
+          output[[id]] <- DT::renderDataTable({
+            dat <- data_table_function("Fields", fields_data()[, c(3,4,5,6,7, 10)],
+                                       c("Sport", "Location", "Tier", "Class", "Sqft", "Nbhd name"))
+            
+            
+            return(dat)    
+          })
+        }
+        else if(colm_other()[i] == "Playgrounds"){
+          output[[id]] <-DT::renderDataTable({
+            dat <- data_table_function("Playgrounds", playgrounds_data()[, c(3,4,5,6,9)],
+                                       c("Location", "Year rehabilitated", "Class", "Sqft", "Nbhd name"))
+            
+            
+            return(dat)    
+          })
+        }
+        
       })
 
     

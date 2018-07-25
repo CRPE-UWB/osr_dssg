@@ -1,6 +1,7 @@
 # User Interface for Shiny App
 
 library(shiny)
+library(leaflet)
 
 shinyUI(navbarPage("Denver Out-of-School Resources",
                    
@@ -36,14 +37,16 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                                               <i>Race/Ethnicity Variables</i>"),
                                                          "Hispanic population (%)", 
                                                          "Black population (%)",
-                                                         "White population (%)"
+                                                         "White population (%)",
+                                                         "Majority + breakdown"
                                                          ),
                                              choiceValues = list("Median household income ($)", 
                                                          "High school degree or equivalent (%)",
                                                          "Non-English speakers (%)",
                                                          "Hispanic population (%)", 
                                                          "Black population (%)",
-                                                         "White population (%)"
+                                                         "White population (%)",
+                                                         "All races"
                                              ),
                                              selected = character(0)
                                              ),
@@ -93,14 +96,16 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                                               <i>Race/Ethnicity Variables</i>"),
                                                                 "Hispanic population (%)", 
                                                                 "Black population (%)",
-                                                                "White population (%)"
+                                                                "White population (%)",
+                                                                "Majority + breakdown"
                                              ),
                                              choiceValues = list("Median household income ($)", 
                                                                  "High school degree or equivalent (%)",
                                                                  "Non-English speakers (%)",
                                                                  "Hispanic population (%)", 
                                                                  "Black population (%)",
-                                                                 "White population (%)"
+                                                                 "White population (%)",
+                                                                 "All races"
                                              ),
                                              selected = character(0)
                                 ),
@@ -117,7 +122,7 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                             tabPanel("Map",
                                                      leafletOutput("mymap_other", height = 520)),
                                             tabPanel("Data",
-                                                     DT::dataTableOutput("datatable_other")),
+                                                     uiOutput("dt")),
                                             tabPanel("Summary analysis")
                                 )
                               )
