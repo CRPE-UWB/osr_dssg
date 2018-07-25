@@ -15,8 +15,8 @@ require("RColorBrewer")
 ```
 
 ```{r}
-setwd(mypath)
 mypath <- dirname(rstudioapi::getActiveDocumentContext()$path)
+setwd(mypath)
 
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
