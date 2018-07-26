@@ -7,10 +7,8 @@ library(dplyr)
 library(rgdal)
 library(tigris)
 library(rgeos)
-require("RPostgreSQL")
+library(RPostgreSQL)
 library(RColorBrewer)
-
-
 
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
