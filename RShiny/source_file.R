@@ -17,7 +17,7 @@ drv <- dbDriver("PostgreSQL")
 
 # load credentials for the connection: dbname, host, port, user, password
 # looks for cred.txt in parent dir to cloned github repo
-source('../../cred.txt')
+source('cred.txt')
 
 # creates a connection to the postgres database
 # note that "con" will be used later in each connection to the database
@@ -36,6 +36,8 @@ playgrounds = dbGetQuery(con, "SELECT * from shiny.playgrounds")
 rec_centers = dbGetQuery(con, "SELECT * from shiny.rec_centers")
 parks = dbGetQuery(con, "SELECT * from shiny.parks")
 all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
+google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
+
 
 #######################Getting the shape file to plot the bock groups on the map##############################
 
