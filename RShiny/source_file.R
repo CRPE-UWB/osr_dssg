@@ -1,3 +1,7 @@
+# Source file to generate data for plotting in RShiny app.
+#
+# Note: all file paths are relative to LOCATION OF THIS FILE
+#
 #########################Connecting to the sql database#####################################################
 library(dplyr)
 library(rgdal)
@@ -6,16 +10,13 @@ library(rgeos)
 require("RPostgreSQL")
 library(RColorBrewer)
 
-# SET WORKING DIRECTORY SO THAT FILE PATHS CAN BE RELATIVE
-# for "Run" or "Source" in RStudio:
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
 
 # load credentials for the connection: dbname, host, port, user, password
 # looks for cred.txt in parent dir to cloned github repo
 source('../../cred.txt')
+# source('/Users/kelliemacphee/Desktop/dssg2018/cred.txt')
 
 # creates a connection to the postgres database
 # note that "con" will be used later in each connection to the database
@@ -39,9 +40,8 @@ all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
 #######################Getting the shape file to plot the bock groups on the map##############################
 # shape_census <- readOGR(dsn = "C:/Users/Sreekanth/Desktop/osr_dssg2018-1/data/nbhd_dem_shapes", 
 #                         layer = "nbhd_dem_shapes")
-# shape_census <- readOGR(dsn = "/Users/kelliemacphee/Desktop/dssg2018/GITHUB_osr_dssg2018/data/nbhd_dem_shapes",
-#                         layer = "nbhd_dem_shapes")
-shape_census <- readOGR(dsn = "../data/nbhd_dem_shapes", layer = "nbhd_dem_shapes")
+shape_census <- readOGR(dsn = "/Users/kelliemacphee/Desktop/dssg2018/GITHUB_osr_dssg2018/data/nbhd_dem_shapes",
+                         layer = "nbhd_dem_shapes")
 
 # Joining the 'number of sessions' information with the census shape file
 shape_census <- geo_join(shape_census, aggregate_session_nbhds, "NBHD_NA", "nbhd_name", how = "left")

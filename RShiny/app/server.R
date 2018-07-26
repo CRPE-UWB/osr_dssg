@@ -7,8 +7,8 @@ library(shiny)
 library(DT)
 library(leaflet)
 library(sp)
-library(leaflet.minicharts)
-library(mapview)
+# library(leaflet.minicharts)
+# library(mapview)
 
 shinyServer(
   
@@ -144,7 +144,8 @@ shinyServer(
                   labelOptions = labelOptions(
                     style = list("font-weight" = "normal", padding = "3px 8px"),
                     textsize = "12px",
-                    direction = "auto"
+                    direction = "right",
+                    offset = c(35,0)
                   )
       ) %>% 
         addLegend(pal = pal_type,
@@ -195,7 +196,8 @@ shinyServer(
                            labelOptions = labelOptions(
                              style = list("font-weight" = "normal", padding = "3px 8px"),
                              textsize = "12px",
-                             direction = "auto"
+                             direction = "right",
+                             offset = c(5,0)
                            )
           ) %>%
           addLegend(
@@ -229,7 +231,8 @@ shinyServer(
                         style = list("font-weight" = "normal", 
                                      padding = "3px 8px"),
                         textsize = "12px",
-                        direction = "auto"
+                        direction = "right",
+                        offset = c(35,0),
                       ),
                       highlight = highlightOptions(
                         bringToFront = FALSE,
@@ -331,7 +334,8 @@ shinyServer(
                                        padding = "3px 8px"
                                        ),
                           textsize = "12px",
-                          direction = "auto"
+                          direction = "right",
+                          offset = c(35,0)
                         ),
                         highlight = highlightOptions(
                           bringToFront = FALSE,
@@ -383,7 +387,8 @@ shinyServer(
                           labelOptions = labelOptions(
                             style = list("font-weight" = "normal", padding = "3px 8px"),
                             textsize = "12px",
-                            direction = "auto"
+                            direction = "right",
+                            offset = c(5,0)
                           )
                           )  %>%
             addLegend(
