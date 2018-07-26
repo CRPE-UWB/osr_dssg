@@ -6,12 +6,14 @@ library(rgeos)
 require("RPostgreSQL")
 library(RColorBrewer)
 
+mypath <- "/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project"
+
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
 
 # load credentials for the connection:
 # dbname, host, port, user, password
-source('/Users/kelliemacphee/Desktop/dssg2018/cred.txt')
+source(file.path(mypath,'cred.txt'))
 
 # creates a connection to the postgres database
 # note that "con" will be used later in each connection to the database
@@ -29,13 +31,14 @@ libraries = dbGetQuery(con, "SELECT * from shiny.libraries")
 playgrounds = dbGetQuery(con, "SELECT * from shiny.playgrounds")
 rec_centers = dbGetQuery(con, "SELECT * from shiny.rec_centers")
 parks = dbGetQuery(con, "SELECT * from shiny.parks")
-reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
 
 #######################Getting the shape file to plot the bock groups on the map##############################
 # shape_census <- readOGR(dsn = "C:/Users/Sreekanth/Desktop/osr_dssg2018-1/data/nbhd_dem_shapes", 
 #                         layer = "nbhd_dem_shapes")
-shape_census <- readOGR(dsn = "/Users/kelliemacphee/Desktop/dssg2018/GITHUB_osr_dssg2018/data/nbhd_dem_shapes",
+# shape_census <- readOGR(dsn = "/Users/kelliemacphee/Desktop/dssg2018/GITHUB_osr_dssg2018/data/nbhd_dem_shapes",
+#                        layer = "nbhd_dem_shapes")
+shape_census <- readOGR(dsn = file.path(mypath,"osr_dssg2018","data","nbhd_dem_shapes"),
                         layer = "nbhd_dem_shapes")
 
 # Joining the 'number of sessions' information with the census shape file

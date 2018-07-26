@@ -7,20 +7,33 @@ output: html_document
 
 ```{r}
 library(RPostgreSQL)
+```
+
+```{r}
+mypath <- dirname(rstudioapi::getActiveDocumentContext()$path)
+setwd(mypath)
+
+# make a file called "cred.txt" of the form
+#
+# user: "YOUR_AWS_USERNAME"
+# password: "YOUR_AWS_PASSWORD"
+#
+# in the directory above the osr_dssg2018 folder
+
+source(file.path(dirname(dirname(mypath)),"cred.txt"))
+
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
 
 # creates a connection to the postgres database
 # note that "con" will be used later in each connection to the database
 con <- dbConnect(drv, dbname = "dssg2018uw",
-                 host = "localhost", port = 9000,
+                 host = "localhost", port =9000,
                  user = user, password = password)
 ```
 
-First get the block group distances from the RDS.
-```{r}
-block_distance <- dbGetQuery(con, "select * from clean.block_distance")
-```
+#Intro
+This markdown is an initial proof of concept for the Access Index **this code is out of date, but useful for now as a reference.** Now that we have functionalized this code, there is a far more flexible and efficient way to calcualte this information in the "Access_Index_Functions" markdown (name as of July 25th). 
 
 Read in the shape census file
 ```{r}
@@ -78,7 +91,8 @@ for (i in 1:length(block_list)) {
       print(paste(i,x,"working..."))}
   #block_mover$Access_Index <- rescale(block_mover$Access_Index,to = c(0, 100))
   access_indexices <- rbind(block_mover,access_indexices)
-  summary_index$Access_Index[i] <- mean(block_mover$Access_Index,na.rm=TRUE)})
+  summary_index$Access_Index[i] <- mean(block_mover$Access_Index,na.rm=TRUE)
+}
 ```
 
 ###Plotting the Access Index and number of programs

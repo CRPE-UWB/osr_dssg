@@ -56,7 +56,7 @@ The zip codes we care to save are those in the search data and those in Denver g
 relevant_zip_codes <- spdf[spdf@data$GEOID10 %in% unique_search_locations,]
 # create a shapefile so we don't have to push such a large dataset
 writeOGR(relevant_zip_codes,"../data/zip_codes","zip_codes", driver="ESRI Shapefile")
-onion <- readOGR(dsn="../data/zip_codes")
+relevant_zip_codes <- readOGR(dsn="../data/zip_codes")
 ```
 
 Oddly enough, 3 of the searched zip codes don't exist:
@@ -82,7 +82,7 @@ table(searches_with_locations$location)
 We can look at the included areas with leaflet, weighted by the number of searches in that area:
 
 ```{r}
-search_frequencies <- as.vector(table(searches_with_locations$location))
+search_frequencies <- as.vector(table(searches_with_locations[searches_with_locations$category=="athletic","location"]))
 leaflet() %>% 
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
