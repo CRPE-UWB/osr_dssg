@@ -23,8 +23,8 @@ shinyServer(
     
     # Subsetting the data for the type of the program selected
     program_category_data <- reactive({
-      a <- reschool_summer_program[apply(as.data.frame(reschool_summer_program[,colm()]) == 1, 1, any), 
-                                  c(1,2,3,4,5,6,7,8,9,10,11,12,colm())
+      a <- reschool_summer_program[apply(as.data.frame(reschool_summer_program[,colm()]) == TRUE, 1, any), 
+                                  c(1:12,colm())
                                   ]
       return(a)
     })
