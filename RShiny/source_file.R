@@ -10,7 +10,7 @@ library(rgeos)
 require("RPostgreSQL")
 library(RColorBrewer)
 
-mypath <- "/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project"
+
 
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
