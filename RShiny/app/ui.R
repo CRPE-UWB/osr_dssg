@@ -3,6 +3,9 @@
 library(shiny)
 library(leaflet)
 
+# Source needed data for ui and server
+source('../source_file.R', chdir = TRUE)  # temp change working dir to same as source_file.R
+
 shinyUI(navbarPage("Denver Out-of-School Resources",
                    
                    ## RESCHOOL PROGRAMS TAB
