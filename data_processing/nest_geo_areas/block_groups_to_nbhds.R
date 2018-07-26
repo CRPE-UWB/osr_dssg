@@ -24,7 +24,7 @@ nbhds <- GetOpenData('statistical_neighborhoods')
 blockGroupCentroids <- gCentroid(blockGroups, byid=TRUE)
 
 # If any centroids are outside of their block group, replace by 
-# a random point inside block group
+# a random point inside block group (e.g. if the block group is L-shaped)
 test <- gIntersects(blockGroupCentroids, blockGroups, byid = TRUE)
 badCentroids <- which(colSums(test)!=1)
 altCentroids <- gPointOnSurface(blockGroups, byid = TRUE)

@@ -23,10 +23,15 @@ library(tidyverse)
 library(gridExtra)
 ```
 
-Now we set up to retrieve the data from AWS. 
+Now we set up to retrieve the data from AWS. Within the "source" below, you should put the path for a text file of the form:
+
+access_key: 'YOUR_ACCESS_KEY'
+secret_key: 'YOUR_SECRET_KEY'
+
+where you need the single quotes around your keys. 
 
 ```{r message=FALSE}
-source('/Users/kelliemacphee/Desktop/dssg2018/cred.txt')
+source('/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/cred.txt')
 
 Sys.setenv("AWS_ACCESS_KEY_ID" = access_key,
            "AWS_SECRET_ACCESS_KEY" = secret_key,

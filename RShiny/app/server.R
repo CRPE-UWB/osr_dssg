@@ -7,8 +7,8 @@ library(shiny)
 library(DT)
 library(leaflet)
 library(sp)
-library(leaflet.minicharts)
-library(mapview)
+# library(leaflet.minicharts)
+# library(mapview)
 
 shinyServer(
   
@@ -56,7 +56,9 @@ shinyServer(
                     options = list(pageLength = 3, 
                                    initComplete = JS(
                                      "function(settings, json) {",
-                                     "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+                                     "$(this.api().table().header()).css(
+                                      {'background-color': '#000', 'color': '#fff'}
+                                      );",
                                      "}")),
                     caption = htmltools::tags$caption(
                       style = 'caption-side: top; text-align: center; color: black ;',
@@ -142,7 +144,8 @@ shinyServer(
                   labelOptions = labelOptions(
                     style = list("font-weight" = "normal", padding = "3px 8px"),
                     textsize = "12px",
-                    direction = "auto"
+                    direction = "right",
+                    offset = c(35,0)
                   )
       ) %>% 
         addLegend(pal = pal_type,
@@ -193,9 +196,9 @@ shinyServer(
                            labelOptions = labelOptions(
                              style = list("font-weight" = "normal", padding = "3px 8px"),
                              textsize = "12px",
-                             direction = "auto"
+                             direction = "right",
+                             offset = c(5,0)
                            )
-                           # clusterOptions = markerClusterOptions(spiderfyOnMaxZoom = TRUE)
           ) %>%
           addLegend(
             position = "bottomright",
@@ -225,9 +228,11 @@ shinyServer(
                       fillOpacity = 0.5,
                       label = nbhd_labels,
                       labelOptions = labelOptions(
-                        style = list("font-weight" = "normal", padding = "3px 8px"),
+                        style = list("font-weight" = "normal", 
+                                     padding = "3px 8px"),
                         textsize = "12px",
-                        direction = "auto"
+                        direction = "right",
+                        offset = c(35,0),
                       ),
                       highlight = highlightOptions(
                         bringToFront = FALSE,
@@ -264,7 +269,8 @@ shinyServer(
         labels_race_breakdown <- shape_census@data$racial_dist_html
         
         make_base_map() %>%
-          add_demographic_map(pal_all_races, "majority_race", ~labels_race_breakdown) %>%
+          add_demographic_map(pal_all_races, "majority_race", 
+                              ~labels_race_breakdown) %>%
           add_program_markers(neighborhood_data1, lat, long)
       }
       
@@ -324,9 +330,12 @@ shinyServer(
                         fillOpacity = 0.5,
                         label = nbhd_labels,
                         labelOptions = labelOptions(
-                          style = list("font-weight" = "normal", padding = "3px 8px"),
+                          style = list("font-weight" = "normal", 
+                                       padding = "3px 8px"
+                                       ),
                           textsize = "12px",
-                          direction = "auto"
+                          direction = "right",
+                          offset = c(35,0)
                         ),
                         highlight = highlightOptions(
                           bringToFront = FALSE,
@@ -336,22 +345,28 @@ shinyServer(
             )
         }
         else if(input$demographics_other == "Median household income ($)" ) {
-          open_resource_map <- make_base_map() %>% add_demographic_map(pal_income,"MED_HH_",nbhd_labels)
+          open_resource_map <- make_base_map() %>% 
+            add_demographic_map(pal_income,"MED_HH_",nbhd_labels)
         }
         else if(input$demographics_other == "High school degree or equivalent (%)") {
-          open_resource_map <- make_base_map() %>% add_demographic_map(pal_edu,"PCT_HS_",nbhd_labels)
+          open_resource_map <- make_base_map() %>% 
+            add_demographic_map(pal_edu,"PCT_HS_",nbhd_labels)
         }
         else if(input$demographics_other == "Hispanic population (%)") {
-          open_resource_map <- make_base_map() %>% add_demographic_map(pal_hispanic, "PCT_HIS",nbhd_labels)
+          open_resource_map <- make_base_map() %>% 
+            add_demographic_map(pal_hispanic, "PCT_HIS",nbhd_labels)
         }
         else if(input$demographics_other == "Black population (%)") {
-          open_resource_map <- make_base_map() %>% add_demographic_map(pal_black, "PCT_BLA",nbhd_labels)
+          open_resource_map <- make_base_map() %>% 
+            add_demographic_map(pal_black, "PCT_BLA",nbhd_labels)
         }
         else if(input$demographics_other == "White population (%)") {
-          open_resource_map <- make_base_map() %>% add_demographic_map(pal_white, "PCT_WHI",nbhd_labels)
+          open_resource_map <- make_base_map() %>% 
+            add_demographic_map(pal_white, "PCT_WHI",nbhd_labels)
         }
         else if(input$demographics_other == "Non-English speakers (%)") {
-          open_resource_map <- make_base_map() %>% add_demographic_map(pal_language, "PCT_NON",nbhd_labels)
+          open_resource_map <- make_base_map() %>% 
+            add_demographic_map(pal_language, "PCT_NON",nbhd_labels)
         }
         else if(input$demographics_other == "All races") {
           open_resource_map <- make_base_map() %>%
@@ -372,7 +387,8 @@ shinyServer(
                           labelOptions = labelOptions(
                             style = list("font-weight" = "normal", padding = "3px 8px"),
                             textsize = "12px",
-                            direction = "auto"
+                            direction = "right",
+                            offset = c(5,0)
                           )
                           )  %>%
             addLegend(
@@ -476,7 +492,8 @@ shinyServer(
               fields_data1$location
             ) %>% lapply(htmltools::HTML)
             
-            open_resource_map <- open_resource_map %>% add_circle_markers(fields_data1, col, "yellow", fields_popup)
+            open_resource_map <- open_resource_map %>% 
+              add_circle_markers(fields_data1, col, "yellow", fields_popup)
           }
 
         }
@@ -494,14 +511,16 @@ shinyServer(
     })
     
     
-    #Function to get datatables for eaxh resources. Has a bunch of aesthetics
+    # Function to get datatables for eaxh resources. Has a bunch of aesthetics
     data_table_function = function(checkbox_input, data, column_names){
       
       datatable(data,
                 options = list(pageLength = 3, 
                                initComplete = JS(
                                  "function(settings, json) {",
-                                 "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+                                 "$(this.api().table().header()).css(
+                                  {'background-color': '#000', 'color': '#fff'}
+                                  );",
                                  "}")),
                 caption = htmltools::tags$caption(
                   style = 'caption-side: top; text-align: center; color: black ;',
@@ -523,18 +542,19 @@ shinyServer(
         
         if(colm_other()[i] == "Parks"){
           output[[id]] <- DT::renderDataTable({
-            dat <- data_table_function("Parks", parks_data()[, c(3,4,5,6,7,8,11)],
-                                       c("Park name", "Class", "Has nature", "Has garden", "Has biking", "Sqft", "Nbhd name"))
-              
-              
+            dat <- data_table_function("Parks", 
+                                       parks_data()[, c(3,4,5,6,7,8,11)],
+                                       c("Park name", "Class", "Has nature", "Has garden", 
+                                         "Has biking", "Sqft", "Nbhd name")
+                                       )
             return(dat)    
           })}
         else if(colm_other()[i] == "Libraries"){
           output[[id]] <- DT::renderDataTable({
-            dat <- data_table_function("Libraries", libraries_data()[, c(3,4,5,6,9)],
-                                       c("Library name", "Patron Count", "Circulation Vol", "Sqft", "Nbhd name"))
-            
-            
+            dat <- data_table_function("Libraries", 
+                                       libraries_data()[, c(3,4,5,6,9)],
+                                       c("Library name", "Patron Count", 
+                                         "Circulation Vol", "Sqft", "Nbhd name"))
             return(dat)    
           })
         }
@@ -542,12 +562,13 @@ shinyServer(
         else if(colm_other()[i] == "Rec Centers"){
           output[[id]] <- DT::renderDataTable({
             dat <- data_table_function("Rec Centers", rec_centers_data()[, c(3,4,9:20, 23)],
-                                       c("Rec Center name", "Type", "Has cardio", "Has weights","Has gym",
-                                         "Has arts culture","Has day camps", "Has educ programs", "Has fitness health programs",
-                                         "Has senior programs","Has social enrich clubs", "Has special events",
-                                         "Has sports","Has aquatics", "Nbhd name"))
-            
-            
+                                       c("Rec Center name", "Type", "Has cardio", 
+                                         "Has weights","Has gym", "Has arts culture",
+                                         "Has day camps", "Has educ programs", 
+                                         "Has fitness health programs", "Has senior programs",
+                                         "Has social enrich clubs", "Has special events",
+                                         "Has sports","Has aquatics", "Nbhd name")
+                                       )
             return(dat)    
           })
         }
@@ -555,26 +576,24 @@ shinyServer(
           output[[id]] <- DT::renderDataTable({
             dat <- data_table_function("Museums", museums_data()[, c(3,4,7)],
                                        c("Museum name", "Address", "Nbhd name"))
-            
-            
             return(dat)    
           })
         }
         else if(colm_other()[i] == "Fields"){
           output[[id]] <- DT::renderDataTable({
-            dat <- data_table_function("Fields", fields_data()[, c(3,4,5,6,7, 10)],
-                                       c("Sport", "Location", "Tier", "Class", "Sqft", "Nbhd name"))
-            
-            
+            dat <- data_table_function("Fields", 
+                                       fields_data()[, c(3,4,5,6,7, 10)],
+                                       c("Sport", "Location", "Tier", 
+                                         "Class", "Sqft", "Nbhd name"))
             return(dat)    
           })
         }
         else if(colm_other()[i] == "Playgrounds"){
           output[[id]] <-DT::renderDataTable({
-            dat <- data_table_function("Playgrounds", playgrounds_data()[, c(3,4,5,6,9)],
-                                       c("Location", "Year rehabilitated", "Class", "Sqft", "Nbhd name"))
-            
-            
+            dat <- data_table_function("Playgrounds", 
+                                       playgrounds_data()[, c(3,4,5,6,9)],
+                                       c("Location", "Year rehabilitated", "Class", 
+                                         "Sqft", "Nbhd name"))
             return(dat)    
           })
         }
