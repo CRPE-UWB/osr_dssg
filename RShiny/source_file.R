@@ -33,10 +33,10 @@ reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
 
 #######################Getting the shape file to plot the bock groups on the map##############################
-# shape_census <- readOGR(dsn = "C:/Users/Sreekanth/Desktop/osr_dssg2018-1/data/nbhd_dem_shapes", 
-#                         layer = "nbhd_dem_shapes")
-shape_census <- readOGR(dsn = "/Users/kelliemacphee/Desktop/dssg2018/GITHUB_osr_dssg2018/data/nbhd_dem_shapes",
-                        layer = "nbhd_dem_shapes")
+ shape_census <- readOGR(dsn = "C:/Users/Sreekanth/Desktop/osr_dssg2018-1/data/nbhd_dem_shapes", 
+                         layer = "nbhd_dem_shapes")
+#shape_census <- readOGR(dsn = "/Users/kelliemacphee/Desktop/dssg2018/GITHUB_osr_dssg2018/data/nbhd_dem_shapes",
+#                        layer = "nbhd_dem_shapes")
 
 # Joining the 'number of sessions' information with the census shape file
 shape_census <- geo_join(shape_census, aggregate_session_nbhds, "NBHD_NA", "nbhd_name", how = "left")
