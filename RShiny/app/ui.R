@@ -133,7 +133,31 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                             ), 
 
                    ## RESCHOOL SEARCH DATA TAB
-                   tabPanel("B4S Searches"),
+                   tabPanel("ReSchool Program Searches",
+                            
+                            fluidPage(sidebarLayout(
+                              
+                              sidebarPanel(
+                                checkboxGroupInput("program_other", 
+                                                   "Select one or more resource types:", 
+                                                   choices = c("Parks", "Playgrounds", 
+                                                               "Rec Centers", "Libraries", 
+                                                               "Museums", "Fields"), 
+                                                   selected = "Parks", 
+                                                   inline = TRUE
+                                ),
+                                br()),
+                              
+                              mainPanel(
+                                tabsetPanel(type = "tab",
+                                            tabPanel("Summary"),
+                                            tabPanel("Visualization")
+                                )
+                              )
+                            ))
+                            
+                            
+                            ),
                    
                    ## ACCESS INDEX TAB
                    tabPanel("Access Index")
