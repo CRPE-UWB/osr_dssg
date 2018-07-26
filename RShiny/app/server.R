@@ -49,11 +49,6 @@ shinyServer(
       return(a) 
     })
     
-    
-    
- 
-    
-    
     # Output the relevant data in the data tab based on the selections
     output$datatable <- DT::renderDataTable({
       data_table1 <- neighborhood_data()
@@ -341,22 +336,26 @@ shinyServer(
             )
         }
         else if(input$demographics_other == "Median household income ($)" ) {
-          open_resource_map <- make_base_map() %>% add_demographic_map(pal_income,"MED_HH_")
+          open_resource_map <- make_base_map() %>% add_demographic_map(pal_income,"MED_HH_",nbhd_labels)
         }
         else if(input$demographics_other == "High school degree or equivalent (%)") {
-          open_resource_map <- make_base_map() %>% add_demographic_map(pal_edu,"PCT_HS_")
+          open_resource_map <- make_base_map() %>% add_demographic_map(pal_edu,"PCT_HS_",nbhd_labels)
         }
         else if(input$demographics_other == "Hispanic population (%)") {
-          open_resource_map <- make_base_map() %>% add_demographic_map(pal_hispanic, "PCT_HIS")
+          open_resource_map <- make_base_map() %>% add_demographic_map(pal_hispanic, "PCT_HIS",nbhd_labels)
         }
         else if(input$demographics_other == "Black population (%)") {
-          open_resource_map <- make_base_map() %>% add_demographic_map(pal_black, "PCT_BLA")
+          open_resource_map <- make_base_map() %>% add_demographic_map(pal_black, "PCT_BLA",nbhd_labels)
         }
         else if(input$demographics_other == "White population (%)") {
-          open_resource_map <- make_base_map() %>% add_demographic_map(pal_white, "PCT_WHI")
+          open_resource_map <- make_base_map() %>% add_demographic_map(pal_white, "PCT_WHI",nbhd_labels)
         }
         else if(input$demographics_other == "Non-English speakers (%)") {
-          open_resource_map <- make_base_map() %>% add_demographic_map(pal_language, "PCT_NON")
+          open_resource_map <- make_base_map() %>% add_demographic_map(pal_language, "PCT_NON",nbhd_labels)
+        }
+        else if(input$demographics_other == "All races") {
+          open_resource_map <- make_base_map() %>%
+            add_demographic_map(pal_all_races, "majority_race", ~shape_census@data$racial_dist_html)
         }
         
         # Function to add circle markers on the map depending on the resource type(s) selected

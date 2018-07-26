@@ -86,9 +86,9 @@ shape_census@data$racial_dist_html <- mapply(
     color4 <- pal[4]
     
     sprintf(
-      "<div style='font-size:12px;width:150px;float:left'>
+      "<div style='font-size:12px;width:180px;float:left'>
             <span style='font-size:16 px;font-weight:bold'>%s</span><br/>
-            <div style='width:80%%'>
+            <div style='width:100%%'>
               <span style='background:%s;width:%s%%;position:absolute;left:0'>&nbsp;</span>
               <span style='background:%s;width:%s%%;position:absolute;left:%s%%'>&nbsp;</span>
               <span style='background:%s;width:%s%%;position:absolute;left:%s%%'>&nbsp;</span>
