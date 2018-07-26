@@ -131,39 +131,24 @@ decay_fxn_exp <- function(dataframe,mode){
   dataframe[,"n"]*exp(-dataframe[,column]/scale)
 }
 
+decay_fxn_softGravity <- function(dataframe,mode){
+  if (mode=="transit") {
+    scale = 10
+    column="transit_morning"
+  }
+  if (mode=="drive"){
+    scale = 10
+    column="driving_morning"
+  }
+  mode=mode
+  dataframe[,"n"]*(1/(1+(dataframe[,column]/scale))^2)
+}
+
 #7 here we define a function to normalize results on a 0-1 scale. Note that after we calculate an total acess index in this script, max will be == the max AI of any one blockgroup.
 
 normalize <- function(vec,max) {
-  return(vec/max)
+  return((vec/max)*100)
 }
-```
-
-###Get total access index
-This is critical to establishing a range to normalize all subset values relative to the overall value. The idea being, this way the max access = access index score at all prorams at all costs with the quickest (driving) travel times. Access will then decrease if the user instead view access by transit or a subset of programs. 
-```{r}
-library(scales)
-#User specifies query (type)
-
-#subset dataframe by user selection
-user_set <- reschool_programs
-
-#aggregate dataframe by user selection
-agg_set <- Aggregate_Subset(user_set)
-
-#merge n of user selected programs to block distances dataframe
-merged_set <- Merge_Set(agg_set)
-
-#calculate access index per location 
-merged_set$transit_morning[is.na(merged_set$transit_morning)] <- merged_set$walking_morning[is.na(merged_set$transit_morning)]
-merged_set$transit_morning[merged_set$transit_morning==0] <- merged_set$walking_morning[merged_set$transit_morning==0]
-
-merged_set$CarAccessIndex <- decay_fxn_exp(merged_set,"drive") 
-merged_set$TransitAccessIndex <- decay_fxn_exp(merged_set,"transit") 
-
-#get average of AccessIndex col, return to summary dataframe by blockgroup ID
-summary_index_total <- aggregate(CarAccessIndex ~ Id2,data=merged_set,FUN=sum)
-max_access <- max(summary_index_total$CarAccessIndex)
-summary_index_total$CarAccessIndex <- normalize(summary_index_total$CarAccessIndex,max_access)
 ```
 
 ###User Script for Driving
@@ -173,7 +158,7 @@ library(scales)
 #User specifies query (type)
 #type <- c("art") #"type" can include categories or cost thresholds. Pending cost per day calculations from Selam
 #cost <- c("free")
-type <- c("academic")
+type <- c("art")
 cost <- NULL
 
 #subset dataframe by user selection
@@ -186,12 +171,13 @@ agg_set <- Aggregate_Subset(user_set)
 merged_set <- Merge_Set(agg_set)
 
 #calculate access index per location 
-merged_set$AccessIndex <- decay_fxn_exp(merged_set,"drive") #why not apply? who knows
+merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive") #why not apply? who knows
 
 #get average of AccessIndex col, return to summary dataframe by blockgroup ID
 summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) #critical that we use sum, not mean, BECAUSE, for some specifications some program lengths will drop
 
 #normalize
+max_access <- max(summary_index_user$AccessIndex)
 summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_access) 
 ```
 
@@ -200,11 +186,11 @@ summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_a
 library(scales)
 #User specifies query (type)
 #type <- c("has_sports","art")
-type <- c("academic")
+type <- c("art")
 cost <- NULL
 
 #subset dataframe by user selection
-user_set <- Make_Subset(reschool_programs,type)
+user_set <- Make_Subset(reschool_programs,type,cost)
 
 #aggregate dataframe by user selection
 agg_set <- Aggregate_Subset(user_set)
@@ -217,10 +203,17 @@ merged_set$transit_morning[is.na(merged_set$transit_morning)] <- merged_set$walk
 merged_set$transit_morning[merged_set$transit_morning==0] <- merged_set$walking_morning[merged_set$transit_morning==0] #but if there is, as sometimes occurs with the API calls, here we replace non-existant transit times with walking times, under the assumption the purpose of this index is to view access for individuals without a car
 
 #calculate access index per location, #get average of AccessIndex col, return to summary dataframe by blockgroup ID
-system.time(merged_set$AccessIndex <- decay_fxn_exp(merged_set,"transit"))
+system.time(merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"transit"))
+merged_set$CarAccess <- decay_fxn_softGravity(merged_set,"drive")
+
+system.time(summary_index_user_transit_graphic <- aggregate(CarAccess ~ Id2,data=merged_set,FUN=sum))
 system.time(summary_index_user_transit <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum))
 
 #normalize
+max_access <- max(summary_index_user_transit_graphic$CarAccess)
+max_transit_access <- max(summary_index_user_transit$AccessIndex)
+
+summary_index_user_transit$AccessIndexGraphic <- normalize(summary_index_user_transit$AccessIndex,max_transit_access)
 summary_index_user_transit$AccessIndex <- normalize(summary_index_user_transit$AccessIndex,max_access)
 ```
 
@@ -234,6 +227,7 @@ library(raster)
 ```
 
 ###Plot Driving Summary Index
+**NOTE** the specifications for this plot, and the transit plot below are for use in validation (i.e, checking for errors) not for use in presenting results. 
 ```{r}
 library(leaflet)
 library(RColorBrewer)
@@ -251,9 +245,7 @@ summary_index_user <- summary_index_user[order(summary_index_user$Id2),]
 colourCount <- length(unique(agg_set$n))
 getPalette <- colorRampPalette(brewer.pal(9,"Reds"))
 
-pal_legend <- colorBin(c("#F0F8FF","#A1CAF1","#99BADD","#71A6D2","#6495ED","#318CE7","#4682B4","#1560BD","#0047AB","#0F4D92","#08457E","#003366","#002147"),domain = 0:1,bins=10,pretty = TRUE)
-
-pal <- colorBin(c("#F0F8FF","#A1CAF1","#99BADD","#71A6D2","#6495ED","#318CE7","#4682B4","#1560BD","#0047AB","#0F4D92","#08457E","#003366","#002147"),domain = 0:1,bins=1000,pretty = TRUE)
+pal <- colorNumeric(palette = "Blues",domain = 0:100)
 
 pal2 <- colorNumeric(
   palette = rev(getPalette(colourCount)),
@@ -270,7 +262,7 @@ Ai_driving <- leaflet(census_blocks) %>%
               popup=paste(as.numeric(summary_index_user$Id2),summary_index_user$AccessIndex,as.numeric(census_blocks$Id2)),
               highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
   
-  addLegend(pal = pal_legend, values = ~summary_index_user$AccessIndex, opacity = 1,title = "Driving AI Score") %>%
+  addLegend(pal = pal, values = ~summary_index_user$AccessIndex, opacity = 1,title = "Driving AI Score") %>%
   
   addCircles(data = agg_set, 
              opacity = 1,weight=7, popup=info,
@@ -297,9 +289,7 @@ summary_index_user_transit <- summary_index_user_transit[order(summary_index_use
 colourCount <- length(unique(agg_set$n))
 getPalette <- colorRampPalette(brewer.pal(9,"Reds"))
 
-pal_legend <- colorBin(c("#F0F8FF","#A1CAF1","#99BADD","#71A6D2","#6495ED","#318CE7","#4682B4","#1560BD","#0047AB","#0F4D92","#08457E","#003366","#002147"),domain = 0:1,bins=10,pretty = TRUE)
-
-pal <- colorBin(c("#F0F8FF","#A1CAF1","#99BADD","#71A6D2","#6495ED","#318CE7","#4682B4","#1560BD","#0047AB","#0F4D92","#08457E","#003366","#002147"),domain = 0:1,bins=1000,pretty = TRUE)
+pal <- colorNumeric(palette = "Greens",domain = 0:100)
 
 pal2 <- colorNumeric(
   palette = rev(getPalette(colourCount)),
@@ -312,11 +302,11 @@ info <- paste("n",agg_set$n)
 Ai_transit <- leaflet(census_blocks) %>%
   addTiles() %>%
   addPolygons(color = "RdYlBu",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.9,
-              fillColor = ~pal(summary_index_user_transit$AccessIndex),
+              fillColor = ~pal(summary_index_user_transit$AccessIndexGraphic),
               popup=paste(as.numeric(summary_index_user_transit$Id2),summary_index_user_transit$AccessIndex,as.numeric(census_blocks$Id2)),
               highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
   
-  addLegend(pal = pal_legend, values = ~summary_index_user_transit$AccessIndex, opacity = 1,title = "Transit AI Score") %>%
+  addLegend(pal = pal, values = ~summary_index_user_transit$AccessIndex, opacity = 1,title = "Transit AI Score") %>%
   
   addCircles(data = agg_set, 
              opacity = 1,weight=7, popup=info,
@@ -325,30 +315,27 @@ Ai_transit <- leaflet(census_blocks) %>%
   setView(lat=39.7,lng=-104.9,zoom=11.5)
 ```
 
-###Diff between transit and driving
-Here we check the difference between them. This is a validation test, as per the specification we're using, where both transit and driving use the same decay function with the same scale, transit should always be lower than driving, particularly in places with lots of quick access to multiple programs. 
+###Plot Driving & Transit Normalized Pallet To Subset
+Use these plots for actual visualiztion, use the above for validation.
 ```{r}
 library(leaflet)
 library(RColorBrewer)
-
 #Ordering
 census_blocks$Id2 <- as.numeric(census_blocks$Id2)
 merged_set$Id2 <- as.numeric(merged_set$Id2)
-summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2)
+summary_index_user$Id2 <- as.numeric(summary_index_user$Id2)
 
 census_blocks <- census_blocks[order(census_blocks$Id2),]
 merged_set <- merged_set[order(merged_set$Id2),]
 summary_index_user <- summary_index_user[order(summary_index_user$Id2),] 
 
-summary_index_user$dif <- summary_index_user$AccessIndex - summary_index_user_transit$AccessIndex
-
 #specifiying color pallet
 colourCount <- length(unique(agg_set$n))
 getPalette <- colorRampPalette(brewer.pal(9,"Reds"))
 
-#pal <- colorNumeric(
-  #palette = "RdYlBu",
-  #domain =  summary_index_total$dif)
+range <- range(summary_index_user$AccessIndex)
+
+pal <- colorNumeric(palette = "Blues",domain = range)
 
 pal2 <- colorNumeric(
   palette = rev(getPalette(colourCount)),
@@ -358,20 +345,55 @@ pal2 <- colorNumeric(
 info <- paste("n",agg_set$n)
 
 #creating leaflet map
-Ai_leaflet_dif <- leaflet(census_blocks) %>%
+Ai_driving_normal <- leaflet(census_blocks) %>%
+  addTiles() %>%
+  addPolygons(color = "RdYlBu",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.75,
+              fillColor = ~pal(summary_index_user$AccessIndex),
+              popup=paste("AI =",round(summary_index_user$AccessIndex,digits=2)),
+              highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
+  addLegend(pal = pal2, values = ~agg_set$n, opacity = 1,title = "Sessions") %>%
+  addCircles(data = agg_set, 
+             opacity = 1,weight=7, popup=paste("n of sessions =",agg_set$n),
+             color = ~pal2(agg_set$n) ) %>%
+  setView(lat=39.7,lng=-104.9,zoom=11.5) %>%
+  addLegend(pal = pal, values = ~summary_index_user$AccessIndex, opacity = 1, title = "Access Index")
+
+#Ordering
+census_blocks$Id2 <- as.numeric(census_blocks$Id2)
+merged_set$Id2 <- as.numeric(merged_set$Id2)
+summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2)
+
+census_blocks <- census_blocks[order(census_blocks$Id2),]
+merged_set <- merged_set[order(merged_set$Id2),]
+summary_index_user_transit <- summary_index_user_transit[order(summary_index_user_transit$Id2),] 
+
+#specifiying color pallet
+colourCount <- length(unique(agg_set$n))
+getPalette <- colorRampPalette(brewer.pal(9,"Reds"))
+
+range <- range(summary_index_user_transit$AccessIndex)
+
+pal <- colorNumeric(palette = "Greens",domain = range)
+
+pal2 <- colorNumeric(
+  palette = rev(getPalette(colourCount)),
+  domain = range(agg_set$n))
+
+#indicating one popup info
+info <- paste("n of sessions =",agg_set$n)
+
+#creating leaflet map
+Ai_transit_normal <- leaflet(census_blocks) %>%
   addTiles() %>%
   addPolygons(color = "RdYlBu",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.9,
-              fillColor = ~pal(summary_index_user$dif),
-              popup=paste(as.numeric(summary_index_user$Id2),summary_index_user$dif,as.numeric(census_blocks$Id2)),
+              fillColor = ~pal(summary_index_user_transit$AccessIndex),
+              popup=paste("AI =",round(summary_index_user_transit$AccessIndex,digits=2)),
               highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
-  
-  addLegend(pal = pal, values = ~summary_index_user$dif, opacity = 1,title = "Dif in Access Index Score") %>%
-  
+  addLegend(pal = pal2, values = ~agg_set$n, opacity = 1,title = "Sessions") %>%
   addCircles(data = agg_set, 
              opacity = 1,weight=7, popup=info,
              color = ~pal2(agg_set$n) ) %>%
-  
+  addLegend(pal = pal, values = ~summary_index_user_transit$AccessIndex, opacity = 1, title = "Access Index") %>%
   setView(lat=39.7,lng=-104.9,zoom=11.5)
 ```
-
 

@@ -10,9 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ##Intro
-This markdown performs the sensitivity analysis on the access index equation, comparing the changes in blockgroup access index scores/ranks (as they compare to other blockgroups), for the 1/r^2 function with indifference threshold of 5-15 minutes, as well as for the exp function with indifference threshold of 5-15 minutes, and the gravity model, which we test with scale 5-15 minutes though there is no change in rank at any stage. This code also produces visualizations to describe these results. 
-
-Additionally, the markdown performs sensitity analysis for the effects of k (k = 2 in 1/r^2 | k = e in exp(-dataframe[,column]/scale)) as a measure of how sensitive our conclusions are to the relatively arbitrary choice of exponent in the denominator for our decay function which serves a stand in WTP (or some other term? Willingness to travel)
+This markdown performs the sensitivity analysis on the access index equation, comparing the changes in blockgroup access index scores/ranks (as they compare to other blockgroups), for the 1/r^2 function with indifference threshold of 5-15 minutes, as well as for the exp function with indifference threshold of 5-15 minutes, and the gravity model, and **THE SOFT GRAVITY** model, which is the choice we end up using. We test with scale 5-15 minutes though there is no change in rank at any stage. This code also produces visualizations to describe these results. 
 
 **Note** the markdown makes use of the Access Index Functions defined in the Access_Index_Functions markdown, as well as "census_blocks" which is currently running off our machines individualls. You'll need to grab those functions and the centroid file to run this markdown. 
 
@@ -42,7 +40,6 @@ dbUnloadDriver(drv)
 ```
 
 ##Testing the effect of scale
-
 ###Sensitivity Analysis Driving Test
 Because we are to some extent selecting an arbitrary indifference threshold of five minutes, it is critical that we assess how sensitive our conclusions are to threshold. So here we test different indifference thresholds and see how the order of top block groups changes. Basically, we scale up the threshold from 5 five minutes to 15 minutes, checking changes in the order of the block groups at each minute threshold. 
 ```{r}
@@ -343,7 +340,7 @@ df$variable <- as.factor(df$variable)
 
 Bottom25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 100") + ylim(1,490)
 
-grid.arrange(Top_25_Plot,Top_50_Plot,Top_75_Plot,Top_100_Plot,Bottom25_Plot,Tail_Plot,ncol=3)
+#grid.arrange(Top_25_Plot,Top_50_Plot,Top_75_Plot,Top_100_Plot,Bottom25_Plot,Tail_Plot,ncol=3)
 ```
 
 ###Driving Exp Function
@@ -511,7 +508,7 @@ driving_exp_Bottom25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = 
 grid.arrange(driving_exp_Top_25_Plot,driving_exp_Top_50_Plot,driving_exp_Top_75_Plot,driving_exp_Top_100_Plot,driving_exp_Bottom25_Plot,driving_exp_Tail_Plot,ncol=3)
 ```
 
-###Compare Exp and Base
+###Compare Driving Exp and Base
 Here we plot the difference between the exp and base models, ideally testing sensitivity between models. We find that at almost every iteration, differences are clustered primarily in the center ranks, with very limited changes along the tails, which are the areas we are primarily concerned with for an endogenous index. **GIVEN** that exp model is less sensitive to the threshold, and there seems to be marginal sensitivity between models, seems like we should go with the exp model over the threshold model, since the results will be less biased by a selection of an arbitrary cutoff.   
 
 ```{r}
@@ -572,7 +569,221 @@ comp_nine <-ggplot(compare_exp_base, aes(x=compare_exp_base$`rank 8.x`, y=compar
 
 comp_ten <-ggplot(compare_exp_base, aes(x=compare_exp_base$`rank 9.x`, y=compare_exp_base$`rank 9.y`)) + geom_point()
 
-grid.arrange(comp_one,comp_two,comp_three,comp_four,comp_five,comp_six,comp_seven,comp_eight,comp_nine,comp_ten,ncol=4)
+#grid.arrange(comp_one,comp_two,comp_three,comp_four,comp_five,comp_six,comp_seven,comp_eight,comp_nine,comp_ten,ncol=4)
+```
+
+###Transit Exp Model
+```{r}
+#run overall access index driving
+library(scales)
+#User specifies query (type)
+type <- NULL
+cost <- NULL
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type,cost)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#calculate access index per location 
+i <- 0
+
+merged_set$AccessIndex <- decay_fxn_exp_sensitive(merged_set,"transit")
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) #critical that we use sum, not mean, BECAUSE, for some specifications some program lengths will drop
+
+#make base dataframe
+summary_index_user <- summary_index_user[order(summary_index_user$AccessIndex),]
+rownames(summary_index_user)  <- NULL
+summary_index_user$base_rank <- rownames(summary_index_user)
+
+for (i in 1:9){
+#generate overall
+type <- NULL
+cost <- NULL
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type,cost)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#alter decay function
+decay_fxn_exp_sensitive <- function(dataframe,mode){
+  if (mode=="transit") {
+    scale = 5+i
+    column="transit_morning"
+  }
+  if (mode=="drive"){
+    scale = 5+i
+    column="driving_morning"
+  }
+  mode=mode
+  dataframe[,"n"]*exp(-dataframe[,column]/scale)
+}
+
+#apply decay function
+merged_set$AccessIndex <- decay_fxn_exp_sensitive(merged_set,"transit")
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_mover <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+
+#order
+summary_index_mover <- summary_index_mover[order(summary_index_mover$AccessIndex),]
+
+#prep for merge
+rownames(summary_index_mover) <- NULL
+summary_index_mover$rank.i <- rownames(summary_index_mover)
+colnames(summary_index_mover)[colnames(summary_index_mover)=="rank.i"] <- paste("rank",i)
+
+#print summary of AI for validation on if this is working
+print(summary(summary_index_mover$AccessIndex))
+summary_index_mover$AccessIndex <- NULL
+
+#merge new data to dataframe
+summary_index_user <- merge(summary_index_user,summary_index_mover,by="Id2",all.y=TRUE)
+print(paste(i,"iteration..."))
+}
+
+#store as a new data frame
+sensitivity_frame_exp_transit <- summary_index_user
+
+#get the total changes in rank from threshold of five minutes to 16 minutes
+sensitivity_frame_exp_transit$changes <- abs(as.numeric(sensitivity_frame_exp_transit$base_rank) - as.numeric(sensitivity_frame_exp_transit$`rank 9`))
+```
+
+###Plot Transit Exp 
+```{r}
+library(reshape2)
+library(ggplot2)
+library(gridExtra)
+#Prep & order frame
+sensitivity_frame_exp_transit <- sensitivity_frame_exp_transit 
+sensitivity_frame_exp_transit$base_rank <- as.numeric(sensitivity_frame_exp_transit$base_rank)
+sensitivity_frame_exp_transit <- sensitivity_frame_exp_transit[order(sensitivity_frame_exp_transit$base_rank),]
+
+#subsetframe
+top_25 <- sensitivity_frame_exp_transit[1:25,]
+sa_25_50 <- sensitivity_frame_exp_transit[1:50,]
+sa_50_75 <- sensitivity_frame_exp_transit[1:75,]
+sa_75_100 <- sensitivity_frame_exp_transit[1:100,]
+sa_tail <- sensitivity_frame_exp_transit[456:480,]
+sa_tailstart <- sensitivity_frame_exp_transit[406:480,]
+
+
+#Top 25 Plot
+df <- melt(top_25,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+transit_exp_Top_25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 25") + ylim(1,490)
+
+#Top 50 Plot
+df <- melt(sa_25_50,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+transit_exp_Top_50_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 50") + ylim(1,490)
+
+#Top 75 Plot
+df <- melt(sa_50_75,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+transit_exp_Top_75_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 75") + ylim(1,490)
+
+#Top 100 Plot
+df <- melt(sa_75_100,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+transit_exp_Top_100_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 100") + ylim(1,490)
+
+#Bottom 50
+df <- melt(sa_tail,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+transit_exp_Tail_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 50") + ylim(1,490)
+
+#Bottom 25
+df <- melt(sa_tailstart,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+transit_exp_Bottom25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 100") + ylim(1,490)
+
+grid.arrange(transit_exp_Top_25_Plot,transit_exp_Top_50_Plot,transit_exp_Top_75_Plot,transit_exp_Top_100_Plot,transit_exp_Bottom25_Plot,transit_exp_Tail_Plot,ncol=3)
+```
+
+###Compare Transit Exp and Transit Gravity Threshold
+```{r}
+compare_exp_base_transit <- merge(sensitivity_frame_transit,sensitivity_frame_exp_transit,by="Id2",all.y=TRUE)
+compare_exp_base_transit$changes <- NULL
+compare_exp_base_transit$AccessIndex.x <- NULL
+
+compare_exp_base_transit$base_rank.x <- as.numeric(compare_exp_base_transit$base_rank.x)
+compare_exp_base_transit$base_rank.y <- as.numeric(compare_exp_base_transit$base_rank.y)
+
+compare_exp_base_transit$`rank 1.x` <- as.numeric(compare_exp_base_transit$`rank 1.x`)
+compare_exp_base_transit$`rank 1.y` <- as.numeric(compare_exp_base_transit$`rank 1.y`)
+
+compare_exp_base_transit$`rank 2.x` <- as.numeric(compare_exp_base_transit$`rank 2.x`)
+compare_exp_base_transit$`rank 2.y` <- as.numeric(compare_exp_base_transit$`rank 2.y`)
+
+compare_exp_base_transit$`rank 3.x` <- as.numeric(compare_exp_base_transit$`rank 3.x`)
+compare_exp_base_transit$`rank 3.y` <- as.numeric(compare_exp_base_transit$`rank 3.y`)
+
+compare_exp_base_transit$`rank 4.x` <- as.numeric(compare_exp_base_transit$`rank 4.x`)
+compare_exp_base_transit$`rank 4.y` <- as.numeric(compare_exp_base_transit$`rank 4.y`)
+
+compare_exp_base_transit$`rank 5.x` <- as.numeric(compare_exp_base_transit$`rank 5.x`)
+compare_exp_base_transit$`rank 5.y` <- as.numeric(compare_exp_base_transit$`rank 5.y`)
+
+compare_exp_base_transit$`rank 6.x` <- as.numeric(compare_exp_base_transit$`rank 6.x`)
+compare_exp_base_transit$`rank 6.y` <- as.numeric(compare_exp_base_transit$`rank 6.y`)
+
+compare_exp_base_transit$`rank 7.x` <- as.numeric(compare_exp_base_transit$`rank 7.x`)
+compare_exp_base_transit$`rank 7.y` <- as.numeric(compare_exp_base_transit$`rank 7.y`)
+
+compare_exp_base_transit$`rank 8.x` <- as.numeric(compare_exp_base_transit$`rank 8.x`)
+compare_exp_base_transit$`rank 8.y` <- as.numeric(compare_exp_base_transit$`rank 8.y`)
+
+compare_exp_base_transit$`rank 9.x` <- as.numeric(compare_exp_base_transit$`rank 9.x`)
+compare_exp_base_transit$`rank 9.y` <- as.numeric(compare_exp_base_transit$`rank 9.y`)
+
+compare_exp_base_transit$`rank 1.x` <- as.numeric(compare_exp_base_transit$`rank 1.x`)
+compare_exp_base_transit$`rank 1.y` <- as.numeric(compare_exp_base_transit$`rank 1.y`)
+
+comp_transit_one <- ggplot(compare_exp_base_transit, aes(x=compare_exp_base_transit$base_rank.x, y=compare_exp_base_transit$base_rank.y)) + geom_point()
+
+comp_transit_two <-ggplot(compare_exp_base_transit, aes(x=compare_exp_base_transit$`rank 1.x`, y=compare_exp_base_transit$`rank 1.y`)) + geom_point()
+
+comp_transit_three <-ggplot(compare_exp_base_transit, aes(x=compare_exp_base_transit$`rank 2.x`, y=compare_exp_base_transit$`rank 2.y`)) + geom_point()
+
+comp_transit_four <-ggplot(compare_exp_base_transit, aes(x=compare_exp_base_transit$`rank 3.x`, y=compare_exp_base_transit$`rank 3.y`)) + geom_point()
+
+comp_transit_five <-ggplot(compare_exp_base_transit, aes(x=compare_exp_base_transit$`rank 4.x`, y=compare_exp_base_transit$`rank 4.y`)) + geom_point()
+
+comp_transit_six <-ggplot(compare_exp_base_transit, aes(x=compare_exp_base_transit$`rank 5.x`, y=compare_exp_base_transit$`rank 5.y`)) + geom_point()
+
+comp_transit_seven <-ggplot(compare_exp_base_transit, aes(x=compare_exp_base_transit$`rank 6.x`, y=compare_exp_base_transit$`rank 6.y`)) + geom_point()
+
+comp_transit_eight <-ggplot(compare_exp_base_transit, aes(x=compare_exp_base_transit$`rank 7.x`, y=compare_exp_base_transit$`rank 7.y`)) + geom_point()
+
+comp_transit_nine <-ggplot(compare_exp_base_transit, aes(x=compare_exp_base_transit$`rank 8.x`, y=compare_exp_base_transit$`rank 8.y`)) + geom_point()
+
+comp_transit_ten <-ggplot(compare_exp_base_transit, aes(x=compare_exp_base_transit$`rank 9.x`, y=compare_exp_base_transit$`rank 9.y`)) + geom_point()
+
+#grid.arrange(comp_transit_one,comp_transit_two,comp_transit_three,comp_transit_four,comp_transit_five,comp_transit_six,comp_transit_seven,comp_transit_eight,comp_transit_nine,comp_transit_ten,ncol=4)
 ```
 
 ###Gravity Model
@@ -896,14 +1107,297 @@ Ai_driving <- leaflet(census_blocks) %>%
   setView(lat=39.7,lng=-104.9,zoom=11.5)
 ```
 
-###Compare Exp and Base Blocks
+##Exp vs Base Blocks
 The main difference between these is that block groups close to addresses with many programs are more heavily weighted. Hence, we have a trade off between the base model which is more sensitive to the arbitrary threshold chosen, vs. the exp model which is more sensitivte to addresses with many sessions. Because the latter is founded on the data and conceptually valid, while the former introduces arbitrary indifference assumption (n of minutes) when we have already aggregated starting points to an arbitrary spot (centroids), the exp model seems more valid to me. 
+
+There is a large problem here, which is that the transit times are more volatile in response to the exponential model, while the driving times are far more volatile in response to the gravity threshold model with respect to the choice of scale. As the "scale" is an assumption we make with respect to decay, selecting a model who's results vary depending on our assumption risk reporting results which are biased by our choice of our assumption over the actual travel times in the data.
+
+To recifty this problem, we also test a "soft gravity" model which adds an additional minute to each travel time as approx average offset from the distance of depature address to block group centroid.
+
+
+###"Soft" Gravity Model Driving
 ```{r}
-Ai_driving_exp
-Ai_driving
-grid.arrange(comp_one,comp_two,comp_three,comp_four,comp_five,comp_six,comp_seven,comp_eight,comp_nine,comp_ten,ncol=4)
-grid.arrange(driving_exp_Top_25_Plot,driving_exp_Top_50_Plot,driving_exp_Top_75_Plot,driving_exp_Top_100_Plot,driving_exp_Bottom25_Plot,driving_exp_Tail_Plot,ncol=3)
-grid.arrange(driving_Top_25_Plot,driving_Top_50_Plot,driving_Top_75_Plot,driving_Top_100_Plot,driving_Bottom25_Plot,driving_Tail_Plot,ncol=3)
+#run overall access index driving
+library(scales)
+#User specifies query (type), NULL = all
+type <- NULL
+cost <- NULL
+i <- 0 
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type,cost)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#soft gravity function
+decay_fxn_softGravity <- function(dataframe,mode){
+  if (mode=="transit") {
+    scale = 5+i
+    column="transit_morning"
+  }
+  if (mode=="drive"){
+    scale = 5+i
+    column="driving_morning"
+  }
+  mode=mode
+  dataframe[,"n"]*(1/(1+(dataframe[,column]/scale))^2)
+}
+
+#calculate access index per location 
+merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive") #why not apply? who knows
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) #critical that we use sum, not mean, BECAUSE, for some specifications some program lengths will drop
+
+#make base dataframe
+summary_index_user <- summary_index_user[order(summary_index_user$AccessIndex),]
+rownames(summary_index_user)  <- NULL
+summary_index_user$base_rank <- rownames(summary_index_user)
+
+for (i in 1:9){
+#generate overall
+type <- NULL
+cost <- NULL
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type,cost)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#apply decay function
+merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive")
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_mover <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+
+#order
+summary_index_mover <- summary_index_mover[order(summary_index_mover$AccessIndex),]
+
+#prep for merge
+rownames(summary_index_mover) <- NULL
+summary_index_mover$rank.i <- rownames(summary_index_mover)
+colnames(summary_index_mover)[colnames(summary_index_mover)=="rank.i"] <- paste("rank",i)
+
+#print summary of AI for validation on if this is working
+print(summary(summary_index_mover$AccessIndex))
+summary_index_mover$AccessIndex <- NULL
+
+#merge new data to dataframe
+summary_index_user <- merge(summary_index_user,summary_index_mover,by="Id2",all.y=TRUE)
+print(paste(i,"iteration..."))
+}
+
+#store as a new data frame
+sensitivity_frame_softgravity <- summary_index_user 
 ```
 
-##Testing the effect of k 
+###"Soft" Gravity Model Transit
+```{r}
+#run overall access index driving
+library(scales)
+#User specifies query (type), NULL = all
+type <- NULL
+cost <- NULL
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type,cost)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#calculate access index per location 
+merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"transit") #why not apply? who knows
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) #critical that we use sum, not mean, BECAUSE, for some specifications some program lengths will drop
+
+#make base dataframe
+summary_index_user <- summary_index_user[order(summary_index_user$AccessIndex),]
+rownames(summary_index_user)  <- NULL
+summary_index_user$base_rank <- rownames(summary_index_user)
+
+for (i in 1:9){
+#generate overall
+type <- NULL
+cost <- NULL
+
+#subset dataframe by user selection
+user_set <- Make_Subset(reschool_programs,type,cost)
+
+#aggregate dataframe by user selection
+agg_set <- Aggregate_Subset(user_set)
+
+#merge n of user selected programs to block distances dataframe
+merged_set <- Merge_Set(agg_set)
+
+#apply decay function
+merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"transit")
+
+#get average of AccessIndex col, return to summary dataframe by blockgroup ID
+summary_index_mover <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+
+#order
+summary_index_mover <- summary_index_mover[order(summary_index_mover$AccessIndex),]
+
+#prep for merge
+rownames(summary_index_mover) <- NULL
+summary_index_mover$rank.i <- rownames(summary_index_mover)
+colnames(summary_index_mover)[colnames(summary_index_mover)=="rank.i"] <- paste("rank",i)
+
+#print summary of AI for validation on if this is working
+print(summary(summary_index_mover$AccessIndex))
+summary_index_mover$AccessIndex <- NULL
+
+#merge new data to dataframe
+summary_index_user <- merge(summary_index_user,summary_index_mover,by="Id2",all.y=TRUE)
+print(paste(i,"iteration..."))
+}
+
+#store as a new data frame
+sensitivity_frame_softgravity_transit <- summary_index_user 
+```
+
+###Plot Soft Gravity Driving
+```{r}
+library(reshape2)
+library(ggplot2)
+library(gridExtra)
+#Prep & order frame
+sensitivity_frame_softgravity <- sensitivity_frame_softgravity 
+sensitivity_frame_softgravity$base_rank <- as.numeric(sensitivity_frame_softgravity$base_rank)
+sensitivity_frame_softgravity <- sensitivity_frame_softgravity[order(sensitivity_frame_softgravity$base_rank),]
+
+#subsetframe
+Top_SG__25 <- sensitivity_frame_softgravity[1:25,]
+sa_25_50 <- sensitivity_frame_softgravity[1:50,]
+sa_50_75 <- sensitivity_frame_softgravity[1:75,]
+sa_75_100 <- sensitivity_frame_softgravity[1:100,]
+sa_tail <- sensitivity_frame_softgravity[456:480,]
+sa_tailstart <- sensitivity_frame_softgravity[406:480,]
+
+
+#Top 25 Plot
+df <- melt(Top_SG__25,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+Top_SG__25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 25") + ylim(1,490)
+
+#Top 50 Plot
+df <- melt(sa_25_50,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+Top_SG__50_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 50") + ylim(1,490)
+
+#Top 75 Plot
+df <- melt(sa_50_75,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+Top_SG__75_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 75") + ylim(1,490)
+
+#Top 100 Plot
+df <- melt(sa_75_100,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+Top_SG__100_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 100") + ylim(1,490)
+
+#Bottom 50
+df <- melt(sa_tail,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+SG_Tail_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 50") + ylim(1,490)
+
+#Bottom 25
+df <- melt(sa_tailstart,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+SG_Bottom25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 100") + ylim(1,490)
+
+#grid.arrange(Top_SG__25_Plot,Top_SG__50_Plot,Top_SG__75_Plot,Top_SG__100_Plot,SG_Bottom25_Plot,SG_Tail_Plot,ncol=3)
+```
+
+###Plot Soft Gravity Transit
+```{r}
+library(reshape2)
+library(ggplot2)
+library(gridExtra)
+#Prep & order frame
+sensitivity_frame_softgravity_transit <- sensitivity_frame_softgravity_transit 
+sensitivity_frame_softgravity_transit$base_rank <- as.numeric(sensitivity_frame_softgravity_transit$base_rank)
+sensitivity_frame_softgravity_transit <- sensitivity_frame_softgravity_transit[order(sensitivity_frame_softgravity_transit$base_rank),]
+
+#subsetframe
+Top_SGtransit_25 <- sensitivity_frame_softgravity_transit[1:25,]
+sa_25_50 <- sensitivity_frame_softgravity_transit[1:50,]
+sa_50_75 <- sensitivity_frame_softgravity_transit[1:75,]
+sa_75_100 <- sensitivity_frame_softgravity_transit[1:100,]
+sa_tail <- sensitivity_frame_softgravity_transit[456:480,]
+sa_tailstart <- sensitivity_frame_softgravity_transit[406:480,]
+
+#Top 25 Plot
+df <- melt(Top_SGtransit_25,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+Top_SGtransit_25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 25") + ylim(1,490)
+
+#Top 50 Plot
+df <- melt(sa_25_50,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+Top_SGtransit_50_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 50") + ylim(1,490)
+
+#Top 75 Plot
+df <- melt(sa_50_75,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+Top_SGtransit_75_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 75") + ylim(1,490)
+
+#Top 100 Plot
+df <- melt(sa_75_100,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+Top_SGtransit_100_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="top 100") + ylim(1,490)
+
+#Bottom 50
+df <- melt(sa_tail,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+SGTransit_Tail_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 50") + ylim(1,490)
+
+#Bottom 25
+df <- melt(sa_tailstart,id=c("Id2","AccessIndex"),measure.vars=c("base_rank","rank 1","rank 2","rank 3","rank 4","rank 5","rank 6","rank 7","rank 8","rank 9"))
+df$value <- as.numeric(df$value)
+df$variable <- as.factor(df$variable)
+
+SGTransit_Bottom25_Plot <- ggplot(df, aes(variable,value,group = Id2, color = as.factor(Id2))) + geom_line() + theme(legend.position="none") + labs(title="Bottom 100") + ylim(1,490)
+
+#grid.arrange(Top_SGtransit_25_Plot,Top_SGtransit_50_Plot,Top_SGtransit_75_Plot,Top_SGtransit_100_Plot,SGTransit_Bottom25_Plot,SGTransit_Tail_Plot,ncol=3)
+```
+
+##Conclusion
+While the gravity model is the least sensitive to the choice in scale, the model is extremely sensitive to the proximity of nearby addresses, producing that are both questionable with respect to the realistic assumption that there is some in difference between a travel of time in the case of very short travel times (for example, one minute vs. two minutes) as well as bad for interpreabillity as it heavily weights blockgroups with centroids located near programs, which is hardly an accurate representation and the location of all homes in a centroid.
+
+By contrast, the exp model and the gravity threshold model yield conflicting results. Transit times are extremely sensitive to the exp model with a scale of 5-15 minutes, while driving times are extremely sensitive to the gravity threshold model with respect to 5-15 mintues. In either case, the somewhat arbitrary choice of scale could signficantly alter conclusions, questioning the construct validity of our results.
+
+In contrast, the use of the "soft gravity model" is by far the least sensitive to choice of scale, and provides results which are useful for interpretation. 
