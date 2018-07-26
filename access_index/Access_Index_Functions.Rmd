@@ -5,29 +5,40 @@ date: "7/23/2018"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 ##Intro
 This markdown defines functions for use in calculating an access index per user specifications on filtering reschool program data. Additionally, this markdown provides leaflet code for plotting the results of the index by census block group. This markdown reads census_centroids as a shapefile from my machine, as we haven't pushed this to the RDS yet.
 **As of July 25th** we have decided not to push multiple access index files to the the RDS, and instead to rely on the script here to run specific indicies.
 
-###RDS Pull
 ```{r}
 library(rgeos)
 library(rgdal)
 library(raster)
 library(tidyverse)
 library(RPostgreSQL)
+```
+
+###RDS Pull
+```{r}
+mypath <- dirname(rstudioapi::getActiveDocumentContext()$path)
+setwd(mypath)
+
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
+
+# make a file called "cred.txt" of the form
+#
+# user: "YOUR_AWS_USERNAME"
+# password: "YOUR_AWS_PASSWORD"
+#
+# in the directory above the osr_dssg2018 folder
+
+source(file.path(dirname(dirname(mypath)),"cred.txt"))
 
 # creates a connection to the postgres database
 # note that "con" will be used later in each connection to the database
 con <- dbConnect(drv, dbname = "dssg2018uw",
-                 host = "localhost", port = 9000,
-                 user = user, password = password) #local source credentials
+                 host = "localhost", port =9000,
+                 user = user, password = password)
 
 #get reschool_programs
 reschool_programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs")
@@ -40,17 +51,14 @@ dbUnloadDriver(drv)
 
 ###Establishing Cost Thresholds and Umbrella Program Types
 ```{r}
-reschool_programs$academic <- ifelse(reschool_programs$has_academic==TRUE | reschool_programs$has_stem==TRUE,TRUE,FALSE) 
+reschool_programs$academic <- reschool_programs$has_academic==TRUE | reschool_programs$has_stem==TRUE
 
-reschool_programs$art <- ifelse(reschool_programs$has_arts==TRUE | reschool_programs$has_cooking==TRUE | 
-                                  reschool_programs$has_dance==TRUE | reschool_programs$has_drama==TRUE
-                                | reschool_programs$has_music==TRUE,
-                                TRUE,FALSE)
+reschool_programs$art <- reschool_programs$has_arts==TRUE | reschool_programs$has_cooking==TRUE | reschool_programs$has_dance==TRUE | reschool_programs$has_drama==TRUE | reschool_programs$has_music==TRUE
 
 #cost thresolds, to be updated w/ time data from selam
-reschool_programs$free <- ifelse(reschool_programs$session_cost==0,TRUE,FALSE)
-reschool_programs$lowcost <- ifelse(reschool_programs$session_cost<=50,TRUE,FALSE)
-reschool_programs$highcost <- ifelse(reschool_programs$session_cost>50,TRUE,FALSE)
+reschool_programs$free <- reschool_programs$session_cost==0
+reschool_programs$lowcost <- reschool_programs$session_cost<=50
+reschool_programs$highcost <- reschool_programs$session_cost>50
 
 #establishing "1" per row for use in aggergation
 reschool_programs$n <- 1 
@@ -95,13 +103,14 @@ Aggregate_Subset <- function(dataframe){
 #4. Here we merge the aggregated sessiosn into the block_distance data set to incorporate travel times 
 
 Merge_Set <- function(dataframe){
-  block_distance_new <- block_distance[,-c(3,4,9:14)] #here we're cutting duplicate program_addresses, and other antiquated info (previous aggregations, PCT vhcl ownership) that was use in previous calculations
+  relevant_columns <- c("Id2","session_address_1","driving_morning","walking_morning","transit_morning","kilometers","block_lat","block_long")
+  block_distance_new <- block_distance[,relevant_columns] #here we're cutting duplicate program_addresses, and other antiquated info (previous aggregations, PCT vhcl ownership) that was use in previous calculations
   temp <- merge(block_distance_new,dataframe,all.y=TRUE)
   temp$n[is.na(temp$n)==TRUE] <- 0
   return(temp)
 }
 
-#5 Here we define the grabity threshold decay function. Note that as of July 25th we've decided not use this equation, and instead use the exponential equation per the results of the sensitivity analysis. 
+#5 Here we define the gravity threshold decay function. Note that as of July 25th we've decided not use this equation, and instead use the exponential equation per the results of the sensitivity analysis. 
 
 decay_fxn <- function(dataframe,mode){
   if (mode=="transit") {
@@ -154,6 +163,8 @@ agg_set <- Aggregate_Subset(user_set)
 merged_set <- Merge_Set(agg_set)
 
 #calculate access index per location 
+
+# if we don't have transit info, instead use the walking distance
 merged_set$transit_morning[is.na(merged_set$transit_morning)] <- merged_set$walking_morning[is.na(merged_set$transit_morning)]
 merged_set$transit_morning[merged_set$transit_morning==0] <- merged_set$walking_morning[merged_set$transit_morning==0]
 
@@ -169,7 +180,6 @@ summary_index_total$CarAccessIndex <- normalize(summary_index_total$CarAccessInd
 ###User Script for Driving
 This is the exact script to use to query, for an example type.
 ```{r}
-library(scales)
 #User specifies query (type)
 #type <- c("art") #"type" can include categories or cost thresholds. Pending cost per day calculations from Selam
 #cost <- c("free")
@@ -230,6 +240,8 @@ Note that you need all files in this directory, and that it is not in the RDS.
 library(rgeos)
 library(rgdal)
 library(raster)
+
+dirname(mypath))
 #census_blocks <- SpatialPointsDataFrame(gCentroid(spdf, byid=TRUE), spdf@data, match.ID = FALSE)
 ```
 

@@ -10,6 +10,8 @@ library(rgeos)
 require("RPostgreSQL")
 library(RColorBrewer)
 
+mypath <- "/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project"
+
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
 
@@ -33,7 +35,6 @@ libraries = dbGetQuery(con, "SELECT * from shiny.libraries")
 playgrounds = dbGetQuery(con, "SELECT * from shiny.playgrounds")
 rec_centers = dbGetQuery(con, "SELECT * from shiny.rec_centers")
 parks = dbGetQuery(con, "SELECT * from shiny.parks")
-reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
 
 #######################Getting the shape file to plot the bock groups on the map##############################
