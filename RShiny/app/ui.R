@@ -56,7 +56,7 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                 br(),
                                 selectInput("neighborhoods", "Restrict to one neighborhood:", 
                                             choices = c("No neighborhood selected", 
-                                                        neighborhoods_reshoolprograms)
+                                                        sort(neighborhoods_reshoolprograms))
                                 ),
                                 width = 4
                               ),
@@ -115,7 +115,8 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                 br(),
                                 selectInput("neighborhoods_other", 
                                             "Restrict to one neighborhood:", 
-                                            choices = c("No neighborhood selected", neighborhoods_other)
+                                            choices = c("No neighborhood selected", 
+                                                        sort(neighborhoods_other))
                                 ),
                                 br()
                               ),

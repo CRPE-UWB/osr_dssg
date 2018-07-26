@@ -7,8 +7,6 @@ library(shiny)
 library(DT)
 library(leaflet)
 library(sp)
-# library(leaflet.minicharts)
-# library(mapview)
 
 shinyServer(
   
@@ -185,6 +183,7 @@ shinyServer(
       # Function to add program markers to the map
       # lat, long are the column names for latitude and longitude
       add_program_markers <- function(map, data, lat, long){
+        if (nrow(data) > 0) {
           addCircleMarkers(map, lng = jitter(data$long, factor = 1, amount = 0.0005), 
                            lat = jitter(data$lat, factor = 1, amount = 0.0005), 
                            radius = 4,
@@ -200,12 +199,16 @@ shinyServer(
                              offset = c(5,0)
                            )
           ) %>%
-          addLegend(
-            position = "bottomright",
-            colors = c("yellow"),
-            opacity = 0.5,
-            labels = "program"
-          )
+            addLegend(
+              position = "bottomright",
+              colors = c("yellow"),
+              opacity = 0.5,
+              labels = "program"
+            )
+        }
+        else{
+          return(map)
+        }
       }
       
       # Function to draw the base map + demographics + program markers
@@ -249,12 +252,7 @@ shinyServer(
         make_reschool_map(pal_edu,"PCT_HS_")
       }
       else if(input$demographics == "Hispanic population (%)") {
-        make_reschool_map(pal_hispanic, "PCT_HIS") # %>% 
-          # addMinicharts(
-          #   shape_census@data$x, shape_census@data$y,
-          #   chartdata = shape_census@data[, c("xxx", "yyy")], 
-          #   width = 30, layerId = shape_census@data$nbhd_name
-          # )
+        make_reschool_map(pal_hispanic, "PCT_HIS")
       }
       else if(input$demographics == "Black population (%)") {
         make_reschool_map(pal_black, "PCT_BLA")
@@ -374,29 +372,34 @@ shinyServer(
         }
         
         # Function to add circle markers on the map depending on the resource type(s) selected
-        add_circle_markers = function(m, file, legend_title, color_code, popup_html = NULL){
-         addCircleMarkers(m , data = file, 
-                          lng = jitter(file$long, factor = 1, amount = 0.0005), 
-                          lat = jitter(file$lat, factor = 1, amount = 0.0005), 
-                          radius = 4,
-                          stroke = FALSE,
-                          weight = 1,
-                          fillColor = color_code,
-                          fillOpacity = 0.5,
-                          label = popup_html,
-                          labelOptions = labelOptions(
-                            style = list("font-weight" = "normal", padding = "3px 8px"),
-                            textsize = "12px",
-                            direction = "right",
-                            offset = c(5,0)
-                          )
-                          )  %>%
-            addLegend(
-              position = "bottomright",
-              colors = c(color_code),
-              opacity = 0.5,
-              labels = legend_title
-            )
+        add_circle_markers = function(map, data, legend_title, color_code, popup_html = NULL){
+          if (nrow(data) > 0) {
+            addCircleMarkers(map, data = data, 
+                             lng = jitter(data$long, factor = 1, amount = 0.0005), 
+                             lat = jitter(data$lat, factor = 1, amount = 0.0005), 
+                             radius = 4,
+                             stroke = FALSE,
+                             weight = 1,
+                             fillColor = color_code,
+                             fillOpacity = 0.5,
+                             label = popup_html,
+                             labelOptions = labelOptions(
+                               style = list("font-weight" = "normal", padding = "3px 8px"),
+                               textsize = "12px",
+                               direction = "right",
+                               offset = c(5,0)
+                             )
+            )  %>%
+              addLegend(
+                position = "bottomright",
+                colors = c(color_code),
+                opacity = 0.5,
+                labels = legend_title
+              )
+          }
+          else {
+            return(map)
+          }
        }
         
         # Loop over selected resources types, plotting the locations of each
