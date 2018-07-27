@@ -5,7 +5,7 @@ library(leaflet)
 
 # Source needed data for ui and server
 source('../source_file.R', chdir = TRUE)  # temp change working dir to same as source_file.R
-
+source('helpers.R')
 shinyUI(navbarPage("Denver Out-of-School Resources",
                    
                    ## RESCHOOL PROGRAMS TAB
@@ -139,8 +139,9 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                             tabPanel("Summary analysis")
                                 )
                               )
-                            ))
-                            ), 
+                            )
+                          )
+                   ),
 
                    ## RESCHOOL SEARCH DATA TAB
                    tabPanel("ReSchool Program Searches",
@@ -169,7 +170,42 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                             ),
                    
                    ## ACCESS INDEX TAB
-                   tabPanel("Access Index")
+                   tabPanel("Access Index",
+                            fluidPage(sidebarLayout(
+                              
+                              sidebarPanel(
+                                checkboxGroupInput("type_access", 
+                                                   "Select one or more program types:", 
+                                                   choices = c("Academic", "Arts", "Athletic", "Nature"),
+                                                   inline = TRUE
+                                ),
+                                br(),
+                                radioButtons("cost_access", 
+                                             "Select a cost range for programs:", 
+                                             choiceNames = list("Free", "Free to Low Cost", "All Programs"),
+                                             choiceValues = list("Free", "Low", "Any"),
+                                             selected = "Any"
+                                ),
+                                br()
+                              ),
+                              
+                              mainPanel(
+                                "Hello"
+                              )
+                              
+                              #mainPanel(
+                                
+                                # tabsetPanel(type = "tab",
+                                #             tabPanel("Map",
+                                #                      leafletOutput("mymap_other", height = 520)),
+                                #             tabPanel("Data",
+                                #                      uiOutput("dt")),
+                                #             tabPanel("Summary analysis")
+                                #)
+                              )
+                            )
+                   )
+                  
 )
 )
 

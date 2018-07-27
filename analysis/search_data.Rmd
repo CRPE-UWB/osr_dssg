@@ -45,7 +45,9 @@ museums <- dbGetQuery(con, "select * from clean.museums")
 libraries <- dbGetQuery(con, "select * from clean.libraries")
 fields <- dbGetQuery(con, "select * from clean.fields")
 
-google_analytics$location <- gsub(".*(80\\d{3}).*","\\1",google_analytics$location)
+
+google_analytics[-grep("80\\d{3}",google_analytics$location),"location"] <- NA 
+google_analytics[grep("80\\d{3}",google_analytics$location),"location"] <- gsub(".*(80\\d{3}).*","\\1",google_analytics[grep("80\\d{3}",google_analytics$location),"location"])
 searches_with_locations <- google_analytics[grep("80\\d{3}",google_analytics$location),]
 unique_search_locations <- unique(searches_with_locations$location)
 ```
