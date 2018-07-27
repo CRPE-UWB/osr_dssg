@@ -116,7 +116,8 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                 selectInput("neighborhoods_other", 
                                             "Restrict to one neighborhood:", 
                                             choices = c("No neighborhood selected", 
-                                                        sort(neighborhoods_other))
+                                                        sort(neighborhoods_other)
+                                                        )
                                 ),
                                 br()
                               ),

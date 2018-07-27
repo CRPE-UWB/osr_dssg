@@ -51,7 +51,8 @@ shinyServer(
     output$datatable <- DT::renderDataTable({
       data_table1 <- neighborhood_data()
       DT::datatable(data_table1[,-c(5,6,7)], 
-                    options = list(pageLength = 3, 
+                    options = list(pageLength = 5, 
+                                   scrollX = TRUE,
                                    initComplete = JS(
                                      "function(settings, json) {",
                                      "$(this.api().table().header()).css(
@@ -59,16 +60,17 @@ shinyServer(
                                       );",
                                      "}")),
                     caption = htmltools::tags$caption(
-                      style = 'caption-side: top; text-align: center; color: black ;',
+                      style = 'caption-side: top; text-align: left; color: black ;',
                       htmltools::h3("ReSchool Programs")
-                    ), 
+                    ),
+                    width = 300,
                     style = "bootstrap",
                     class = 'cell-border stripe',
                     rownames = FALSE
                     
       ) %>%
         formatStyle(colnames(data_table1[,-c(5,6,7)]),
-                    backgroundColor = 'lightblue'
+                    backgroundColor = 'lightyellow'
         )
                     
     })
@@ -519,6 +521,7 @@ shinyServer(
       
       datatable(data,
                 options = list(pageLength = 3, 
+                               scrollX = TRUE,
                                initComplete = JS(
                                  "function(settings, json) {",
                                  "$(this.api().table().header()).css(
@@ -526,9 +529,10 @@ shinyServer(
                                   );",
                                  "}")),
                 caption = htmltools::tags$caption(
-                  style = 'caption-side: top; text-align: center; color: black ;',
+                  style = 'caption-side: top; text-align: left; color: black ;',
                   htmltools::h3(checkbox_input)
                 ), 
+                width = 300,
                 style = "bootstrap",
                 class = 'cell-border stripe',
                 rownames = FALSE,
