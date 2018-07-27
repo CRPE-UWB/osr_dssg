@@ -54,10 +54,20 @@ shape_census <- geo_join(shape_census, aggregate_session_nbhds, "NBHD_NA", "nbhd
 shape_census <- geo_join(shape_census, aggregate_dps_student_nbhds, "NBHD_NA", "nbhd_name", how = "left")
 
 #Creating filter variables distinct zipcode, minimum cost, maximum cost and the type of the program
-#Defining the variables to be used in the sidebar panel
+#Defining the variables to be used in the ReSchool tab sidebar panel
 neighborhoods_reshoolprograms = unique(reschool_summer_program$nbhd_name)
 minprice_reschoolprograms = min(reschool_summer_program$session_cost)
 maxprice_reschoolprograms = max(reschool_summer_program$session_cost)
+
+#Defining the variables to be used in the program search tab sidebar panel
+#Convert the cost column  to numeric
+google_analytics$mincost = as.numeric(google_analytics$mincost)
+google_analytics$maxcost = as.numeric(google_analytics$maxcost)
+
+#Get the min and max cost to be used in the input slider
+minprice_search = min(google_analytics$mincost, na.rm = TRUE)
+maxprice_search = max(google_analytics$maxcost, na.rm = TRUE)
+
 
 #Creating variables for the second tab 'other out-of-school resources'
 neighborhoods_other = unique(all_neighbourhoods$nbhd_name)

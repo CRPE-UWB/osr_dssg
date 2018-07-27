@@ -139,13 +139,12 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                             fluidPage(sidebarLayout(
                               
                               sidebarPanel(
-                                checkboxGroupInput("program_other", 
-                                                   "Select one or more resource types:", 
-                                                   choices = c("Parks", "Playgrounds", 
-                                                               "Rec Centers", "Libraries", 
-                                                               "Museums", "Fields"), 
-                                                   selected = "Parks", 
-                                                   inline = TRUE
+                                sliderInput("slider_searchprog", "Select a range for program cost:", 
+                                            min = minprice_search, 
+                                            max = maxprice_search , 
+                                            value = c(minprice_search, 
+                                                      maxprice_search),
+                                            pre = "$"
                                 ),
                                 br()),
                               
