@@ -287,7 +287,7 @@ shinyServer(
     })
     
     
-    # Function to get datatables for eaxh resources. Has a bunch of aesthetics
+    # Function to get datatables for each resources. Has a bunch of aesthetics
     data_table_function = function(checkbox_input, data, column_names){
       
       datatable(data,
@@ -378,5 +378,3 @@ shinyServer(
 
     
   })  
-    
-
