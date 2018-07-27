@@ -5,8 +5,7 @@ date: "7/23/2018"
 output: html_document
 ---
 ##Intro
-This markdown defines functions for use in calculating an access index per user specifications on filtering reschool program data. Additionally, this markdown provides leaflet code for plotting the results of the index by census block group. This markdown reads census_centroids as a shapefile from my machine, as we haven't pushed this to the RDS yet.
-**As of July 25th** we have decided not to push multiple access index files to the the RDS, and instead to rely on the script here to run specific indicies.
+This markdown defines functions for use in calculating an access index per user specifications on filtering reschool program data. Additionally, this markdown provides leaflet code for plotting the results of the index by census block group. This markdown reads census_centroids as a shapefile from my machine, as we haven't pushed this to the RDS yet. ***AS OF JULY 27th*** We have deicded to pre-compute different combinations to return an average (rather than aggregate score) for the shiny interface. 
 
 ```{r}
 library(rgeos)
@@ -57,7 +56,7 @@ reschool_programs$art <- reschool_programs$has_arts==TRUE | reschool_programs$ha
 #cost thresolds, to be updated w/ time data from selam
 reschool_programs$free <- reschool_programs$session_cost==0
 reschool_programs$lowcost <- reschool_programs$session_cost<=50
-reschool_programs$highcost <- reschool_programs$session_cost>50
+reschool_programs$anycost <- TRUE
 
 #establishing "1" per row for use in aggergation
 reschool_programs$n <- 1 
