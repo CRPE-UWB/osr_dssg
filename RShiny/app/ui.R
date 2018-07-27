@@ -71,7 +71,13 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                                      DT::dataTableOutput("datatable")
                                                      ),
                                             tabPanel("Summary analysis",
-                                                     plotOutput("program_type_summary")
+                                                     uiOutput("summary_title"),
+                                                     fluidRow(
+                                                       column(6, plotOutput("program_type_summary")),
+                                                       column(6, plotOutput("program_cost_summary"))
+                                                     ),
+                                                     uiOutput("program_special_cats"),
+                                                     DT::dataTableOutput("nbhd_summary")
                                                      )
                                             )
                                 ) 
