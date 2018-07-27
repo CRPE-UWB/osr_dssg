@@ -3,14 +3,25 @@
 library(shiny)
 library(leaflet)
 
-# Source needed data for ui and server
+# Source needed data and functions for ui and server
 source('../source_file.R', chdir = TRUE)  # temp change working dir to same as source_file.R
 source('helpers.R')
-shinyUI(navbarPage("Denver Out-of-School Resources",
+
+shinyUI(
+  
+  fluidPage(
+  
+  includeCSS("style.css"),
+  
+  navbarPage("Denver Out-of-School Resources",
                    
                    ## RESCHOOL PROGRAMS TAB
                    tabPanel("B4S Programs",
-                            fluidPage(sidebarLayout(
+                            fluidPage(
+                              
+                              # includeCSS("style.css"),
+                              
+                              sidebarLayout(
                               
                               # Sidebar panel for making selections about reschool programs
                               sidebarPanel(
@@ -206,6 +217,7 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                             )
                    )
                   
+)
 )
 )
 
