@@ -101,7 +101,7 @@ add_circle_markers <- function(map, data, legend_title, color_code, popup_text){
 make_reschool_map <- function(df, popup_text, palette, col_name) {
   make_base_map() %>%
     add_demographic_map(palette,col_name,nbhd_labels) %>%
-    add_program_markers(df, popup_text)
+    add_circle_markers(df, "Programs", "yellow", popup_text)
 }
 
 ####### SUBSETTING FUNCTIONS  #######
