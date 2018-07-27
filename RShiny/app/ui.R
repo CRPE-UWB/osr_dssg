@@ -3,6 +3,9 @@
 library(shiny)
 library(leaflet)
 
+# Source needed data for ui and server
+source('../source_file.R', chdir = TRUE)  # temp change working dir to same as source_file.R
+
 shinyUI(navbarPage("Denver Out-of-School Resources",
                    
                    ## RESCHOOL PROGRAMS TAB
@@ -53,7 +56,7 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                 br(),
                                 selectInput("neighborhoods", "Restrict to one neighborhood:", 
                                             choices = c("No neighborhood selected", 
-                                                        neighborhoods_reshoolprograms)
+                                                        sort(neighborhoods_reshoolprograms))
                                 ),
                                 width = 4
                               ),
@@ -112,7 +115,8 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                 br(),
                                 selectInput("neighborhoods_other", 
                                             "Restrict to one neighborhood:", 
-                                            choices = c("No neighborhood selected", neighborhoods_other)
+                                            choices = c("No neighborhood selected", 
+                                                        sort(neighborhoods_other))
                                 ),
                                 br()
                               ),
@@ -130,7 +134,31 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                             ), 
 
                    ## RESCHOOL SEARCH DATA TAB
-                   tabPanel("B4S Searches"),
+                   tabPanel("ReSchool Program Searches",
+                            
+                            fluidPage(sidebarLayout(
+                              
+                              sidebarPanel(
+                                checkboxGroupInput("program_other", 
+                                                   "Select one or more resource types:", 
+                                                   choices = c("Parks", "Playgrounds", 
+                                                               "Rec Centers", "Libraries", 
+                                                               "Museums", "Fields"), 
+                                                   selected = "Parks", 
+                                                   inline = TRUE
+                                ),
+                                br()),
+                              
+                              mainPanel(
+                                tabsetPanel(type = "tab",
+                                            tabPanel("Summary"),
+                                            tabPanel("Visualization")
+                                )
+                              )
+                            ))
+                            
+                            
+                            ),
                    
                    ## ACCESS INDEX TAB
                    tabPanel("Access Index")

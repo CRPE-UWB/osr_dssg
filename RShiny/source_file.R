@@ -1,17 +1,21 @@
+# Source file to generate data for plotting in RShiny app.
+#
+# Note: all file paths are relative to LOCATION OF THIS FILE
+#
 #########################Connecting to the sql database#####################################################
 library(dplyr)
 library(rgdal)
 library(tigris)
 library(rgeos)
-require("RPostgreSQL")
+library(RPostgreSQL)
 library(RColorBrewer)
 
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
 
-# load credentials for the connection:
-# dbname, host, port, user, password
-source('/Users/kelliemacphee/Desktop/dssg2018/cred.txt')
+# load credentials for the connection: dbname, host, port, user, password
+# looks for cred.txt in parent dir to cloned github repo
+source('cred.txt')
 
 # creates a connection to the postgres database
 # note that "con" will be used later in each connection to the database
@@ -29,21 +33,25 @@ libraries = dbGetQuery(con, "SELECT * from shiny.libraries")
 playgrounds = dbGetQuery(con, "SELECT * from shiny.playgrounds")
 rec_centers = dbGetQuery(con, "SELECT * from shiny.rec_centers")
 parks = dbGetQuery(con, "SELECT * from shiny.parks")
-reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
+google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
+
 
 #######################Getting the shape file to plot the bock groups on the map##############################
+
 # shape_census <- readOGR(dsn = "C:/Users/Sreekanth/Desktop/osr_dssg2018-1/data/nbhd_dem_shapes", 
-#                         layer = "nbhd_dem_shapes")
-shape_census <- readOGR(dsn = "/Users/kelliemacphee/Desktop/dssg2018/GITHUB_osr_dssg2018/data/nbhd_dem_shapes",
-                        layer = "nbhd_dem_shapes")
+ #                        layer = "nbhd_dem_shapes")
+#shape_census <- readOGR(dsn = "/Users/kelliemacphee/Desktop/dssg2018/GITHUB_osr_dssg2018/data/nbhd_dem_shapes",
+#                        layer = "nbhd_dem_shapes")
+
+shape_census <- readOGR(dsn = "../data/nbhd_dem_shapes", layer = "nbhd_dem_shapes")
+
 
 # Joining the 'number of sessions' information with the census shape file
 shape_census <- geo_join(shape_census, aggregate_session_nbhds, "NBHD_NA", "nbhd_name", how = "left")
 
 # Joining the aggregate dps students information to the census shape file
 shape_census <- geo_join(shape_census, aggregate_dps_student_nbhds, "NBHD_NA", "nbhd_name", how = "left")
-
 
 #Creating filter variables distinct zipcode, minimum cost, maximum cost and the type of the program
 #Defining the variables to be used in the sidebar panel
@@ -83,9 +91,9 @@ shape_census@data$racial_dist_html <- mapply(
     color4 <- pal[4]
     
     sprintf(
-      "<div style='font-size:12px;width:150px;float:left'>
+      "<div style='font-size:12px;width:180px;float:left'>
             <span style='font-size:16 px;font-weight:bold'>%s</span><br/>
-            <div style='width:80%%'>
+            <div style='width:100%%'>
               <span style='background:%s;width:%s%%;position:absolute;left:0'>&nbsp;</span>
               <span style='background:%s;width:%s%%;position:absolute;left:%s%%'>&nbsp;</span>
               <span style='background:%s;width:%s%%;position:absolute;left:%s%%'>&nbsp;</span>
