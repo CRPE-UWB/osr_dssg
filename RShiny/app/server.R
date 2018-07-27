@@ -22,7 +22,7 @@ shinyServer(
     # Subsetting the data for the type of the program selected
     program_category_data <- reactive({
       a <- reschool_summer_program[apply(as.data.frame(reschool_summer_program[,colm()]) == 1, 1, any), 
-                                  c(1,2,3,4,5,6,7,8,9,10,11,12,colm())
+                                  c(1:12,colm())
                                   ]
       return(a)
     })
@@ -160,7 +160,7 @@ shinyServer(
     
     output$mymap <- renderLeaflet({
       
-      # Get the neighborhood data
+      # Subset to data for only this neighborhood
       neighborhood_data1 <- neighborhood_data()
     
       # Construct pop-ups for when you click on a program marker
@@ -276,20 +276,47 @@ shinyServer(
       
     })
     
+    ####### MAKE THE RESCHOOL PROGRAMS SUMMARY ANALYSIS #######
+    
+    output$program_type_summary <- renderPlot({
+      # title = neighborhood
+      # FILL THIS IN
+      
+      # Subset to only this neighborhood
+      # FILL THIS IN
+      
+      # dummy plot just to check
+      rownum <- 1
+      data <- unlist(nbhd_program_summary[rownum,3:13])
+      names(data) <- c("academic", "arts", "cooking", "dance", "drama",
+                       "music", "nature", "scholarships", "special needs",
+                       "sports", "stem")
+      barplot(data)
+    }
+      
+      
+      
+      
+    )
+    
+    
+    
+    
+    
     #### Other out of school resources tab ####
     colm_other <- reactive({
       input$program_other
     })
     
     # Function to subset all the resource datasets based on the neighborhood selected
-    subset_for_neighborhoods <- function(file){
+    subset_for_neighborhoods <- function(df){
       
       b <- reactive({
         if(input$neighborhoods_other != "No neighborhood selected" ) {
-          a <- file[which(file[, "nbhd_name"] == input$neighborhoods_other),]
+          a <- df[which(df[, "nbhd_name"] == input$neighborhoods_other),]
         }
         else {
-          a <- file
+          a <- df
         }
         return(a) 
       })

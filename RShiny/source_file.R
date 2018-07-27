@@ -1,8 +1,6 @@
 # Source file to generate data for plotting in RShiny app.
-#
 # Note: all file paths are relative to LOCATION OF THIS FILE
-#
-#########################Connecting to the sql database#####################################################
+
 library(dplyr)
 library(rgdal)
 library(tigris)
@@ -10,20 +8,22 @@ library(rgeos)
 library(RPostgreSQL)
 library(RColorBrewer)
 
-# loads the PostgreSQL driver
+################## Getting data from the database e#############################################
+
+# load the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
 
 # load credentials for the connection: dbname, host, port, user, password
 # looks for cred.txt in parent dir to cloned github repo
 source('cred.txt')
 
-# creates a connection to the postgres database
+# create a connection to the postgres database
 # note that "con" will be used later in each connection to the database
 con <- dbConnect(drv, dbname = dbname,
                  host = host, port = port,
                  user = user, password = password)
 
-#########################Getting the required tables from the sql database####################################
+# get the required tables from the sql database 
 reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
 aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
@@ -36,31 +36,33 @@ parks = dbGetQuery(con, "SELECT * from shiny.parks")
 all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
 google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
 
+nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summary")
 
-#######################Getting the shape file to plot the bock groups on the map##############################
+# when you're done, close the connection and unload the driver 
+dbDisconnect(con) 
+dbUnloadDriver(drv)
 
-# shape_census <- readOGR(dsn = "C:/Users/Sreekanth/Desktop/osr_dssg2018-1/data/nbhd_dem_shapes", 
- #                        layer = "nbhd_dem_shapes")
-#shape_census <- readOGR(dsn = "/Users/kelliemacphee/Desktop/dssg2018/GITHUB_osr_dssg2018/data/nbhd_dem_shapes",
-#                        layer = "nbhd_dem_shapes")
-
+################ Getting the shape file to plot the bock groups on the map #####################
 shape_census <- readOGR(dsn = "../data/nbhd_dem_shapes", layer = "nbhd_dem_shapes")
 
-
 # Joining the 'number of sessions' information with the census shape file
-shape_census <- geo_join(shape_census, aggregate_session_nbhds, "NBHD_NA", "nbhd_name", how = "left")
+shape_census <- geo_join(shape_census, aggregate_session_nbhds, 
+                         "NBHD_NA", "nbhd_name", how = "left")
 
 # Joining the aggregate dps students information to the census shape file
-shape_census <- geo_join(shape_census, aggregate_dps_student_nbhds, "NBHD_NA", "nbhd_name", how = "left")
+shape_census <- geo_join(shape_census, aggregate_dps_student_nbhds, 
+                         "NBHD_NA", "nbhd_name", how = "left")
 
-#Creating filter variables distinct zipcode, minimum cost, maximum cost and the type of the program
-#Defining the variables to be used in the ReSchool tab sidebar panel
+###################### Creating filter variables for the sidebar panels #########################
+
+# Creating filter variables: distinct zipcode, minimum cost, maximum cost, program type
+# (for the ReSchool tab sidebar panel)
 neighborhoods_reshoolprograms = unique(reschool_summer_program$nbhd_name)
 minprice_reschoolprograms = min(reschool_summer_program$session_cost)
 maxprice_reschoolprograms = max(reschool_summer_program$session_cost)
 
-#Defining the variables to be used in the program search tab sidebar panel
-#Convert the cost column  to numeric
+# Defining the variables to be used in the program search tab sidebar panel
+# Convert the cost column  to numeric
 google_analytics$mincost = as.numeric(google_analytics$mincost)
 google_analytics$maxcost = as.numeric(google_analytics$maxcost)
 
@@ -68,14 +70,16 @@ google_analytics$maxcost = as.numeric(google_analytics$maxcost)
 minprice_search = min(google_analytics$mincost, na.rm = TRUE)
 maxprice_search = max(google_analytics$maxcost, na.rm = TRUE)
 
-
-#Creating variables for the second tab 'other out-of-school resources'
+# Creating variables for the second tab 'other out-of-school resources'
 neighborhoods_other = unique(all_neighbourhoods$nbhd_name)
 
-#Defining variables for choosing demographic information
+# Defining variables for choosing demographic information
 demographic_filters = c("Median Income", "Percent below poverty level")
 
+############################## Racial distributions variables ####################################
+
 # Creating majority race variables for each neighborhood
+# (could probably do this ahead of time)
 shape_census@data$majority_race <- max.col(as.matrix(
           shape_census@data[ ,c("PCT_HIS", "PCT_WHI", "PCT_BLA","PCT_NAT","PCT_ASI")]
                      ))
@@ -136,6 +140,4 @@ shape_census@data$racial_dist_html <- mapply(
   
 )
 
-# when you're done, close the connection and unload the driver 
-dbDisconnect(con) 
-dbUnloadDriver(drv)
+############################## For program summary analysis ####################################
