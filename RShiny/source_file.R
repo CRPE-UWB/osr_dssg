@@ -35,15 +35,21 @@ rec_centers = dbGetQuery(con, "SELECT * from shiny.rec_centers")
 parks = dbGetQuery(con, "SELECT * from shiny.parks")
 all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
 google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
-
+driving_index = dbGetQuery(con, "SELECT * from clean.driving_index")
+transit_index = dbGetQuery(con, "SELECT * from clean.transit_index")
 
 #######################Getting the shape file to plot the bock groups on the map##############################
 
-# shape_census <- readOGR(dsn = "C:/Users/Sreekanth/Desktop/osr_dssg2018-1/data/nbhd_dem_shapes", 
- #                        layer = "nbhd_dem_shapes")
-#shape_census <- readOGR(dsn = "/Users/kelliemacphee/Desktop/dssg2018/GITHUB_osr_dssg2018/data/nbhd_dem_shapes",
-#                        layer = "nbhd_dem_shapes")
+########################
+# Block group (access index) stuff
+########################
+shape_census_block <- readOGR(dsn = "../data/census_block_groups", layer = "shape_census")
+access_driving <- geo_join(shape_census_block,driving_index, "Id2", "Id2", how="inner")
+access_transit <- geo_join(shape_census_block,transit_index, "Id2", "Id2", how="inner")
 
+########################
+# Neighborhood stuff
+########################
 shape_census <- readOGR(dsn = "../data/nbhd_dem_shapes", layer = "nbhd_dem_shapes")
 
 

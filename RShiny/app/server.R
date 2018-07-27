@@ -11,6 +11,49 @@ library(sp)
 shinyServer(
   function(input, output) {
     
+    ####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
+    
+    # Legend titles for demographic maps
+    legend_titles_demographic <- list(MED_HH_ = "Median HH Income ($)",
+                                      PCT_HS_ = "HS Degree <br> Or Equiv. (%)",
+                                      PCT_HIS = "% Hispanic",
+                                      PCT_BLA = "% Black",
+                                      PCT_WHI = "% White",
+                                      PCT_NON = "Lang. Besides <br>English (%)",
+                                      majority_race = "Most Common<br>Race/Ethnicity"
+    )
+    
+    # Construct demographic nbhd_labels for hovering on the neighborhoods
+    nbhd_labels <- sprintf(
+      "<b>%s</b><br/>
+      No. program sessions = %i <br/>
+      No. children 5-17 yrs old = %i <br/> 
+      %% Hispanic students = %g%% <br/> 
+      %% English student learners = %g%% <br/> 
+      %% Students who use transportation = %g%% <br/> 
+      %% Students with disability = %g%% ",
+      shape_census@data$NBHD_NA,
+      replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
+      shape_census@data$AGE_5_T, 
+      shape_census@data$perc_hispanic_students, 
+      shape_census@data$perc_nonenglish_students,
+      shape_census@data$perc_with_transport_students, 
+      shape_census@data$perc_disable_students
+    ) %>% lapply(htmltools::HTML)
+    
+    # Bins and color palettes for demographic variables in leaflet map
+    bins_income <- c(0, 20000, 40000, 60000, 80000, 100000, Inf)
+    pal_income <- colorBin("Greens", domain = shape_census@data$MED_HH_, bins = bins_income)
+    bins_edu <- c(0, 5, 10, 15, 20, 25)
+    pal_edu <- colorBin("Purples", domain = shape_census@data$PCT_HSD, bins = bins_edu)
+    pal_language <- colorBin("Blues", domain = shape_census@data$PCT_NON)
+    # bins_hispanic <- c(0, 10, 20, 30, 40, 50, 60, 70, 80, 100)
+    pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS) #, bins = bins_hispanic)
+    pal_black <- colorBin("Blues", domain = shape_census@data$PCT_BLA, bins = 5)
+    pal_white <- colorBin("Purples", domain = shape_census@data$PCT_WHI, bins = 5)
+    
+    pal_all_races <- colorFactor("Set2", domain = shape_census@data$majority_race)
+    
     #############################
     # Reschool Programs Tab
     #############################
@@ -111,8 +154,8 @@ shinyServer(
         labels_race_breakdown <- shape_census@data$racial_dist_html
         
         make_base_map() %>%
-          add_demographic_map(pal_all_races, "majority_race", 
-                              ~labels_race_breakdown) %>%
+          add_colored_polygon_map(shape_census, legend_titles_demographic, pal_all_races, ~labels_race_breakdown, 
+                                  "majority_race") %>%
           add_circle_markers(neighborhood_data1, "Programs", "yellow", marker_popup_text)
       }
       
@@ -148,31 +191,31 @@ shinyServer(
         }
         else if(input$demographics_other == "Median household income ($)" ) {
           open_resource_map <- make_base_map() %>% 
-            add_demographic_map(pal_income,"MED_HH_",nbhd_labels)
+            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_income,nbhd_labels, "MED_HH_")
         }
         else if(input$demographics_other == "High school degree or equivalent (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_demographic_map(pal_edu,"PCT_HS_",nbhd_labels)
+            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_edu,nbhd_labels,"PCT_HS_")
         }
         else if(input$demographics_other == "Hispanic population (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_demographic_map(pal_hispanic, "PCT_HIS",nbhd_labels)
+            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_hispanic, nbhd_labels, "PCT_HIS")
         }
         else if(input$demographics_other == "Black population (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_demographic_map(pal_black, "PCT_BLA",nbhd_labels)
+            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_black, nbhd_labels, "PCT_BLA")
         }
         else if(input$demographics_other == "White population (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_demographic_map(pal_white, "PCT_WHI",nbhd_labels)
+            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_white, nbhd_labels, "PCT_WHI")
         }
         else if(input$demographics_other == "Non-English speakers (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_demographic_map(pal_language, "PCT_NON",nbhd_labels)
+            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_language, nbhd_labels, "PCT_NON")
         }
         else if(input$demographics_other == "All races") {
           open_resource_map <- make_base_map() %>%
-            add_demographic_map(pal_all_races, "majority_race", ~shape_census@data$racial_dist_html)
+            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_all_races, ~shape_census@data$racial_dist_html, "majority_race")
         }
         
         # Loop over selected resources types, plotting the locations of each
@@ -286,7 +329,6 @@ shinyServer(
       })
     })
     
-    
     # Function to get datatables for each resources. Has a bunch of aesthetics
     data_table_function = function(checkbox_input, data, column_names){
       
@@ -375,6 +417,17 @@ shinyServer(
         }
         
       })
-
     
+    #############################
+    # Reschool Programs Tab
+    #############################
+    # first calculate the aggregated access index based on user input
+    # <- reactive({mean()})
+    # 
+    # # map it up
+    # output$mymap_access <- renderLeaflet({
+    #   map <- make_base_map() %>%
+    #     add_colored_polygon_map(shape_census_block, legend_titles_access, pal_access, label_type, vals=access_index)
+    #   return(map)
+    # })
   })  

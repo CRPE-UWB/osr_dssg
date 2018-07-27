@@ -5,6 +5,12 @@ wrap_text <- function(s, offset) {
   gsub('(.{1,50})(\\s|$)', '\\1<br/>',s)
 }
 
+calculate_aggregated_index <- function(df, types, cost) {
+  
+  val <- mean(df[grep(),])
+  return(val)
+}
+
 #############################
 # Mapping helpers 
 #############################
@@ -13,7 +19,6 @@ wrap_text <- function(s, offset) {
 make_base_map <- function() {
   leaflet()  %>% 
     setView(lng = -104.901531, lat = 39.722043, zoom = 11) %>% 
-    #addTiles() %>%
     addProviderTiles(providers$CartoDB.Positron)
 }
 
@@ -42,9 +47,11 @@ add_blank_map <- function(map) {
 }
 
 # Function to add demographic info to a map
-add_demographic_map <- function(map, pal_type, column_name, label_type){
-  addPolygons(map, data = shape_census,
-              fillColor = ~pal_type(shape_census@data[,column_name]),
+add_colored_polygon_map <- function(map, spdf, legend_titles, pal_type, label_type, 
+                                    column_name=NULL, vals=NULL){
+  if (is.null(vals)) {vals <- spdf@data[,column_name]}
+  addPolygons(map, data = spdf,
+              fillColor = ~pal_type(vals),
               weight = 2,
               opacity = 1,
               color = "#777",
@@ -64,9 +71,9 @@ add_demographic_map <- function(map, pal_type, column_name, label_type){
               )
   ) %>% 
     addLegend(pal = pal_type,
-              values = shape_census@data[,column_name],
+              values = vals,
               opacity = 0.7,
-              title = as.character(legendTitles[column_name]),
+              title = as.character(legend_titles[column_name]),
               position = "bottomright"
     )
 }
@@ -125,51 +132,5 @@ subset_for_cost <- function(df, min_cost, max_cost) {
 
 # Subsetting the data for the type of the program selected
 subset_for_category <- function(df, col) {
-  a <- df[apply(as.data.frame(df[,col])==1,1,any), c(1:12,col)]
-  return(a)
+  return(df[apply(as.data.frame(df[,col])==1,1,any),])
 }
-
-#subset_for_cost <- function(df, )
-
-####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
-
-# Construct demographic nbhd_labels for hovering on the neighborhoods
-nbhd_labels <- sprintf(
-  "<b>%s</b><br/>
-  No. program sessions = %i <br/>
-  No. children 5-17 yrs old = %i <br/> 
-  %% Hispanic students = %g%% <br/> 
-  %% English student learners = %g%% <br/> 
-  %% Students who use transportation = %g%% <br/> 
-  %% Students with disability = %g%% ",
-  shape_census@data$NBHD_NA,
-  replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
-  shape_census@data$AGE_5_T, 
-  shape_census@data$perc_hispanic_students, 
-  shape_census@data$perc_nonenglish_students,
-  shape_census@data$perc_with_transport_students, 
-  shape_census@data$perc_disable_students
-) %>% lapply(htmltools::HTML)
-
-# Bins and color palettes for demographic variables in leaflet map
-bins_income <- c(0, 20000, 40000, 60000, 80000, 100000, Inf)
-pal_income <- colorBin("Greens", domain = shape_census@data$MED_HH_, bins = bins_income)
-bins_edu <- c(0, 5, 10, 15, 20, 25)
-pal_edu <- colorBin("Purples", domain = shape_census@data$PCT_HSD, bins = bins_edu)
-pal_language <- colorBin("Blues", domain = shape_census@data$PCT_NON)
-# bins_hispanic <- c(0, 10, 20, 30, 40, 50, 60, 70, 80, 100)
-pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS) #, bins = bins_hispanic)
-pal_black <- colorBin("Blues", domain = shape_census@data$PCT_BLA, bins = 5)
-pal_white <- colorBin("Purples", domain = shape_census@data$PCT_WHI, bins = 5)
-
-pal_all_races <- colorFactor("Set2", domain = shape_census@data$majority_race)
-
-# Legend titles for demographic maps
-legendTitles <- list(MED_HH_ = "Median HH Income ($)",
-                     PCT_HS_ = "HS Degree <br> Or Equiv. (%)",
-                     PCT_HIS = "% Hispanic",
-                     PCT_BLA = "% Black",
-                     PCT_WHI = "% White",
-                     PCT_NON = "Lang. Besides <br>English (%)",
-                     majority_race = "Most Common<br>Race/Ethnicity"
-)
