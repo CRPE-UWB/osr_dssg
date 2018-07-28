@@ -188,31 +188,35 @@ shinyUI(
                                 checkboxGroupInput("type_access", 
                                                    "Select one or more program types:", 
                                                    choices = c("Academic", "Arts", "Athletic", "Nature"),
-                                                   inline = TRUE
+                                                   inline = TRUE,
+                                                   selected = c("academic", "art", "sports", "nature")
                                 ),
                                 br(),
                                 radioButtons("cost_access", 
                                              "Select a cost range for programs:", 
                                              choiceNames = list("Free", "Free to Low Cost", "All Programs"),
-                                             choiceValues = list("Free", "Low", "Any"),
+                                             choiceValues = list("free", "low", "any"),
                                              selected = "Any"
+                                ),
+                                br(),
+                                radioButtons("drive_or_transit",
+                                             "Drive or transit?",
+                                             choiceNames = list("Drive", "Transit"),
+                                             choiceValues = list("drive", "transit"),
+                                             selected = "drive"
                                 ),
                                 br()
                               ),
                               
                               mainPanel(
-                                "Hello"
-                              )
-                              
-                              #mainPanel(
-                                
-                                # tabsetPanel(type = "tab",
-                                #             tabPanel("Map",
-                                #                      leafletOutput("mymap_other", height = 520)),
-                                #             tabPanel("Data",
-                                #                      uiOutput("dt")),
-                                #             tabPanel("Summary analysis")
-                                #)
+
+                                tabsetPanel(type = "tab",
+                                            tabPanel("Map",
+                                                     leafletOutput("mymap_access", height = 520))
+                                            # tabPanel("Data",
+                                            #          uiOutput("dt")),
+                                            # tabPanel("Summary analysis")
+                                )
                               )
                             )
                    )
@@ -220,4 +224,4 @@ shinyUI(
 )
 )
 )
-
+)

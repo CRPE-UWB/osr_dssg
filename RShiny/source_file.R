@@ -38,11 +38,25 @@ google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
 
 nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summary")
 
+driving_index = dbGetQuery(con, "SELECT * from clean.driving_index")
+transit_index = dbGetQuery(con, "SELECT * from clean.transit_index")
+
 # when you're done, close the connection and unload the driver 
 dbDisconnect(con) 
 dbUnloadDriver(drv)
 
-################ Getting the shape file to plot the bock groups on the map #####################
+####################### Getting the shape files to plot the bock groups on the map ##############################
+
+########################
+# Block group (access index) stuff
+########################
+shape_census_block <- readOGR(dsn = "../data/census_block_groups", layer = "shape_census")
+access_driving <- geo_join(shape_census_block,driving_index, "Id2", "Id2", how="inner")
+access_transit <- geo_join(shape_census_block,transit_index, "Id2", "Id2", how="inner")
+
+########################
+# Neighborhood stuff
+########################
 shape_census <- readOGR(dsn = "../data/nbhd_dem_shapes", layer = "nbhd_dem_shapes")
 
 # Joining the 'number of sessions' information with the census shape file
@@ -139,5 +153,3 @@ shape_census@data$racial_dist_html <- mapply(
   shape_census@data$PCT_ASI
   
 )
-
-############################## For program summary analysis ####################################
