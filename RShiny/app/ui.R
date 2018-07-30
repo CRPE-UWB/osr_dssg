@@ -4,8 +4,8 @@ library(shiny)
 library(leaflet)
 
 # Source needed data for ui and server
-source('../source_file.R', chdir = TRUE)  # temp change working dir to same as source_file.R
-source('helpers.R')
+#source('../source_file.R', chdir = TRUE)  # temp change working dir to same as source_file.R
+#source('helpers.R')
 shinyUI(navbarPage("Denver Out-of-School Resources",
                    
                    ## RESCHOOL PROGRAMS TAB
@@ -167,9 +167,10 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                               sidebarPanel(
                                 checkboxGroupInput("type_access", 
                                                    "Select one or more program types:", 
-                                                   choices = c("Academic", "Arts", "Athletic", "Nature"),
+                                                   choiceNames = c("Academic", "Arts", "Athletic", "Nature"),
+                                                   choiceValues = list("academic","art","sports","nature"),
                                                    inline = TRUE,
-                                                   selected = c("academic", "art", "sports", "nature")
+                                                   selected = "academic"
                                 ),
                                 br(),
                                 radioButtons("cost_access", 

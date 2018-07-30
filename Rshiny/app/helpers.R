@@ -6,9 +6,14 @@ wrap_text <- function(s, offset) {
 }
 
 calculate_aggregated_index <- function(df, types, cost) {
-  
-  val <- mean(df[grep(),])
-  return(val)
+  return(df[,"AI_overall"])
+  # look for the intersection of indices containing the words in the string-vector "types"
+  # and the string "cost"
+  # shared_indices <- stack(sapply(FUN=grep,X=c(types,cost),x=colnames(df)))$values
+  # shared_indices <- shared_indices[duplicated(shared_indices)]
+  # 
+  # val <- rowMeans(df[,shared_indices])
+  # return(val)
 }
 
 #############################
@@ -47,9 +52,11 @@ add_blank_map <- function(map) {
 }
 
 # Function to add demographic info to a map
-add_colored_polygon_map <- function(map, spdf, legend_titles, pal_type, label_type, 
-                                    column_name=NULL, vals=NULL){
+add_colored_polygon_map <- function(map, spdf, pal_type, label_type, 
+                                    column_name=NULL, legend_titles=NULL, legend_name=NULL, 
+                                    vals=NULL){
   if (is.null(vals)) {vals <- spdf@data[,column_name]}
+  if (is.null(column_name)) {legend_title <- legend_titles[,column_name]}
   addPolygons(map, data = spdf,
               fillColor = ~pal_type(vals),
               weight = 2,
@@ -73,7 +80,7 @@ add_colored_polygon_map <- function(map, spdf, legend_titles, pal_type, label_ty
     addLegend(pal = pal_type,
               values = vals,
               opacity = 0.7,
-              title = as.character(legend_titles[column_name]),
+              title = as.character(legend_title),
               position = "bottomright"
     )
 }

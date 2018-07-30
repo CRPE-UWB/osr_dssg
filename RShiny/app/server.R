@@ -154,8 +154,8 @@ shinyServer(
         labels_race_breakdown <- shape_census@data$racial_dist_html
         
         make_base_map() %>%
-          add_colored_polygon_map(shape_census, legend_titles_demographic, pal_all_races, ~labels_race_breakdown, 
-                                  "majority_race") %>%
+          add_colored_polygon_map(shape_census, pal_all_races, ~labels_race_breakdown, 
+                                  "majority_race", legend_titles_demographic) %>%
           add_circle_markers(neighborhood_data1, "Programs", "yellow", marker_popup_text)
       }
       
@@ -191,31 +191,31 @@ shinyServer(
         }
         else if(input$demographics_other == "Median household income ($)" ) {
           open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_income,nbhd_labels, "MED_HH_")
+            add_colored_polygon_map(shape_census, pal_income,nbhd_labels, "MED_HH_", legend_titles_demographic)
         }
         else if(input$demographics_other == "High school degree or equivalent (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_edu,nbhd_labels,"PCT_HS_")
+            add_colored_polygon_map(shape_census, pal_edu,nbhd_labels,"PCT_HS_", legend_titles_demographic)
         }
         else if(input$demographics_other == "Hispanic population (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_hispanic, nbhd_labels, "PCT_HIS")
+            add_colored_polygon_map(shape_census, pal_hispanic, nbhd_labels, "PCT_HIS", legend_titles_demographic)
         }
         else if(input$demographics_other == "Black population (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_black, nbhd_labels, "PCT_BLA")
+            add_colored_polygon_map(shape_census, pal_black, nbhd_labels, "PCT_BLA", legend_titles_demographic)
         }
         else if(input$demographics_other == "White population (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_white, nbhd_labels, "PCT_WHI")
+            add_colored_polygon_map(shape_census, pal_white, nbhd_labels, "PCT_WHI", legend_titles_demographic)
         }
         else if(input$demographics_other == "Non-English speakers (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_language, nbhd_labels, "PCT_NON")
+            add_colored_polygon_map(shape_census, pal_language, nbhd_labels, "PCT_NON", legend_titles_demographic)
         }
         else if(input$demographics_other == "All races") {
           open_resource_map <- make_base_map() %>%
-            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_all_races, ~shape_census@data$racial_dist_html, "majority_race")
+            add_colored_polygon_map(shape_census, pal_all_races, ~shape_census@data$racial_dist_html, "majority_race", legend_titles_demographic)
         }
         
         # Loop over selected resources types, plotting the locations of each
@@ -419,15 +419,30 @@ shinyServer(
       })
     
     #############################
-    # Reschool Programs Tab
+    # Access Index Tab
     #############################
+    
     # first calculate the aggregated access index based on user input
-    # <- reactive({mean()})
-    # 
-    # # map it up
-    # output$mymap_access <- renderLeaflet({
-    #   map <- make_base_map() %>%
-    #     add_colored_polygon_map(shape_census_block, legend_titles_access, pal_access, label_type, vals=access_index)
-    #   return(map)
-    # })
+    index_df <- reactive({ifelse(input$drive_or_transit=="drive",driving_index,transit_index)})
+    index <- reactive({calculate_aggregated_index(index_df(),input$type_access,input$cost_access)})
+    #index <- driving_index[,"AI_overall"]
+    # Bins and color palettes for demographic variables in leaflet map
+    pal_access <- reactive({colorBin("Blues", domain = index())})
+
+    # Create labels and stuff
+    access_label <- reactive({sprintf(
+      "<b>Access index: %f</b><br/>",
+      index()
+      ) %>% lapply(htmltools::HTML)
+    })
+    
+    # map it up
+    output$mymap_access <- renderLeaflet({
+      map <- make_base_map() %>%
+        add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
+                                vals=index(), legend_name="Access Index")
+        # add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
+        #                         vals=index(), legend_name="Access Index")
+      return(map)
+    })
   })  
