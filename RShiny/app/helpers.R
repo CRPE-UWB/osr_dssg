@@ -5,6 +5,26 @@ wrap_text <- function(s, offset) {
   gsub('(.{1,50})(\\s|$)', '\\1<br/>',s)
 }
 
+make_program_popups <- function(program_data) {
+  sprintf(
+    "<b>%s</b><br/> 
+    %s <br/> 
+    <i>%s</i><br/>
+    $%i per session<br/>
+    Starts: %s, Ends: %s <br/>  
+    Special needs = %s,  
+    Scholarships = %s <br/>",
+    wrap_text(paste("Program: ",program_data$session_name)), 
+    wrap_text(paste("Organization: ",program_data$camp_name)), 
+    wrap_text(paste("Description: ",program_data$session_short_description)),
+    program_data$session_cost,
+    program_data$session_date_start, 
+    program_data$session_date_end,
+    program_data$has_special_needs_offerings, 
+    program_data$has_scholarships
+  ) %>% lapply(htmltools::HTML)
+}
+
 calculate_aggregated_index <- function(transport_mode, types, cost) {
   if (transport_mode=="drive") {
     df <- driving_index
@@ -126,7 +146,7 @@ add_circle_markers <- function(map, data, legend_title, color_code, popup_text, 
 }
 
 # Function to draw the base map + demographics + program markers
-make_reschool_map <- function(df, popup_text, palette, col_name = NULL) {
+make_reschool_map <- function(df, popup_text, my_palette, col_name = NULL) {
   if (is.null(col_name)) {
     make_base_map() %>%
       add_blank_map() %>%
@@ -134,7 +154,7 @@ make_reschool_map <- function(df, popup_text, palette, col_name = NULL) {
   }
   else{
     make_base_map() %>%
-      add_colored_polygon_map(shape_census, palette, popup_text, col_name, legend_titles_demographic) %>%
+      add_colored_polygon_map(shape_census, my_palette, popup_text, col_name, legend_titles_demographic) %>%
       add_circle_markers(df, "program", myyellow, popup_text)
   }
 }
