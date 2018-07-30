@@ -155,30 +155,52 @@ shinyUI(
                    ),
 
                    ## RESCHOOL SEARCH DATA TAB
-                   tabPanel("ReSchool Program Searches",
-                            
-                            fluidPage(sidebarLayout(
-                              
-                              sidebarPanel(
-                                sliderInput("slider_searchprog", "Select a range for program cost:", 
-                                            min = minprice_search, 
-                                            max = maxprice_search , 
-                                            value = c(minprice_search, 
-                                                      maxprice_search),
-                                            pre = "$"
-                                ),
-                                br()),
-                              
-                              mainPanel(
-                                tabsetPanel(type = "tab",
-                                            tabPanel("Summary"),
-                                            tabPanel("Visualization")
-                                )
-                              )
-                            ))
-                            
-                            
-                            ),
+             tabPanel("ReSchool Program Searches",
+                      
+                      fluidPage(sidebarLayout(
+                        
+                        sidebarPanel(
+                          selectInput("minprice_search", "Select Min Price:", 
+                                      choices = c("No min price selected", 
+                                                  sort(unique(google_analytics$mincost)))
+                          ),
+                          selectInput("maxprice_search", "Select Max Price:", 
+                                      choices = c("No max price selected", 
+                                                  sort(unique(google_analytics$maxcost)))
+                          ),
+                          br(),
+                          selectInput("zipcode_searchprog", "Restrict to one zipcode:", 
+                                      choices = c("No zipcode selected", 
+                                                  sort(zipcode_searchdata))),
+                          br(),
+                          selectInput("sessiontimes_searchprog", "Restrict to one session time:", 
+                                      choices = c("No session time selected selected", 
+                                                  sort(unique(google_analytics$sessiontimes)))
+                          ), br(),
+                          checkboxGroupInput("program_search", 
+                                             "Select one or more program type:", 
+                                             choices = sort(unique(google_analytics$category)), 
+                                             selected = "academic", 
+                                             inline = TRUE
+                          )),
+                        
+                        mainPanel(
+                          tabsetPanel(type = "tab",
+                                      tabPanel("Summary",
+                                               
+                                               fluidRow(
+                                                 column(6, verbatimTextOutput("Totalsearches")),
+                                                 column(6, verbatimTextOutput("Percentsearches")),
+                                                 DT::dataTableOutput("datatable_search")
+                                               )
+                                      ),
+                                      tabPanel("Visualization")
+                          )
+                        )
+                      ))
+                      
+                      
+             ),
                    
                    ## ACCESS INDEX TAB
                    tabPanel("Access Index",
