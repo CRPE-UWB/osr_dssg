@@ -193,9 +193,11 @@ shinyServer(
                          "music", "nature", "sports", "stem")
         
         par(mar = c(3.1, 5.1, 2.1, 2.1))  # make left margin larger to fit names(data)
-        barplot(data,
+        barplot(rev(data),  # reverse so that reads top - bottom alphabetically
                 main = "Program Types",
-                col = brewer.pal(9, "Set3"),
+                col = c(mygreen2, mypurple3, myblue2, 
+                        mygreen, myblue3, mygreen3,
+                        mypurple2, myblue, mypurple),
                 horiz = TRUE,
                 las = 1
                 )

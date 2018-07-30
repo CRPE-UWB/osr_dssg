@@ -2,9 +2,17 @@
 # Color settings
 #############################
 myyellow <- "#FFFF66"
-mygreen <- brewer.pal(5, "Greens")[3]
-myblue <- brewer.pal(5, "Blues")[3]
-mypurple <- brewer.pal(5, "Purples")[3]
+mygreen <- brewer.pal(3, "Greens")[2]
+myblue <- brewer.pal(3, "Blues")[2]
+mypurple <- brewer.pal(3, "Purples")[2]
+
+mygreen2 <- brewer.pal(3, "Greens")[1]
+myblue2 <- brewer.pal(3, "Blues")[1]
+mypurple2 <- brewer.pal(3, "Purples")[1]
+
+mygreen3 <- brewer.pal(3, "Greens")[3]
+myblue3 <- brewer.pal(3, "Blues")[3]
+mypurple3 <- brewer.pal(3, "Purples")[3]
 
 # colors for the other resources
 parks_color <- "#fb9a99"
