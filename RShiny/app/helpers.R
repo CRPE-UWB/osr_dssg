@@ -87,29 +87,34 @@ add_colored_polygon_map <- function(map, spdf, pal_type, label_type,
 
 # Function to add circle markers to the map
 add_circle_markers <- function(map, data, legend_title, color_code, popup_text, opacity = 0.5){
-  addCircleMarkers(map, 
-                   lng = jitter(data$long, factor = 1, amount = 0.0005), 
-                   lat = jitter(data$lat, factor = 1, amount = 0.0005), 
-                   radius = 4,
-                   stroke = TRUE,
-                   weight = 0.5,
-                   color = 'gray',
-                   fillColor = color_code,
-                   fillOpacity = opacity,
-                   label = popup_text,
-                   labelOptions = labelOptions(
-                     style = list("font-weight" = "normal", padding = "3px 8px"),
-                     textsize = "12px",
-                     direction = "right",
-                     offset = c(5,0)
-                   )
-  ) %>%
-    addLegend(
-      position = "bottomright",
-      colors = c(color_code),
-      opacity = opacity,
-      labels = legend_title
-    )
+  if (nrow(data)>0){
+    addCircleMarkers(map, 
+                     lng = jitter(data$long, factor = 1, amount = 0.0005), 
+                     lat = jitter(data$lat, factor = 1, amount = 0.0005), 
+                     radius = 4,
+                     stroke = TRUE,
+                     weight = 0.5,
+                     color = 'gray',
+                     fillColor = color_code,
+                     fillOpacity = opacity,
+                     label = popup_text,
+                     labelOptions = labelOptions(
+                       style = list("font-weight" = "normal", padding = "3px 8px"),
+                       textsize = "12px",
+                       direction = "right",
+                       offset = c(5,0)
+                     )
+    ) %>%
+      addLegend(
+        position = "bottomright",
+        colors = c(color_code),
+        opacity = opacity,
+        labels = legend_title
+      )
+  }
+  else {
+    return(map)
+  }
 }
 
 # Function to draw the base map + demographics + program markers
