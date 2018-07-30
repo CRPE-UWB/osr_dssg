@@ -11,49 +11,6 @@ library(sp)
 shinyServer(
   function(input, output) {
     
-    ####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
-    
-    # Legend titles for demographic maps
-    legend_titles_demographic <- list(MED_HH_ = "Median HH Income ($)",
-                                      PCT_HS_ = "HS Degree <br> Or Equiv. (%)",
-                                      PCT_HIS = "% Hispanic",
-                                      PCT_BLA = "% Black",
-                                      PCT_WHI = "% White",
-                                      PCT_NON = "Lang. Besides <br>English (%)",
-                                      majority_race = "Most Common<br>Race/Ethnicity"
-    )
-    
-    # Construct demographic nbhd_labels for hovering on the neighborhoods
-    nbhd_labels <- sprintf(
-      "<b>%s</b><br/>
-      No. program sessions = %i <br/>
-      No. children 5-17 yrs old = %i <br/> 
-      %% Hispanic students = %g%% <br/> 
-      %% English student learners = %g%% <br/> 
-      %% Students who use transportation = %g%% <br/> 
-      %% Students with disability = %g%% ",
-      shape_census@data$NBHD_NA,
-      replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
-      shape_census@data$AGE_5_T, 
-      shape_census@data$perc_hispanic_students, 
-      shape_census@data$perc_nonenglish_students,
-      shape_census@data$perc_with_transport_students, 
-      shape_census@data$perc_disable_students
-    ) %>% lapply(htmltools::HTML)
-    
-    # Bins and color palettes for demographic variables in leaflet map
-    bins_income <- c(0, 20000, 40000, 60000, 80000, 100000, Inf)
-    pal_income <- colorBin("Greens", domain = shape_census@data$MED_HH_, bins = bins_income)
-    bins_edu <- c(0, 5, 10, 15, 20, 25)
-    pal_edu <- colorBin("Purples", domain = shape_census@data$PCT_HSD, bins = bins_edu)
-    pal_language <- colorBin("Blues", domain = shape_census@data$PCT_NON)
-    # bins_hispanic <- c(0, 10, 20, 30, 40, 50, 60, 70, 80, 100)
-    pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS) #, bins = bins_hispanic)
-    pal_black <- colorBin("Blues", domain = shape_census@data$PCT_BLA, bins = 5)
-    pal_white <- colorBin("Purples", domain = shape_census@data$PCT_WHI, bins = 5)
-    
-    pal_all_races <- colorFactor("Set2", domain = shape_census@data$majority_race)
-    
     #############################
     # Reschool Programs Tab
     #############################
@@ -78,7 +35,8 @@ shinyServer(
     output$datatable <- DT::renderDataTable({
       data_table1 <- neighborhood_data()
       DT::datatable(data_table1[,-c(5,6,7)], 
-                    options = list(pageLength = 3, 
+                    options = list(pageLength = 5, 
+                                   scrollX = TRUE,
                                    initComplete = JS(
                                      "function(settings, json) {",
                                      "$(this.api().table().header()).css(
@@ -86,16 +44,17 @@ shinyServer(
                                       );",
                                      "}")),
                     caption = htmltools::tags$caption(
-                      style = 'caption-side: top; text-align: center; color: black ;',
+                      style = 'caption-side: top; text-align: left; color: black ;',
                       htmltools::h3("ReSchool Programs")
-                    ), 
+                    ),
+                    width = 300,
                     style = "bootstrap",
                     class = 'cell-border stripe',
                     rownames = FALSE
                     
       ) %>%
         formatStyle(colnames(data_table1[,-c(5,6,7)]),
-                    backgroundColor = 'lightblue'
+                    backgroundColor = 'lightyellow'
         )
                     
     })
@@ -104,7 +63,7 @@ shinyServer(
     
     output$mymap <- renderLeaflet({
       
-      # Get the neighborhood data
+      # Subset to data for only this neighborhood
       neighborhood_data1 <- neighborhood_data()
     
       # Construct pop-ups for when you click on a program marker
@@ -128,12 +87,10 @@ shinyServer(
       
       ##### ACTUALLY DRAW THE RESCHOOL MAP #####
       if(is.null(input$demographics)){
-        make_base_map() %>%
-          add_blank_map() %>%
-          add_circle_markers(neighborhood_data1, "Programs", "yellow", marker_popup_text)
+        make_reschool_map(neighborhood_data1, marker_popup_text, palette = NULL, col_name = NULL)
       }
       else if(input$demographics == "Median household income ($)" ) {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal_income,"MED_HH_")
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal_income, "MED_HH_")
       }
       else if(input$demographics == "High school degree or equivalent (%)") {
         make_reschool_map(neighborhood_data1, marker_popup_text, pal_edu,"PCT_HS_")
@@ -154,12 +111,114 @@ shinyServer(
         labels_race_breakdown <- shape_census@data$racial_dist_html
         
         make_base_map() %>%
-          add_colored_polygon_map(shape_census, pal_all_races, ~labels_race_breakdown, 
-                                  "majority_race", legend_titles_demographic) %>%
-          add_circle_markers(neighborhood_data1, "Programs", "yellow", marker_popup_text)
+          add_colored_polygon_map(shape_census, legend_titles_demographic, pal_all_races, ~labels_race_breakdown, 
+                                  "majority_race") %>%
+          add_circle_markers(neighborhood_data1, "program", myyellow, marker_popup_text)
       }
       
     })
+    
+    ####### MAKE THE RESCHOOL PROGRAMS SUMMARY ANALYSIS #######
+    
+    # subset to only this neighborhood
+    # CAN PROBABLY REMOVE THIS FUNCTION AND REPLACE WITH THE ONE JOE WROTE
+    subset_reschool_for_neighborhoods <- function(df){
+      b <- reactive({
+        a <- df[which(df[, "nbhd_name"] == input$neighborhoods), ]
+        return(a) 
+      })
+      return(b)
+    }
+    
+    output$summary_title <- renderUI({
+      summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
+      sprintf('<h3> "%s" Summary </h3>',
+              summary_data[, "nbhd_name"]
+      ) %>% lapply(htmltools::HTML)
+      
+    })
+    
+    output$program_type_summary <- renderPlot(
+      {
+        summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
+      
+        data <- unlist(summary_data[,c(3:9, 12:13)])
+        names(data) <- c("academic", "arts", "cooking", "dance", "drama",
+                         "music", "nature", "sports", "stem")
+        
+        par(mar = c(3.1, 5.1, 2.1, 2.1))  # make left margin larger to fit names(data)
+        barplot(data,
+                main = "Program Types",
+                col = brewer.pal(9, "Set3"),
+                horiz = TRUE,
+                las = 1
+                )
+      },
+      width = "auto",
+      height = 250
+    )
+    
+    output$program_special_cats <- renderUI({
+      summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
+      
+      sprintf("Programs with Scholarships: %i <br/> Special Needs Programs: %i <br/><br/>",
+              summary_data[, "total_scholarships"],
+              summary_data[, "total_special_needs"]
+      ) %>% lapply(htmltools::HTML)
+    })
+    
+    output$program_cost_summary <- renderPlot(
+      {
+        summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
+        # dummy plot just to check
+        par(mar = c(3.1, 2.1, 2.1, 2.1))  # make margins same as other plot
+        barplot(1,
+                main = "Program Costs")
+      },
+      width = "auto",
+      height = 250
+    )
+    
+    output$nbhd_summary <- renderDataTable({
+      summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
+      
+      datatable(summary_data, 
+                    options = list(pageLength = 1, 
+                                   scrollX = TRUE,
+                                   searching = FALSE,
+                                   paging = FALSE,
+                                   ordering = FALSE,
+                                   lengthChange = FALSE,
+                                   info = FALSE,
+                                   initComplete = JS(
+                                     "function(settings, json) {",
+                                     "$(this.api().table().header()).css(
+                                      {'background-color': '#000', 'color': '#fff'}
+                                      );",
+                                     "}")),
+                    # caption = htmltools::tags$caption(
+                    #   style = 'caption-side: top; text-align: left; color: black ;',
+                    #   htmltools::h3("caption")
+                    # ),
+                    width = 300,
+                    style = "bootstrap",
+                    class = 'cell-border stripe',
+                    rownames = FALSE
+                    
+      ) %>%
+        formatStyle(colnames(summary_data),
+                    backgroundColor = 'lightblue'
+        )
+
+    })
+    
+  
+    #### Other out of school resources tab ####
+    
+    # this doesn't seem to get used at all anymore:
+    # colm_other <- reactive({
+    #   input$program_other
+    # })
     
     #############################
     # Other Resources Tab
@@ -220,6 +279,10 @@ shinyServer(
         
         # Loop over selected resources types, plotting the locations of each
         for (col in input$program_other){
+          
+          add_resource_markers <- function(map, data, color, popup) {
+            add_circle_markers(map, data, col, color, popup, opacity = 1.0)
+          }
         
           if(col == "Parks"){
             parks_popup <- sprintf(
@@ -235,7 +298,7 @@ shinyServer(
               ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
-              add_circle_markers(parks_data1, col, "green", parks_popup)
+              add_resource_markers(parks_data1, parks_color, parks_popup)
           }
          
           if(col == "Libraries"){
@@ -245,7 +308,7 @@ shinyServer(
             ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
-              add_circle_markers(libraries_data1, col, "blue", libraries_popup)
+              add_resource_markers(libraries_data1, libraries_color, libraries_popup)
           }
           
           if(col == "Rec Centers"){
@@ -280,7 +343,7 @@ shinyServer(
             ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
-              add_circle_markers(rec_centers_data1, col, "orange", rec_centers_popup)
+              add_resource_markers(rec_centers_data1, rec_centers_color, rec_centers_popup)
           }
           
           if(col == "Playgrounds"){
@@ -290,7 +353,7 @@ shinyServer(
             ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
-              add_circle_markers(playgrounds_data1, col, "red", playgrounds_popup)
+              add_resource_markers(playgrounds_data1, playgrounds_color, playgrounds_popup)
           }
           
           if(col == "Museums"){
@@ -300,7 +363,7 @@ shinyServer(
             ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
-              add_circle_markers(museums_data1, col, "purple", museums_popup)
+              add_resource_markers(museums_data1, museums_color, museums_popup)
           }
           
           if(col == "Fields"){
@@ -312,7 +375,7 @@ shinyServer(
             ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
-              add_circle_markers(fields_data1, col, "yellow", fields_popup)
+              add_resource_markers(fields_data1, fields_color, fields_popup)
           }
 
         }
@@ -334,6 +397,7 @@ shinyServer(
       
       datatable(data,
                 options = list(pageLength = 3, 
+                               scrollX = TRUE,
                                initComplete = JS(
                                  "function(settings, json) {",
                                  "$(this.api().table().header()).css(
@@ -341,9 +405,10 @@ shinyServer(
                                   );",
                                  "}")),
                 caption = htmltools::tags$caption(
-                  style = 'caption-side: top; text-align: center; color: black ;',
+                  style = 'caption-side: top; text-align: left; color: black ;',
                   htmltools::h3(checkbox_input)
                 ), 
+                width = 300,
                 style = "bootstrap",
                 class = 'cell-border stripe',
                 rownames = FALSE,

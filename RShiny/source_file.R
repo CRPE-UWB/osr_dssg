@@ -1,8 +1,6 @@
 # Source file to generate data for plotting in RShiny app.
-#
 # Note: all file paths are relative to LOCATION OF THIS FILE
-#
-#########################Connecting to the sql database#####################################################
+
 library(dplyr)
 library(rgdal)
 library(tigris)
@@ -10,20 +8,38 @@ library(rgeos)
 library(RPostgreSQL)
 library(RColorBrewer)
 
-# loads the PostgreSQL driver
+#############################
+# Color settings
+#############################
+myyellow <- "#FFFF66"
+mygreen <- brewer.pal(5, "Greens")[3]
+myblue <- brewer.pal(5, "Blues")[3]
+mypurple <- brewer.pal(5, "Purples")[3]
+
+# colors for the other resources
+parks_color <- "#fb9a99"
+libraries_color <- "#e31a1c"
+rec_centers_color <- "#fdbf6f"
+playgrounds_color <- "#ff7f00"
+museums_color <- "#ffff99"
+fields_color <- "#b15928"
+
+################## Getting data from the database e#############################################
+
+# load the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
 
 # load credentials for the connection: dbname, host, port, user, password
 # looks for cred.txt in parent dir to cloned github repo
 source('../../cred.txt')
 
-# creates a connection to the postgres database
+# create a connection to the postgres database
 # note that "con" will be used later in each connection to the database
 con <- dbConnect(drv, dbname = dbname,
                  host = host, port = port,
                  user = user, password = password)
 
-#########################Getting the required tables from the sql database####################################
+# get the required tables from the sql database 
 reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
 aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
@@ -35,10 +51,17 @@ rec_centers = dbGetQuery(con, "SELECT * from shiny.rec_centers")
 parks = dbGetQuery(con, "SELECT * from shiny.parks")
 all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
 google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
+
+nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summary")
+
 driving_index = dbGetQuery(con, "SELECT * from clean.driving_index")
 transit_index = dbGetQuery(con, "SELECT * from clean.transit_index")
 
-#######################Getting the shape file to plot the bock groups on the map##############################
+# when you're done, close the connection and unload the driver 
+dbDisconnect(con) 
+dbUnloadDriver(drv)
+
+####################### Getting the shape files to plot the bock groups on the map ##############################
 
 ########################
 # Block group (access index) stuff
@@ -52,21 +75,24 @@ access_transit <- geo_join(shape_census_block,transit_index, "Id2", "Id2", how="
 ########################
 shape_census <- readOGR(dsn = "../data/nbhd_dem_shapes", layer = "nbhd_dem_shapes")
 
-
 # Joining the 'number of sessions' information with the census shape file
-shape_census <- geo_join(shape_census, aggregate_session_nbhds, "NBHD_NA", "nbhd_name", how = "left")
+shape_census <- geo_join(shape_census, aggregate_session_nbhds, 
+                         "NBHD_NA", "nbhd_name", how = "left")
 
 # Joining the aggregate dps students information to the census shape file
-shape_census <- geo_join(shape_census, aggregate_dps_student_nbhds, "NBHD_NA", "nbhd_name", how = "left")
+shape_census <- geo_join(shape_census, aggregate_dps_student_nbhds, 
+                         "NBHD_NA", "nbhd_name", how = "left")
 
-#Creating filter variables distinct zipcode, minimum cost, maximum cost and the type of the program
-#Defining the variables to be used in the ReSchool tab sidebar panel
+###################### Creating filter variables for the sidebar panels #########################
+
+# Creating filter variables: distinct zipcode, minimum cost, maximum cost, program type
+# (for the ReSchool tab sidebar panel)
 neighborhoods_reshoolprograms = unique(reschool_summer_program$nbhd_name)
 minprice_reschoolprograms = min(reschool_summer_program$session_cost)
 maxprice_reschoolprograms = max(reschool_summer_program$session_cost)
 
-#Defining the variables to be used in the program search tab sidebar panel
-#Convert the cost column  to numeric
+# Defining the variables to be used in the program search tab sidebar panel
+# Convert the cost column  to numeric
 google_analytics$mincost = as.numeric(google_analytics$mincost)
 google_analytics$maxcost = as.numeric(google_analytics$maxcost)
 
@@ -74,14 +100,16 @@ google_analytics$maxcost = as.numeric(google_analytics$maxcost)
 minprice_search = min(google_analytics$mincost, na.rm = TRUE)
 maxprice_search = max(google_analytics$maxcost, na.rm = TRUE)
 
-
-#Creating variables for the second tab 'other out-of-school resources'
+# Creating variables for the second tab 'other out-of-school resources'
 neighborhoods_other = unique(all_neighbourhoods$nbhd_name)
 
-#Defining variables for choosing demographic information
+# Defining variables for choosing demographic information
 demographic_filters = c("Median Income", "Percent below poverty level")
 
+############################## Racial distributions variables ####################################
+
 # Creating majority race variables for each neighborhood
+# (could probably do this ahead of time)
 shape_census@data$majority_race <- max.col(as.matrix(
           shape_census@data[ ,c("PCT_HIS", "PCT_WHI", "PCT_BLA","PCT_NAT","PCT_ASI")]
                      ))
@@ -142,6 +170,48 @@ shape_census@data$racial_dist_html <- mapply(
   
 )
 
-# when you're done, close the connection and unload the driver 
-dbDisconnect(con) 
-dbUnloadDriver(drv)
+####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
+
+# Legend titles for demographic maps
+legend_titles_demographic <- list(MED_HH_ = "Median HH Income ($)",
+                                  PCT_HS_ = "HS Degree <br> Or Equiv. (%)",
+                                  PCT_HIS = "% Hispanic",
+                                  PCT_BLA = "% Black",
+                                  PCT_WHI = "% White",
+                                  PCT_NON = "Lang. Besides <br>English (%)",
+                                  majority_race = "Most Common<br>Race/Ethnicity"
+)
+
+# Construct demographic nbhd_labels for hovering on the neighborhoods
+nbhd_labels <- sprintf(
+  "<b>%s</b><br/>
+  No. program sessions = %i <br/>
+  No. children 5-17 yrs old = %i <br/> 
+  %% Hispanic students = %g%% <br/> 
+  %% English student learners = %g%% <br/> 
+  %% Students who use transportation = %g%% <br/> 
+  %% Students with disability = %g%% ",
+  shape_census@data$NBHD_NA,
+  replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
+  shape_census@data$AGE_5_T, 
+  shape_census@data$perc_hispanic_students, 
+  shape_census@data$perc_nonenglish_students,
+  shape_census@data$perc_with_transport_students, 
+  shape_census@data$perc_disable_students
+) %>% lapply(htmltools::HTML)
+
+# Bins and color palettes for demographic variables in leaflet map
+bins_income <- c(0, 25000, 50000, 75000, 100000, Inf)
+pal_income <- colorBin("Greys", domain = shape_census@data$MED_HH_, bins = bins_income)
+bins_edu <- c(0, 5, 10, 15, 20, 25)
+pal_edu <- colorBin("Greys", domain = shape_census@data$PCT_HSD, bins = bins_edu)
+bins_language <- c(0, 15, 30, 45, 60, 75)
+pal_language <- colorBin("Greys", domain = shape_census@data$PCT_NON, bins = bins_language)
+
+# colorful ones for racial demographics
+pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS, bins = 5)
+pal_black <- colorBin("Blues", domain = shape_census@data$PCT_BLA, bins = 5)
+pal_white <- colorBin("Purples", domain = shape_census@data$PCT_WHI, bins = 5)
+
+pal_all_races <- colorFactor(c(myblue, mygreen, mypurple), 
+                             domain = shape_census@data$majority_race)

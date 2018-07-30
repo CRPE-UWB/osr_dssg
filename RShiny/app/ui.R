@@ -3,14 +3,25 @@
 library(shiny)
 library(leaflet)
 
-# Source needed data for ui and server
-#source('../source_file.R', chdir = TRUE)  # temp change working dir to same as source_file.R
-#source('helpers.R')
-shinyUI(navbarPage("Denver Out-of-School Resources",
+# Source needed data and functions for ui and server
+source('../source_file.R', chdir = TRUE)  # temp change working dir to same as source_file.R
+source('helpers.R')
+
+shinyUI(
+  
+  fluidPage(
+  
+  includeCSS("style.css"),
+  
+  navbarPage("Denver Out-of-School Resources",
                    
                    ## RESCHOOL PROGRAMS TAB
                    tabPanel("B4S Programs",
-                            fluidPage(sidebarLayout(
+                            fluidPage(
+                              
+                              # includeCSS("style.css"),
+                              
+                              sidebarLayout(
                               
                               # Sidebar panel for making selections about reschool programs
                               sidebarPanel(
@@ -70,7 +81,15 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                             tabPanel("Data",
                                                      DT::dataTableOutput("datatable")
                                                      ),
-                                            tabPanel("Summary analysis")
+                                            tabPanel("Summary analysis",
+                                                     uiOutput("summary_title"),
+                                                     fluidRow(
+                                                       column(6, plotOutput("program_type_summary")),
+                                                       column(6, plotOutput("program_cost_summary"))
+                                                     ),
+                                                     uiOutput("program_special_cats"),
+                                                     DT::dataTableOutput("nbhd_summary")
+                                                     )
                                             )
                                 ) 
                               ))
@@ -116,7 +135,8 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                                 selectInput("neighborhoods_other", 
                                             "Restrict to one neighborhood:", 
                                             choices = c("No neighborhood selected", 
-                                                        sort(neighborhoods_other))
+                                                        sort(neighborhoods_other)
+                                                        )
                                 ),
                                 br()
                               ),
@@ -202,6 +222,7 @@ shinyUI(navbarPage("Denver Out-of-School Resources",
                             )
                    )
                   
+)
 )
 )
 )
