@@ -4,8 +4,8 @@ library(shiny)
 library(leaflet)
 
 # Source needed data and functions for ui and server
-source('../source_file.R', chdir = TRUE)  # temp change working dir to same as source_file.R
-source('helpers.R')
+#source('../source_file.R', chdir = TRUE)  # temp change working dir to same as source_file.R
+#source('helpers.R')
 
 shinyUI(
   
@@ -197,7 +197,7 @@ shinyUI(
                                              "Select a cost range for programs:", 
                                              choiceNames = list("Free", "Free to Low Cost", "All Programs"),
                                              choiceValues = list("free", "low", "any"),
-                                             selected = "Any"
+                                             selected = "any"
                                 ),
                                 br(),
                                 radioButtons("drive_or_transit",
@@ -210,7 +210,7 @@ shinyUI(
                               ),
                               
                               mainPanel(
-
+                                textOutput("test"),
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
                                                      leafletOutput("mymap_access", height = 520))

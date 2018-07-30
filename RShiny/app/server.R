@@ -488,16 +488,16 @@ shinyServer(
     #############################
     
     # first calculate the aggregated access index based on user input
-    index_df <- reactive({ifelse(input$drive_or_transit=="drive",driving_index,transit_index)})
-    index <- reactive({calculate_aggregated_index(index_df(),input$type_access,input$cost_access)})
-    #index <- driving_index[,"AI_overall"]
+    index <- reactive({calculate_aggregated_index(input$drive_or_transit,input$type_access,input$cost_access)})
     # Bins and color palettes for demographic variables in leaflet map
     pal_access <- reactive({colorBin("Blues", domain = index())})
-
+    
+    #output$test <- renderPrint({index()})
+    
     # Create labels and stuff
     access_label <- reactive({sprintf(
-      "<b>Access index: %f</b><br/>",
-      index()
+      "<b>Access index: %f</b><br/><b>Block Group: %f</b>",
+      index(), as.numeric(as.character(shape_census_block@data$Id2))
       ) %>% lapply(htmltools::HTML)
     })
     
@@ -505,9 +505,7 @@ shinyServer(
     output$mymap_access <- renderLeaflet({
       map <- make_base_map() %>%
         add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
-                                vals=index(), legend_name="Access Index")
-        # add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
-        #                         vals=index(), legend_name="Access Index")
+                                vals=index(), legend_title="Access Index")
       return(map)
     })
   })  
