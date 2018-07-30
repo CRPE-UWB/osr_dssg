@@ -1,10 +1,10 @@
-# User Interface for Shiny App
+# User Interface for OSR Shiny App
 
 library(shiny)
 library(leaflet)
 
 # Source needed data and functions for ui and server
-source('../source_file.R', chdir = TRUE)  # temp change working dir to same as source_file.R
+source('../source_file.R', chdir = TRUE)  # temp changes working dir to same as source_file.R
 source('helpers.R')
 
 shinyUI(
@@ -46,22 +46,23 @@ shinyUI(
                                 radioButtons("demographics", 
                                              "Select a demographics variable to visualize:", 
                                              choiceNames = list("Median household income ($)", 
-                                                         "High school degree or equivalent (%)",
-                                                         HTML("Language other than English spoken (%)<br><br>
-                                                              <i>Race/Ethnicity Variables</i>"),
-                                                         "Hispanic population (%)", 
-                                                         "Black population (%)",
-                                                         "White population (%)",
-                                                         "Majority + breakdown"
-                                                         ),
-                                             choiceValues = list("Median household income ($)", 
-                                                         "High school degree or equivalent (%)",
-                                                         "Non-English speakers (%)",
-                                                         "Hispanic population (%)", 
-                                                         "Black population (%)",
-                                                         "White population (%)",
-                                                         "All races"
-                                             ),
+                                                               "High school degree or equivalent (%)",
+                                                               HTML("Language other than English spoken (%)<br><br>
+                                                                    <i>Race/Ethnicity Variables</i>"),
+                                                               "Hispanic population (%)", 
+                                                               "Black population (%)",
+                                                               "White population (%)",
+                                                               "Majority + breakdown"
+                                                               ),
+                                             choiceValues = list("None selected", 
+                                                                 "Median household income ($)", 
+                                                                 "High school degree or equivalent (%)",
+                                                                 "Non-English speakers (%)",
+                                                                 "Hispanic population (%)", 
+                                                                 "Black population (%)",
+                                                                 "White population (%)",
+                                                                 "All races"
+                                                                 ),
                                              selected = character(0)
                                              ),
                                 br(),
@@ -213,26 +214,25 @@ shinyUI(
                                                    choiceValues = list("academic","art","sports","nature"),
                                                    inline = TRUE,
                                                    selected = "academic"
-                                ),
+                                                   ),
                                 br(),
                                 radioButtons("cost_access", 
                                              "Select a cost range for programs:", 
                                              choiceNames = list("Free", "Free to Low Cost", "All Programs"),
                                              choiceValues = list("free", "low", "any"),
                                              selected = "Any"
-                                ),
+                                             ),
                                 br(),
                                 radioButtons("drive_or_transit",
                                              "Drive or transit?",
                                              choiceNames = list("Drive", "Transit"),
                                              choiceValues = list("drive", "transit"),
                                              selected = "drive"
-                                ),
+                                             ),
                                 br()
-                              ),
+                              ),  # end sidebarPanel for access index
                               
                               mainPanel(
-
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
                                                      leafletOutput("mymap_access", height = 520))
@@ -240,11 +240,11 @@ shinyUI(
                                             #          uiOutput("dt")),
                                             # tabPanel("Summary analysis")
                                 )
-                              )
-                            )
-                   )
-                  
-)
-)
-)
-)
+                              )  # end main panel for access index
+                              
+                            ))  # end sidebar layrout and access index fluidPage
+                  )  # end access index tab
+             
+             )  # end navbarPage 
+  
+  ))  # end fluidPage for whole UI, and shinyUI
