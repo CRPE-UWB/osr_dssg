@@ -11,52 +11,6 @@ library(sp)
 shinyServer(
   function(input, output) {
     
-    ####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
-    
-    # Legend titles for demographic maps
-    legend_titles_demographic <- list(MED_HH_ = "Median HH Income ($)",
-                                      PCT_HS_ = "HS Degree <br> Or Equiv. (%)",
-                                      PCT_HIS = "% Hispanic",
-                                      PCT_BLA = "% Black",
-                                      PCT_WHI = "% White",
-                                      PCT_NON = "Lang. Besides <br>English (%)",
-                                      majority_race = "Most Common<br>Race/Ethnicity"
-    )
-    
-    # Construct demographic nbhd_labels for hovering on the neighborhoods
-    nbhd_labels <- sprintf(
-      "<b>%s</b><br/>
-      No. program sessions = %i <br/>
-      No. children 5-17 yrs old = %i <br/> 
-      %% Hispanic students = %g%% <br/> 
-      %% English student learners = %g%% <br/> 
-      %% Students who use transportation = %g%% <br/> 
-      %% Students with disability = %g%% ",
-      shape_census@data$NBHD_NA,
-      replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
-      shape_census@data$AGE_5_T, 
-      shape_census@data$perc_hispanic_students, 
-      shape_census@data$perc_nonenglish_students,
-      shape_census@data$perc_with_transport_students, 
-      shape_census@data$perc_disable_students
-    ) %>% lapply(htmltools::HTML)
-    
-    # Bins and color palettes for demographic variables in leaflet map
-    bins_income <- c(0, 25000, 50000, 75000, 100000, Inf)
-    pal_income <- colorBin("Greys", domain = shape_census@data$MED_HH_, bins = bins_income)
-    bins_edu <- c(0, 5, 10, 15, 20, 25)
-    pal_edu <- colorBin("Greys", domain = shape_census@data$PCT_HSD, bins = bins_edu)
-    bins_language <- c(0, 15, 30, 45, 60, 75)
-    pal_language <- colorBin("Greys", domain = shape_census@data$PCT_NON, bins = bins_language)
-    
-    # colorful ones for racial demographics
-    pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS, bins = 5)
-    pal_black <- colorBin("Blues", domain = shape_census@data$PCT_BLA, bins = 5)
-    pal_white <- colorBin("Purples", domain = shape_census@data$PCT_WHI, bins = 5)
-  
-    pal_all_races <- colorFactor(c(myblue, mygreen, mypurple), 
-                                 domain = shape_census@data$majority_race)
-    
     #############################
     # Reschool Programs Tab
     #############################
@@ -136,7 +90,7 @@ shinyServer(
         make_reschool_map(neighborhood_data1, marker_popup_text, palette = NULL, col_name = NULL)
       }
       else if(input$demographics == "Median household income ($)" ) {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal_income,"MED_HH_")
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal_income, "MED_HH_")
       }
       else if(input$demographics == "High school degree or equivalent (%)") {
         make_reschool_map(neighborhood_data1, marker_popup_text, pal_edu,"PCT_HS_")
@@ -298,31 +252,31 @@ shinyServer(
         }
         else if(input$demographics_other == "Median household income ($)" ) {
           open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_income,nbhd_labels, "MED_HH_")
+            add_colored_polygon_map(shape_census, pal_income,nbhd_labels, "MED_HH_", legend_titles_demographic)
         }
         else if(input$demographics_other == "High school degree or equivalent (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_edu,nbhd_labels,"PCT_HS_")
+            add_colored_polygon_map(shape_census, pal_edu,nbhd_labels,"PCT_HS_", legend_titles_demographic)
         }
         else if(input$demographics_other == "Hispanic population (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_hispanic, nbhd_labels, "PCT_HIS")
+            add_colored_polygon_map(shape_census, pal_hispanic, nbhd_labels, "PCT_HIS", legend_titles_demographic)
         }
         else if(input$demographics_other == "Black population (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_black, nbhd_labels, "PCT_BLA")
+            add_colored_polygon_map(shape_census, pal_black, nbhd_labels, "PCT_BLA", legend_titles_demographic)
         }
         else if(input$demographics_other == "White population (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_white, nbhd_labels, "PCT_WHI")
+            add_colored_polygon_map(shape_census, pal_white, nbhd_labels, "PCT_WHI", legend_titles_demographic)
         }
         else if(input$demographics_other == "Non-English speakers (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_language, nbhd_labels, "PCT_NON")
+            add_colored_polygon_map(shape_census, pal_language, nbhd_labels, "PCT_NON", legend_titles_demographic)
         }
         else if(input$demographics_other == "All races") {
           open_resource_map <- make_base_map() %>%
-            add_colored_polygon_map(shape_census, legend_titles_demographic, pal_all_races, ~shape_census@data$racial_dist_html, "majority_race")
+            add_colored_polygon_map(shape_census, pal_all_races, ~shape_census@data$racial_dist_html, "majority_race", legend_titles_demographic)
         }
         
         # Loop over selected resources types, plotting the locations of each
@@ -531,16 +485,160 @@ shinyServer(
         
       })
     
+    
+    
     #############################
-    # Reschool Programs Tab
+    # Search Data Tab
     #############################
+    #Subset the search data depending on the slider input and the zipcode slected in the sidebar panel
+    # Getting column numbers depending on the type of the program selected. 
+    # (used to subset the data in the next step)
+    colm_search <- reactive({
+      input$program_search
+      
+      
+    })
+    
+    
+    subset_search_data = reactive({
+      
+      
+      
+      if(input$minprice_search != "No min price selected"){
+        mincost_search_data = subset(google_analytics, google_analytics$mincost  >= input$minprice_search)
+      }else{
+        mincost_search_data = google_analytics
+      }
+      
+      
+      
+      if(input$maxprice_search != "No max price selected"){
+        maxcost_search_data = subset(mincost_search_data, mincost_search_data$maxcost  <= input$maxprice_search)
+      }else{
+        maxcost_search_data = mincost_search_data
+      }
+      
+      
+      
+      if(input$zipcode_searchprog != "No zipcode selected" ) {
+        zipcode_search_data <- subset(maxcost_search_data, 
+                                      maxcost_search_data$location == input$zipcode_searchprog)
+      }
+      else {
+        zipcode_search_data <- maxcost_search_data
+        
+      }
+      
+      
+      if(input$sessiontimes_searchprog != "No session time selected selected" ) {
+        sessiontime_search_data <- subset(zipcode_search_data, 
+                                          zipcode_search_data$sessiontimes == input$sessiontimes_searchprog)
+      }
+      else {
+        sessiontime_search_data <- zipcode_search_data
+        
+      }
+      
+      if(length(colm_search()) > 0){
+        
+        data_list = list()
+        
+        for(i in 1:length(colm_search())){
+          
+          data_list[[i]] = sessiontime_search_data[which(sessiontime_search_data$category == colm_search()[i]),]
+        }
+        
+        final_search_data = as.data.frame(data.table::rbindlist(data_list))
+        
+        
+      }
+      
+      else {
+        
+        final_search_data = sessiontime_search_data
+      }
+      
+      
+      return(final_search_data) 
+      
+      
+    })
+    
+    
+    
+    #Display the total number of searches made with this combination selected in the side bar panel
+    output$Totalsearches <- renderText({ 
+      subsetted_data = subset_search_data()
+      return(sum(subsetted_data$users))
+      
+    })
+    
+    #Display the total percentage of searches made with this combination selected in the side bar panel
+    output$Percentsearches <- renderText({ 
+      subsetted_data = subset_search_data()
+      return((sum(subsetted_data$users)*100)/sum(google_analytics$users))
+      
+    })
+    
+    
+    # Output the relevant data in the data tab based on the search data tab
+    output$datatable_search <- DT::renderDataTable({
+      data_table1 <- subset_search_data()
+      DT::datatable(data_table1, 
+                    options = list(pageLength = 10, 
+                                   initComplete = JS(
+                                     "function(settings, json) {",
+                                     "$(this.api().table().header()).css(
+                                     {'background-color': '#000', 'color': '#fff'}
+                                   );",
+                                     "}")),
+                    caption = htmltools::tags$caption(
+                      style = 'caption-side: top; text-align: center; color: black ;',
+                      htmltools::h3("Search Data")
+                    ), 
+                    style = "bootstrap",
+                    class = 'cell-border stripe',
+                    rownames = FALSE
+                    
+      ) %>%
+        formatStyle(colnames(data_table1),
+                    backgroundColor = 'lightblue'
+        )
+      
+    })
+    
+    
+    
+    
+    
+    
+    
+    
+    #############################
+    # Access Index Tab
+    #############################
+    
     # first calculate the aggregated access index based on user input
-    # <- reactive({mean()})
-    # 
-    # # map it up
-    # output$mymap_access <- renderLeaflet({
-    #   map <- make_base_map() %>%
-    #     add_colored_polygon_map(shape_census_block, legend_titles_access, pal_access, label_type, vals=access_index)
-    #   return(map)
-    # })
+    index_df <- reactive({ifelse(input$drive_or_transit=="drive",driving_index,transit_index)})
+    index <- reactive({calculate_aggregated_index(index_df(),input$type_access,input$cost_access)})
+    #index <- driving_index[,"AI_overall"]
+    # Bins and color palettes for demographic variables in leaflet map
+    pal_access <- reactive({colorBin("Blues", domain = index())})
+
+    # Create labels and stuff
+    access_label <- reactive({sprintf(
+      "<b>Access index: %f</b><br/>",
+      index()
+      ) %>% lapply(htmltools::HTML)
+    })
+    
+    # map it up
+    output$mymap_access <- renderLeaflet({
+      map <- make_base_map() %>%
+        add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
+                                vals=index(), legend_name="Access Index")
+        # add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
+        #                         vals=index(), legend_name="Access Index")
+      return(map)
+    })
   })  

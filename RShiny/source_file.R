@@ -8,6 +8,22 @@ library(rgeos)
 library(RPostgreSQL)
 library(RColorBrewer)
 
+#############################
+# Color settings
+#############################
+myyellow <- "#FFFF66"
+mygreen <- brewer.pal(3, "Greens")[2]
+myblue <- brewer.pal(3, "Blues")[2]
+mypurple <- brewer.pal(3, "Purples")[2]
+
+mygreen2 <- brewer.pal(3, "Greens")[1]
+myblue2 <- brewer.pal(3, "Blues")[1]
+mypurple2 <- brewer.pal(3, "Purples")[1]
+
+mygreen3 <- brewer.pal(3, "Greens")[3]
+myblue3 <- brewer.pal(3, "Blues")[3]
+mypurple3 <- brewer.pal(3, "Purples")[3]
+
 ################## Getting data from the database e#############################################
 
 # load the PostgreSQL driver
@@ -75,14 +91,24 @@ neighborhoods_reshoolprograms = unique(reschool_summer_program$nbhd_name)
 minprice_reschoolprograms = min(reschool_summer_program$session_cost)
 maxprice_reschoolprograms = max(reschool_summer_program$session_cost)
 
-# Defining the variables to be used in the program search tab sidebar panel
-# Convert the cost column  to numeric
+#Defining the variables to be used in the program search tab sidebar panel
+#Convert the cost column  to numeric
 google_analytics$mincost = as.numeric(google_analytics$mincost)
 google_analytics$maxcost = as.numeric(google_analytics$maxcost)
 
 #Get the min and max cost to be used in the input slider
 minprice_search = min(google_analytics$mincost, na.rm = TRUE)
 maxprice_search = max(google_analytics$maxcost, na.rm = TRUE)
+
+#Creating unique zipcodes for the third tab search data
+#We take only the locations which have zipcodes which make sense
+google_analytics[-grep("80\\d{3}",google_analytics$location),"location"] <- NA 
+google_analytics[grep("80\\d{3}",google_analytics$location),"location"] <- 
+  gsub(".*(80\\d{3}).*","\\1",google_analytics[grep("80\\d{3}",google_analytics$location),"location"])
+zipcode_searchdata = unique(google_analytics$location)
+
+#Replacing empty category values with 'None'
+google_analytics$category[google_analytics$category == ''] <- NA
 
 # Creating variables for the second tab 'other out-of-school resources'
 neighborhoods_other = unique(all_neighbourhoods$nbhd_name)
@@ -153,3 +179,49 @@ shape_census@data$racial_dist_html <- mapply(
   shape_census@data$PCT_ASI
   
 )
+
+####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
+
+# Legend titles for demographic maps
+legend_titles_demographic <- list(MED_HH_ = "Median HH Income ($)",
+                                  PCT_HS_ = "HS Degree <br> Or Equiv. (%)",
+                                  PCT_HIS = "% Hispanic",
+                                  PCT_BLA = "% Black",
+                                  PCT_WHI = "% White",
+                                  PCT_NON = "Lang. Besides <br>English (%)",
+                                  majority_race = "Most Common<br>Race/Ethnicity"
+)
+
+# Construct demographic nbhd_labels for hovering on the neighborhoods
+nbhd_labels <- sprintf(
+  "<b>%s</b><br/>
+  No. program sessions = %i <br/>
+  No. children 5-17 yrs old = %i <br/> 
+  %% Hispanic students = %g%% <br/> 
+  %% English student learners = %g%% <br/> 
+  %% Students who use transportation = %g%% <br/> 
+  %% Students with disability = %g%% ",
+  shape_census@data$NBHD_NA,
+  replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
+  shape_census@data$AGE_5_T, 
+  shape_census@data$perc_hispanic_students, 
+  shape_census@data$perc_nonenglish_students,
+  shape_census@data$perc_with_transport_students, 
+  shape_census@data$perc_disable_students
+) %>% lapply(htmltools::HTML)
+
+# Bins and color palettes for demographic variables in leaflet map
+bins_income <- c(0, 25000, 50000, 75000, 100000, Inf)
+pal_income <- colorBin("Greys", domain = shape_census@data$MED_HH_, bins = bins_income)
+bins_edu <- c(0, 5, 10, 15, 20, 25)
+pal_edu <- colorBin("Greys", domain = shape_census@data$PCT_HSD, bins = bins_edu)
+bins_language <- c(0, 15, 30, 45, 60, 75)
+pal_language <- colorBin("Greys", domain = shape_census@data$PCT_NON, bins = bins_language)
+
+# colorful ones for racial demographics
+pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS, bins = 5)
+pal_black <- colorBin("Blues", domain = shape_census@data$PCT_BLA, bins = 5)
+pal_white <- colorBin("Purples", domain = shape_census@data$PCT_WHI, bins = 5)
+
+pal_all_races <- colorFactor(c(myblue, mygreen, mypurple), 
+                             domain = shape_census@data$majority_race)

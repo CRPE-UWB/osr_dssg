@@ -1,28 +1,4 @@
 #############################
-# Color settings
-#############################
-myyellow <- "#FFFF66"
-mygreen <- brewer.pal(3, "Greens")[2]
-myblue <- brewer.pal(3, "Blues")[2]
-mypurple <- brewer.pal(3, "Purples")[2]
-
-mygreen2 <- brewer.pal(3, "Greens")[1]
-myblue2 <- brewer.pal(3, "Blues")[1]
-mypurple2 <- brewer.pal(3, "Purples")[1]
-
-mygreen3 <- brewer.pal(3, "Greens")[3]
-myblue3 <- brewer.pal(3, "Blues")[3]
-mypurple3 <- brewer.pal(3, "Purples")[3]
-
-# colors for the other resources
-parks_color <- "#fb9a99"
-libraries_color <- "#e31a1c"
-rec_centers_color <- "#fdbf6f"
-playgrounds_color <- "#ff7f00"
-museums_color <- "#ffff99"
-fields_color <- "#b15928"
-
-#############################
 # Simple helpers 
 #############################
 wrap_text <- function(s, offset) {
@@ -30,9 +6,14 @@ wrap_text <- function(s, offset) {
 }
 
 calculate_aggregated_index <- function(df, types, cost) {
-  
-  val <- mean(df[grep(),])
-  return(val)
+  return(df[,"AI_overall"])
+  # look for the intersection of indices containing the words in the string-vector "types"
+  # and the string "cost"
+  # shared_indices <- stack(sapply(FUN=grep,X=c(types,cost),x=colnames(df)))$values
+  # shared_indices <- shared_indices[duplicated(shared_indices)]
+  # 
+  # val <- rowMeans(df[,shared_indices])
+  # return(val)
 }
 
 #############################
@@ -71,9 +52,11 @@ add_blank_map <- function(map) {
 }
 
 # Function to add demographic info to a map
-add_colored_polygon_map <- function(map, spdf, legend_titles, pal_type, label_type, 
-                                    column_name=NULL, vals=NULL){
+add_colored_polygon_map <- function(map, spdf, pal_type, label_type, 
+                                    column_name=NULL, legend_titles=NULL, legend_name=NULL, 
+                                    vals=NULL){
   if (is.null(vals)) {vals <- spdf@data[,column_name]}
+  if (is.null(legend_name)) {legend_title <- legend_titles[column_name]}
   addPolygons(map, data = spdf,
               fillColor = ~pal_type(vals),
               weight = 2,
@@ -97,7 +80,7 @@ add_colored_polygon_map <- function(map, spdf, legend_titles, pal_type, label_ty
     addLegend(pal = pal_type,
               values = vals,
               opacity = 0.7,
-              title = as.character(legend_titles[column_name]),
+              title = as.character(legend_title),
               position = "bottomright"
     )
 }
@@ -138,7 +121,7 @@ make_reschool_map <- function(df, popup_text, palette, col_name = NULL) {
   }
   else{
     make_base_map() %>%
-      add_demographic_map(palette,col_name,nbhd_labels) %>%
+      add_colored_polygon_map(shape_census, palette, popup_text, col_name, legend_titles_demographic) %>%
       add_circle_markers(df, "program", myyellow, popup_text)
   }
 }
