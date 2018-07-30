@@ -45,7 +45,8 @@ shinyUI(
                                 #br(),
                                 radioButtons("demographics", 
                                              "Select a demographics variable to visualize:", 
-                                             choiceNames = list("Median household income ($)", 
+                                             choiceNames = list("None selected",
+                                                                "Median household income ($)", 
                                                                "High school degree or equivalent (%)",
                                                                HTML("Language other than English spoken (%)<br><br>
                                                                     <i>Race/Ethnicity Variables</i>"),
@@ -63,7 +64,7 @@ shinyUI(
                                                                  "White population (%)",
                                                                  "All races"
                                                                  ),
-                                             selected = character(0)
+                                             selected = "None selected"
                                              ),
                                 br(),
                                 selectInput("neighborhoods", "Restrict to one neighborhood:", 
@@ -113,7 +114,8 @@ shinyUI(
                                 br(),
                                 radioButtons("demographics_other", 
                                              "Select a demographics variable to visualize:", 
-                                             choiceNames = list("Median household income ($)", 
+                                             choiceNames = list("None selected",
+                                                                "Median household income ($)", 
                                                                 "High school degree or equivalent (%)",
                                                                 HTML("Language other than English spoken (%)<br><br>
                                                               <i>Race/Ethnicity Variables</i>"),
@@ -122,7 +124,8 @@ shinyUI(
                                                                 "White population (%)",
                                                                 "Majority + breakdown"
                                              ),
-                                             choiceValues = list("Median household income ($)", 
+                                             choiceValues = list("None selected",
+                                                                 "Median household income ($)", 
                                                                  "High school degree or equivalent (%)",
                                                                  "Non-English speakers (%)",
                                                                  "Hispanic population (%)", 
@@ -130,7 +133,7 @@ shinyUI(
                                                                  "White population (%)",
                                                                  "All races"
                                              ),
-                                             selected = character(0)
+                                             selected = "None selected"
                                 ),
                                 br(),
                                 selectInput("neighborhoods_other", 

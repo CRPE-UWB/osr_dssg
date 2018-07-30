@@ -86,7 +86,7 @@ shinyServer(
         ) %>% lapply(htmltools::HTML)
       
       ##### ACTUALLY DRAW THE RESCHOOL MAP #####
-      if(is.null(input$demographics)){
+      if(input$demographics == "None selected"){
         make_reschool_map(neighborhood_data1, marker_popup_text, palette = NULL, col_name = NULL)
       }
       else if(input$demographics == "Median household income ($)" ) {
@@ -246,7 +246,7 @@ shinyServer(
         fields_data1 <- fields_data()
         
         ##### ACTUALLY DRAW THE OTHER RESOURCES MAP #####
-        if(is.null(input$demographics_other) == TRUE){
+        if(input$demographics_other == "None selected"){
           open_resource_map <- make_base_map() %>%
             add_blank_map()
         }
