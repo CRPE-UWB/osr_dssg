@@ -4,8 +4,8 @@ library(shiny)
 library(leaflet)
 
 # Source needed data and functions for ui and server
-#source('../source_file.R', chdir = TRUE)  # temp change working dir to same as source_file.R
-#source('helpers.R')
+source('../source_file.R', chdir = TRUE)  # temp change working dir to same as source_file.R
+source('helpers.R')
 
 shinyUI(
   

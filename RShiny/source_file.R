@@ -56,7 +56,6 @@ nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summar
 
 driving_index = dbGetQuery(con, "SELECT * from clean.driving_index")
 transit_index = dbGetQuery(con, "SELECT * from clean.transit_index")
-transit_index[,grep("Vis",colnames(transit_index))] <- NULL 
 
 # when you're done, close the connection and unload the driver 
 dbDisconnect(con) 
