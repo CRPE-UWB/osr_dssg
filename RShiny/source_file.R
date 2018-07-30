@@ -12,17 +12,17 @@ library(RColorBrewer)
 # Color settings
 #############################
 myyellow <- "#FFFF66"
-mygreen <- brewer.pal(5, "Greens")[3]
-myblue <- brewer.pal(5, "Blues")[3]
-mypurple <- brewer.pal(5, "Purples")[3]
+mygreen <- brewer.pal(3, "Greens")[2]
+myblue <- brewer.pal(3, "Blues")[2]
+mypurple <- brewer.pal(3, "Purples")[2]
 
-# colors for the other resources
-parks_color <- "#fb9a99"
-libraries_color <- "#e31a1c"
-rec_centers_color <- "#fdbf6f"
-playgrounds_color <- "#ff7f00"
-museums_color <- "#ffff99"
-fields_color <- "#b15928"
+mygreen2 <- brewer.pal(3, "Greens")[1]
+myblue2 <- brewer.pal(3, "Blues")[1]
+mypurple2 <- brewer.pal(3, "Purples")[1]
+
+mygreen3 <- brewer.pal(3, "Greens")[3]
+myblue3 <- brewer.pal(3, "Blues")[3]
+mypurple3 <- brewer.pal(3, "Purples")[3]
 
 ################## Getting data from the database e#############################################
 
@@ -94,14 +94,24 @@ neighborhoods_reshoolprograms = unique(reschool_summer_program$nbhd_name)
 minprice_reschoolprograms = min(reschool_summer_program$session_cost)
 maxprice_reschoolprograms = max(reschool_summer_program$session_cost)
 
-# Defining the variables to be used in the program search tab sidebar panel
-# Convert the cost column  to numeric
+#Defining the variables to be used in the program search tab sidebar panel
+#Convert the cost column  to numeric
 google_analytics$mincost = as.numeric(google_analytics$mincost)
 google_analytics$maxcost = as.numeric(google_analytics$maxcost)
 
 #Get the min and max cost to be used in the input slider
 minprice_search = min(google_analytics$mincost, na.rm = TRUE)
 maxprice_search = max(google_analytics$maxcost, na.rm = TRUE)
+
+#Creating unique zipcodes for the third tab search data
+#We take only the locations which have zipcodes which make sense
+google_analytics[-grep("80\\d{3}",google_analytics$location),"location"] <- NA 
+google_analytics[grep("80\\d{3}",google_analytics$location),"location"] <- 
+  gsub(".*(80\\d{3}).*","\\1",google_analytics[grep("80\\d{3}",google_analytics$location),"location"])
+zipcode_searchdata = unique(google_analytics$location)
+
+#Replacing empty category values with 'None'
+google_analytics$category[google_analytics$category == ''] <- NA
 
 # Creating variables for the second tab 'other out-of-school resources'
 neighborhoods_other = unique(all_neighbourhoods$nbhd_name)

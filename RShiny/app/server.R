@@ -147,9 +147,11 @@ shinyServer(
                          "music", "nature", "sports", "stem")
         
         par(mar = c(3.1, 5.1, 2.1, 2.1))  # make left margin larger to fit names(data)
-        barplot(data,
+        barplot(rev(data),  # reverse so that reads top - bottom alphabetically
                 main = "Program Types",
-                col = brewer.pal(9, "Set3"),
+                col = c(mygreen2, mypurple3, myblue2, 
+                        mygreen, myblue3, mygreen3,
+                        mypurple2, myblue, mypurple),
                 horiz = TRUE,
                 las = 1
                 )
@@ -482,6 +484,135 @@ shinyServer(
         }
         
       })
+    
+    
+    
+    #############################
+    # Search Data Tab
+    #############################
+    #Subset the search data depending on the slider input and the zipcode slected in the sidebar panel
+    # Getting column numbers depending on the type of the program selected. 
+    # (used to subset the data in the next step)
+    colm_search <- reactive({
+      input$program_search
+      
+      
+    })
+    
+    
+    subset_search_data = reactive({
+      
+      
+      
+      if(input$minprice_search != "No min price selected"){
+        mincost_search_data = subset(google_analytics, google_analytics$mincost  >= input$minprice_search)
+      }else{
+        mincost_search_data = google_analytics
+      }
+      
+      
+      
+      if(input$maxprice_search != "No max price selected"){
+        maxcost_search_data = subset(mincost_search_data, mincost_search_data$maxcost  <= input$maxprice_search)
+      }else{
+        maxcost_search_data = mincost_search_data
+      }
+      
+      
+      
+      if(input$zipcode_searchprog != "No zipcode selected" ) {
+        zipcode_search_data <- subset(maxcost_search_data, 
+                                      maxcost_search_data$location == input$zipcode_searchprog)
+      }
+      else {
+        zipcode_search_data <- maxcost_search_data
+        
+      }
+      
+      
+      if(input$sessiontimes_searchprog != "No session time selected selected" ) {
+        sessiontime_search_data <- subset(zipcode_search_data, 
+                                          zipcode_search_data$sessiontimes == input$sessiontimes_searchprog)
+      }
+      else {
+        sessiontime_search_data <- zipcode_search_data
+        
+      }
+      
+      if(length(colm_search()) > 0){
+        
+        data_list = list()
+        
+        for(i in 1:length(colm_search())){
+          
+          data_list[[i]] = sessiontime_search_data[which(sessiontime_search_data$category == colm_search()[i]),]
+        }
+        
+        final_search_data = as.data.frame(data.table::rbindlist(data_list))
+        
+        
+      }
+      
+      else {
+        
+        final_search_data = sessiontime_search_data
+      }
+      
+      
+      return(final_search_data) 
+      
+      
+    })
+    
+    
+    
+    #Display the total number of searches made with this combination selected in the side bar panel
+    output$Totalsearches <- renderText({ 
+      subsetted_data = subset_search_data()
+      return(sum(subsetted_data$users))
+      
+    })
+    
+    #Display the total percentage of searches made with this combination selected in the side bar panel
+    output$Percentsearches <- renderText({ 
+      subsetted_data = subset_search_data()
+      return((sum(subsetted_data$users)*100)/sum(google_analytics$users))
+      
+    })
+    
+    
+    # Output the relevant data in the data tab based on the search data tab
+    output$datatable_search <- DT::renderDataTable({
+      data_table1 <- subset_search_data()
+      DT::datatable(data_table1, 
+                    options = list(pageLength = 10, 
+                                   initComplete = JS(
+                                     "function(settings, json) {",
+                                     "$(this.api().table().header()).css(
+                                     {'background-color': '#000', 'color': '#fff'}
+                                   );",
+                                     "}")),
+                    caption = htmltools::tags$caption(
+                      style = 'caption-side: top; text-align: center; color: black ;',
+                      htmltools::h3("Search Data")
+                    ), 
+                    style = "bootstrap",
+                    class = 'cell-border stripe',
+                    rownames = FALSE
+                    
+      ) %>%
+        formatStyle(colnames(data_table1),
+                    backgroundColor = 'lightblue'
+        )
+      
+    })
+    
+    
+    
+    
+    
+    
+    
     
     #############################
     # Access Index Tab
