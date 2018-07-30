@@ -190,7 +190,7 @@ shinyUI(
                                                    choiceNames = c("Academic", "Arts", "Athletic", "Nature"),
                                                    choiceValues = list("academic","art","sports","nature"),
                                                    inline = TRUE,
-                                                   selected = "academic"
+                                                   selected = c("academic","art","sports","nature")
                                 ),
                                 br(),
                                 radioButtons("cost_access", 
