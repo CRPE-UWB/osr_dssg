@@ -192,8 +192,8 @@ summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_a
 library(scales)
 #User specifies query (type)
 #type <- c("has_sports","art")
-type <- NULL
-cost <- c("free")
+type <- c("academic")
+cost <- c("anycost")
 
 #subset dataframe by user selection
 user_set <- Make_Subset(reschool_programs,type,cost)

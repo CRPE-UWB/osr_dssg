@@ -95,19 +95,15 @@ for (i in 1:length(categories)){
 
     #normalize, note here we make two columns, one to compare to driving, one for visual rep
     max_access <- max(summary_index_user_transit_graphic$CarAccess)
-    max_transit_access <- max(summary_index_user_transit$AccessIndex)
-
-    summary_index_user_transit$AccessIndexGraphic <- normalize(summary_index_user_transit$AccessIndex,max_transit_access)
     summary_index_user_transit$AccessIndex <- normalize(summary_index_user_transit$AccessIndex,max_access)
     
     #update colnames for merge
     colnames(summary_index_user_transit)[colnames(summary_index_user_transit)=="AccessIndex"] <- paste("AI",type,cost,sep = "_") #flexible name writing for loop
-    colnames(summary_index_user_transit)[colnames(summary_index_user_transit)=="AccessIndexGraphic"] <- paste("AI_Vis",type,cost,sep = "_")
     summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2) #matching str to baseframe 
     transit_index <- merge(summary_index_user_transit,transit_index,by=c("Id2"))
   }
   print(paste(i,"working"))
-  if(length(transit_index)>20){
+  if(length(transit_index)>11){
     print(colnames(transit_index))
   }
 }
@@ -118,7 +114,7 @@ transit_index$AI_overall <- rowMeans(transit_index[,c("AI_has_nature_anycost",'A
 ```
 
 ###Push to RDS
-Remember you have to log in throught he command line before running this chunk. 
+Remember you have to log in through the command line before running this chunk. 
 ```{r}
 library("RPostgreSQL")
 
