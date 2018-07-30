@@ -1,0 +1,60 @@
+@import url("//fonts.googleapis.com/css?family=Lobster|Cabin:400,700");
+
+/*
+Sky Color Palette from W3 Schools
+grey: #bccad6
+blue grey: #8d9db6
+dark blue grey: #667292
+peach grey: #f1e3dd
+
+Blues from Color Brewer (light to dark):
+#f7fbff
+#deebf7
+#c6dbef
+#9ecae1
+#6baed6
+#4292c6
+#2171b5
+#08519c
+#08306b
+*/
+
+/* styles for navigation bars (e.g. in the header) */
+nav {
+  /* font-family: 'Lobster', cursive; */
+}
+
+/*
+.navbar-inner {
+  background-color: blue;
+  font-family: 'Lobster', cursive;
+}
+*/
+
+.navbar-static-top {
+  background-color: #DEEBF7;
+  font-family: 'Lobster', cursive;
+  width: 100%;
+}
+
+/* make slider color a nice blue */
+.js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar {
+  background: #6baed6;
+}
+
+.irs-from, .irs-to, .irs-single { 
+  background: #6baed6;
+}
+
+
+/* text families: headers, body text, etc.  */
+h1 {
+  font-weight: 500;
+  line-height: 1.1;
+  color: #ad1d28;
+}
+
+body {
+  background-color: #fff;
+  /* font-family: 'Arial'; */
+}

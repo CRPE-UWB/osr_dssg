@@ -1,12 +1,13 @@
 ## Set up workspace
 library(rgdal)  # for working with spatial data frames
 library(rgeos)  # for working with spatial data frames
+library(leaflet)  # for observational mapping
 
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))  # only works if running rstudio
 mypath <- getwd()
 
 ## get nbhd level demographics from denver open data
-source('open_data_functions.R')
+source(file.path('..', 'denver_open', 'open_data_functions.R'))
 nbhds <- GetOpenData('american_community_survey_nbrhd_2011_2015')
 
 colnames(nbhds@data)
@@ -22,7 +23,10 @@ names_wanted <- c("NBHD_NAME",  # neighborhood name
                   "PCT_OTHERR",  # percent other race
                   "PCT_TWOORM",  # percent two or more races
                   "MED_HH_INC",  # median househol income
+                  "LESS_THAN_",  # population 25+ with les than hs diploma
                   "HSGRAD_OR_",  # population 25+ with hs diploma or equivalent
+                  "SOMECOLLEG",  # population 25+ with some college
+                  "BACHELORS_",  # population 25+ with bachelors degree
                   "TTLPOP_25P",  # total population 25+
                   "AGE_5_TO_9", # for total students in age range 5-18
                   "AGE_10_TO_", # for total students in age range 5-18
@@ -34,8 +38,37 @@ names_wanted <- c("NBHD_NAME",  # neighborhood name
 # subset to the columns we need
 nbhds_small <- nbhds[,names_wanted]
 
-# get % population with diploma or equivalent
-nbhds_small@data$PCT_HSDIPLOMA <- 100 * nbhds_small@data$HSGRAD_OR_ / nbhds_small@data$TTLPOP_5PL
+# DECIDING WHAT EDUCATION DATA TO USE
+
+# colnames <- c("LESS_THAN_")
+# colnames <- c("LESS_THAN_", "HSGRAD_OR_")
+# colnames <- c("SOMECOLLEG", "BACHELORS_")
+colnames <- c("BACHELORS_")
+
+spdf <- nbhds_small[,colnames]
+spdf@data$educ <- 100 * rowSums(spdf@data)/ nbhds_small@data[,"TTLPOP_25P"]
+spdf <- spdf[,"educ"]
+vals <- unlist(spdf@data)
+
+mypal <- colorBin("Blues", domain = vals, bins = 5)
+opacity <- 1.0
+
+leaflet()  %>% 
+  setView(lng = -104.901531, lat = 39.722043, zoom = 11) %>% 
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(data = spdf,
+              fillColor = ~mypal(vals),
+              fillOpacity = opacity,
+              weight = 0.5
+              ) %>%
+  addLegend(pal = mypal,
+            values = vals,
+            opacity = opacity,
+            position = "bottomright")
+
+## DECIDING TO KEEP: LESS THAN HS DIPLOMA, and BACHELORS OR ABOVE
+nbhds_small@data$PCT_LESS_HS <- 100 * nbhds_small@data$LESS_THAN_ / nbhds_small@data$TTLPOP_25P
+nbhds_small@data$PCT_COLL_GRAD <- 100 * nbhds_small@data$BACHELORS_ / nbhds_small@data$TTLPOP_25P
 
 # get total students in age range 5-17
 nbhds_small@data$AGE_5_TO_17 <- nbhds_small@data$AGE_5_TO_9 + nbhds_small@data$AGE_10_TO_ +
@@ -59,7 +92,8 @@ final_colnames <- c("NBHD_NAME",
                     "PCT_NATIVE",
                     "PCT_OTHERR",
                     "PCT_TWOORM",
-                    "PCT_HSDIPLOMA", 
+                    "PCT_LESS_HS", 
+                    "PCT_COLL_GRAD",
                     "AGE_5_TO_17", 
                     "PCT_NON_ENGL")
 
@@ -74,11 +108,12 @@ simpler_colnames <- c("NBHD_NAME",
                     "PCT_NATIVE",
                     "PCT_OTHER_RACE",
                     "PCT_TWO_OR_MORE_RACES",
-                    "PCT_HS_DIPLOMA", 
+                    "PCT_LESS_HS", 
+                    "PCT_COLL_GRAD", 
                     "AGE_5_TO_17", 
                     "PCT_NON_ENGL")
 
 colnames(finalspdf@data) <- simpler_colnames
 
-outputdir <- file.path(dirname(mypath), "data", "nbhd_dem_shapes")
+outputdir <- file.path(dirname(dirname(mypath)), "data", "nbhd_dem_shapes")
 writeOGR(finalspdf, outputdir, "nbhd_dem_shapes", driver="ESRI Shapefile")

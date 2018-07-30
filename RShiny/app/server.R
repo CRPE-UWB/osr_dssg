@@ -9,49 +9,34 @@ library(leaflet)
 library(sp)
 
 shinyServer(
-  
-  #### ReSchool Programs tab ####
   function(input, output) {
     
-    # Getting column numbers depending on the type of the program selected. 
-    # (used to subset the data in the next step)
-    colm <- reactive({
-      as.numeric(input$program)
-    })
+    #############################
+    # Reschool Programs Tab
+    #############################
     
-    # Subsetting the data for the type of the program selected
+    ####### RESCHOOL PROGRAMS SUBSETTING BY COST AND TYPE #######
+    
     program_category_data <- reactive({
-      a <- reschool_summer_program[apply(as.data.frame(reschool_summer_program[,colm()]) == 1, 1, any), 
-                                  c(1,2,3,4,5,6,7,8,9,10,11,12,colm())
-                                  ]
-      return(a)
+      return(subset_for_category(reschool_summer_program, as.numeric(input$program)))
     })
     
-    # Subsetting the data for the neighborhood and the cost of the program selected
-    neighborhood_data <- reactive({
-      summer_program_data <- program_category_data()
-      
-      if(input$neighborhoods != "No neighborhood selected" ) {
-        a <- subset(summer_program_data, 
-                   summer_program_data$nbhd_name == input$neighborhoods & 
-                     summer_program_data$session_cost  >= input$slider[1] & 
-                     summer_program_data$session_cost  <= input$slider[2]
-                   )
-      }
-      else {
-        a <- subset(summer_program_data,  
-                   summer_program_data$session_cost >= input$slider[1] & 
-                     summer_program_data$session_cost  <= input$slider[2]
-                   )
-      }
-      return(a) 
+    program_cost_data <- reactive({
+      return(subset_for_cost(program_category_data(),input$slider[1],input$slider[2]))
     })
+    
+    neighborhood_data <- reactive({
+      return(subset_for_neighborhoods(program_cost_data(),input$neighborhoods))
+    })
+    
+    ####### RESCHOOL PROGRAMS DATA TAB #######
     
     # Output the relevant data in the data tab based on the selections
     output$datatable <- DT::renderDataTable({
       data_table1 <- neighborhood_data()
       DT::datatable(data_table1[,-c(5,6,7)], 
-                    options = list(pageLength = 3, 
+                    options = list(pageLength = 5, 
+                                   scrollX = TRUE,
                                    initComplete = JS(
                                      "function(settings, json) {",
                                      "$(this.api().table().header()).css(
@@ -59,120 +44,40 @@ shinyServer(
                                       );",
                                      "}")),
                     caption = htmltools::tags$caption(
-                      style = 'caption-side: top; text-align: center; color: black ;',
+                      style = 'caption-side: top; text-align: left; color: black ;',
                       htmltools::h3("ReSchool Programs")
-                    ), 
+                    ),
+                    width = 300,
                     style = "bootstrap",
                     class = 'cell-border stripe',
                     rownames = FALSE
                     
       ) %>%
         formatStyle(colnames(data_table1[,-c(5,6,7)]),
-                    backgroundColor = 'lightblue'
+                    backgroundColor = 'lightyellow'
         )
                     
     })
-
-    ####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
     
-    # Function to make the base map
-    make_base_map <- function() {
-      leaflet()  %>% 
-        setView(lng = -104.901531, lat = 39.722043, zoom = 11) %>% 
-        #addTiles() %>%
-        addProviderTiles(providers$CartoDB.Positron)
-    }
-    
-    # Construct demographic nbhd_labels for hovering on the neighborhoods
-    nbhd_labels <- sprintf(
-      "<b>%s</b><br/>
-      No. program sessions = %i <br/>
-      No. children 5-17 yrs old = %i <br/> 
-      %% Hispanic students = %g%% <br/> 
-      %% English student learners = %g%% <br/> 
-      %% Students who use transportation = %g%% <br/> 
-      %% Students with disability = %g%% ",
-      shape_census@data$NBHD_NA,
-      replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
-      shape_census@data$AGE_5_T, 
-      shape_census@data$perc_hispanic_students, 
-      shape_census@data$perc_nonenglish_students,
-      shape_census@data$perc_with_transport_students, 
-      shape_census@data$perc_disable_students
-    ) %>% lapply(htmltools::HTML)
-    
-    # Bins and color palettes for demographic variables in leaflet map
-    bins_income <- c(0, 20000, 40000, 60000, 80000, 100000, Inf)
-    pal_income <- colorBin("Greens", domain = shape_census@data$MED_HH_, bins = bins_income)
-    bins_edu <- c(0, 5, 10, 15, 20, 25)
-    pal_edu <- colorBin("Purples", domain = shape_census@data$PCT_HSD, bins = bins_edu)
-    pal_language <- colorBin("Blues", domain = shape_census@data$PCT_NON)
-    # bins_hispanic <- c(0, 10, 20, 30, 40, 50, 60, 70, 80, 100)
-    pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS) #, bins = bins_hispanic)
-    pal_black <- colorBin("Blues", domain = shape_census@data$PCT_BLA, bins = 5)
-    pal_white <- colorBin("Purples", domain = shape_census@data$PCT_WHI, bins = 5)
-    
-    pal_all_races <- colorFactor("Set2", domain = shape_census@data$majority_race)
-    
-    # Legend titles for demographic maps
-    legendTitles <- list(MED_HH_ = "Median HH Income ($)",
-                         PCT_HS_ = "HS Degree <br> Or Equiv. (%)",
-                         PCT_HIS = "% Hispanic",
-                         PCT_BLA = "% Black",
-                         PCT_WHI = "% White",
-                         PCT_NON = "Lang. Besides <br>English (%)",
-                         majority_race = "Most Common<br>Race/Ethnicity"
-    )
-    
-    # Function to add the demographic info to the map
-    add_demographic_map <- function(map, pal_type, column_name, label_type){
-      addPolygons(map, data = shape_census,
-                  fillColor = ~pal_type(shape_census@data[,column_name]),
-                  weight = 2,
-                  opacity = 1,
-                  color = "#777",
-                  dashArray = "",
-                  fillOpacity = 0.5,
-                  highlight = highlightOptions(
-                    weight = 5,
-                    color = "#666",
-                    bringToFront = FALSE
-                  ),
-                  label = label_type,
-                  labelOptions = labelOptions(
-                    style = list("font-weight" = "normal", padding = "3px 8px"),
-                    textsize = "12px",
-                    direction = "right",
-                    offset = c(35,0)
-                  )
-      ) %>% 
-        addLegend(pal = pal_type,
-                  values = shape_census@data[,column_name],
-                  opacity = 0.7,
-                  title = as.character(legendTitles[column_name]),
-                  position = "bottomright"
-        )
-    }
-    
-    ####### MAKE THE RESCHOOL PROGRAMS MAP #######
+    ####### RESCHOOL PROGRAMS MAP #######
     
     output$mymap <- renderLeaflet({
       
-      # Get the neighborhood data
+      # Subset to data for only this neighborhood
       neighborhood_data1 <- neighborhood_data()
     
       # Construct pop-ups for when you click on a program marker
       marker_popup_text <- sprintf(
-        "<b>Program: %s</b><br/> 
-         Organization: %s <br/> 
-         <i>Description: %s</i><br/>
+        "<b>%s</b><br/> 
+         %s <br/> 
+         <i>%s</i><br/>
          $%i per session<br/>
          Starts: %s, Ends: %s <br/>  
          Special needs = %s,  
          Scholarships = %s <br/>",
-        neighborhood_data1$session_name, 
-        neighborhood_data1$camp_name, 
-        neighborhood_data1$session_short_description,
+        wrap_text(paste("Program: ",neighborhood_data1$session_name)), 
+        wrap_text(paste("Organization: ",neighborhood_data1$camp_name)), 
+        wrap_text(paste("Description: ",neighborhood_data1$session_short_description)),
         neighborhood_data1$session_cost,
         neighborhood_data1$session_date_start, 
         neighborhood_data1$session_date_end,
@@ -180,129 +85,154 @@ shinyServer(
         neighborhood_data1$has_scholarships
         ) %>% lapply(htmltools::HTML)
       
-      # Function to add program markers to the map
-      # lat, long are the column names for latitude and longitude
-      add_program_markers <- function(map, data, lat, long){
-        if (nrow(data) > 0) {
-          addCircleMarkers(map, lng = jitter(data$long, factor = 1, amount = 0.0005), 
-                           lat = jitter(data$lat, factor = 1, amount = 0.0005), 
-                           radius = 4,
-                           stroke = FALSE,
-                           weight = 1,
-                           fillColor = "yellow",
-                           fillOpacity = 0.5,
-                           label = marker_popup_text,
-                           labelOptions = labelOptions(
-                             style = list("font-weight" = "normal", padding = "3px 8px"),
-                             textsize = "12px",
-                             direction = "right",
-                             offset = c(5,0)
-                           )
-          ) %>%
-            addLegend(
-              position = "bottomright",
-              colors = c("yellow"),
-              opacity = 0.5,
-              labels = "program"
-            )
-        }
-        else{
-          return(map)
-        }
-      }
-      
-      # Function to draw the base map + demographics + program markers
-      make_reschool_map <- function(palette, col_name) {
-        make_base_map() %>%
-          add_demographic_map(palette,col_name,nbhd_labels) %>%
-          add_program_markers(neighborhood_data1, lat, long)
-      }
-      
       ##### ACTUALLY DRAW THE RESCHOOL MAP #####
-      if(is.null(input$demographics) == TRUE){
-        make_base_map() %>%
-          # plain grey neighborhoods for no demographic selection
-          addPolygons(data = shape_census,
-                      color = "black",
-                      weight = 1, 
-                      smoothFactor = 0.5,
-                      opacity = 1.0,
-                      fillColor = "#999",
-                      fillOpacity = 0.5,
-                      label = nbhd_labels,
-                      labelOptions = labelOptions(
-                        style = list("font-weight" = "normal", 
-                                     padding = "3px 8px"),
-                        textsize = "12px",
-                        direction = "right",
-                        offset = c(35,0),
-                      ),
-                      highlight = highlightOptions(
-                        bringToFront = FALSE,
-                        weight = 5,
-                        color = "#666"
-                      )
-                      ) %>%
-          add_program_markers(neighborhood_data1, lat, long)
+      if(is.null(input$demographics)){
+        make_reschool_map(neighborhood_data1, marker_popup_text, palette = NULL, col_name = NULL)
       }
       else if(input$demographics == "Median household income ($)" ) {
-        make_reschool_map(pal_income,"MED_HH_")
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal_income, "MED_HH_")
       }
       else if(input$demographics == "High school degree or equivalent (%)") {
-        make_reschool_map(pal_edu,"PCT_HS_")
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal_edu,"PCT_HS_")
       }
       else if(input$demographics == "Hispanic population (%)") {
-        make_reschool_map(pal_hispanic, "PCT_HIS")
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal_hispanic, "PCT_HIS") 
       }
       else if(input$demographics == "Black population (%)") {
-        make_reschool_map(pal_black, "PCT_BLA")
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal_black, "PCT_BLA")
       }
       else if(input$demographics == "White population (%)") {
-        make_reschool_map(pal_white, "PCT_WHI")
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal_white, "PCT_WHI")
       }
       else if(input$demographics == "Non-English speakers (%)") {
-        make_reschool_map(pal_language, "PCT_NON")
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal_language, "PCT_NON")
       }
       else if(input$demographics == "All races") {
         labels_race_breakdown <- shape_census@data$racial_dist_html
         
         make_base_map() %>%
-          add_demographic_map(pal_all_races, "majority_race", 
-                              ~labels_race_breakdown) %>%
-          add_program_markers(neighborhood_data1, lat, long)
+          add_colored_polygon_map(shape_census, legend_titles_demographic, pal_all_races, ~labels_race_breakdown, 
+                                  "majority_race") %>%
+          add_circle_markers(neighborhood_data1, "program", myyellow, marker_popup_text)
       }
       
     })
     
-    #### Other out of school resources tab ####
-    colm_other <- reactive({
-      input$program_other
-    })
+    ####### MAKE THE RESCHOOL PROGRAMS SUMMARY ANALYSIS #######
     
-    # Function to subset all the resource datasets based on the neighborhood selected
-    subset_for_neighborhoods <- function(file){
-      
+    # subset to only this neighborhood
+    # CAN PROBABLY REMOVE THIS FUNCTION AND REPLACE WITH THE ONE JOE WROTE
+    subset_reschool_for_neighborhoods <- function(df){
       b <- reactive({
-        if(input$neighborhoods_other != "No neighborhood selected" ) {
-          a <- file[which(file[, "nbhd_name"] == input$neighborhoods_other),]
-        }
-        else {
-          a <- file
-        }
+        a <- df[which(df[, "nbhd_name"] == input$neighborhoods), ]
         return(a) 
       })
-      
       return(b)
-      
     }
     
+    output$summary_title <- renderUI({
+      summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
+      sprintf('<h3> "%s" Summary </h3>',
+              summary_data[, "nbhd_name"]
+      ) %>% lapply(htmltools::HTML)
+      
+    })
+    
+    output$program_type_summary <- renderPlot(
+      {
+        summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
+      
+        data <- unlist(summary_data[,c(3:9, 12:13)])
+        names(data) <- c("academic", "arts", "cooking", "dance", "drama",
+                         "music", "nature", "sports", "stem")
+        
+        par(mar = c(3.1, 5.1, 2.1, 2.1))  # make left margin larger to fit names(data)
+        barplot(rev(data),  # reverse so that reads top - bottom alphabetically
+                main = "Program Types",
+                col = c(mygreen2, mypurple3, myblue2, 
+                        mygreen, myblue3, mygreen3,
+                        mypurple2, myblue, mypurple),
+                horiz = TRUE,
+                las = 1
+                )
+      },
+      width = "auto",
+      height = 250
+    )
+    
+    output$program_special_cats <- renderUI({
+      summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
+      
+      sprintf("Programs with Scholarships: %i <br/> Special Needs Programs: %i <br/><br/>",
+              summary_data[, "total_scholarships"],
+              summary_data[, "total_special_needs"]
+      ) %>% lapply(htmltools::HTML)
+    })
+    
+    output$program_cost_summary <- renderPlot(
+      {
+        summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
+        # dummy plot just to check
+        par(mar = c(3.1, 2.1, 2.1, 2.1))  # make margins same as other plot
+        barplot(1,
+                main = "Program Costs")
+      },
+      width = "auto",
+      height = 250
+    )
+    
+    output$nbhd_summary <- renderDataTable({
+      summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
+      
+      datatable(summary_data, 
+                    options = list(pageLength = 1, 
+                                   scrollX = TRUE,
+                                   searching = FALSE,
+                                   paging = FALSE,
+                                   ordering = FALSE,
+                                   lengthChange = FALSE,
+                                   info = FALSE,
+                                   initComplete = JS(
+                                     "function(settings, json) {",
+                                     "$(this.api().table().header()).css(
+                                      {'background-color': '#000', 'color': '#fff'}
+                                      );",
+                                     "}")),
+                    # caption = htmltools::tags$caption(
+                    #   style = 'caption-side: top; text-align: left; color: black ;',
+                    #   htmltools::h3("caption")
+                    # ),
+                    width = 300,
+                    style = "bootstrap",
+                    class = 'cell-border stripe',
+                    rownames = FALSE
+                    
+      ) %>%
+        formatStyle(colnames(summary_data),
+                    backgroundColor = 'lightblue'
+        )
+
+    })
+    
+  
+    #### Other out of school resources tab ####
+    
+    # this doesn't seem to get used at all anymore:
+    # colm_other <- reactive({
+    #   input$program_other
+    # })
+    
+    #############################
+    # Other Resources Tab
+    #############################
+    
     # Create reactive elements for the subsetted datasets
-    parks_data <- subset_for_neighborhoods(parks)
-    libraries_data <- subset_for_neighborhoods(libraries)
-    rec_centers_data <- subset_for_neighborhoods(rec_centers)
-    museums_data <- subset_for_neighborhoods(museums)
-    playgrounds_data <- subset_for_neighborhoods(playgrounds)
-    fields_data <- subset_for_neighborhoods(fields)
+    parks_data <- reactive({subset_for_neighborhoods(parks, input$neighborhoods_other)})
+    libraries_data <- reactive({subset_for_neighborhoods(libraries, input$neighborhoods_other)})
+    rec_centers_data <- reactive({subset_for_neighborhoods(rec_centers, input$neighborhoods_other)})
+    museums_data <- reactive({subset_for_neighborhoods(museums, input$neighborhoods_other)})
+    playgrounds_data <- reactive({subset_for_neighborhoods(playgrounds, input$neighborhoods_other)})
+    fields_data <- reactive({subset_for_neighborhoods(fields, input$neighborhoods_other)})
     
     # Create the map
     output$mymap_other = renderLeaflet({
@@ -318,92 +248,43 @@ shinyServer(
         ##### ACTUALLY DRAW THE OTHER RESOURCES MAP #####
         if(is.null(input$demographics_other) == TRUE){
           open_resource_map <- make_base_map() %>%
-            # plain grey neighborhoods for no demographic selection
-            addPolygons(data = shape_census,
-                        color = "black",
-                        weight = 1, 
-                        smoothFactor = 0.5,
-                        opacity = 1.0,
-                        fillColor = "#999",
-                        fillOpacity = 0.5,
-                        label = nbhd_labels,
-                        labelOptions = labelOptions(
-                          style = list("font-weight" = "normal", 
-                                       padding = "3px 8px"
-                                       ),
-                          textsize = "12px",
-                          direction = "right",
-                          offset = c(35,0)
-                        ),
-                        highlight = highlightOptions(
-                          bringToFront = FALSE,
-                          weight = 5,
-                          color = "#666"
-                        )
-            )
+            add_blank_map()
         }
         else if(input$demographics_other == "Median household income ($)" ) {
           open_resource_map <- make_base_map() %>% 
-            add_demographic_map(pal_income,"MED_HH_",nbhd_labels)
+            add_colored_polygon_map(shape_census, pal_income,nbhd_labels, "MED_HH_", legend_titles_demographic)
         }
         else if(input$demographics_other == "High school degree or equivalent (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_demographic_map(pal_edu,"PCT_HS_",nbhd_labels)
+            add_colored_polygon_map(shape_census, pal_edu,nbhd_labels,"PCT_HS_", legend_titles_demographic)
         }
         else if(input$demographics_other == "Hispanic population (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_demographic_map(pal_hispanic, "PCT_HIS",nbhd_labels)
+            add_colored_polygon_map(shape_census, pal_hispanic, nbhd_labels, "PCT_HIS", legend_titles_demographic)
         }
         else if(input$demographics_other == "Black population (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_demographic_map(pal_black, "PCT_BLA",nbhd_labels)
+            add_colored_polygon_map(shape_census, pal_black, nbhd_labels, "PCT_BLA", legend_titles_demographic)
         }
         else if(input$demographics_other == "White population (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_demographic_map(pal_white, "PCT_WHI",nbhd_labels)
+            add_colored_polygon_map(shape_census, pal_white, nbhd_labels, "PCT_WHI", legend_titles_demographic)
         }
         else if(input$demographics_other == "Non-English speakers (%)") {
           open_resource_map <- make_base_map() %>% 
-            add_demographic_map(pal_language, "PCT_NON",nbhd_labels)
+            add_colored_polygon_map(shape_census, pal_language, nbhd_labels, "PCT_NON", legend_titles_demographic)
         }
         else if(input$demographics_other == "All races") {
           open_resource_map <- make_base_map() %>%
-            add_demographic_map(pal_all_races, "majority_race", ~shape_census@data$racial_dist_html)
+            add_colored_polygon_map(shape_census, pal_all_races, ~shape_census@data$racial_dist_html, "majority_race", legend_titles_demographic)
         }
         
-        # Function to add circle markers on the map depending on the resource type(s) selected
-        add_circle_markers = function(map, data, legend_title, color_code, popup_html = NULL){
-          if (nrow(data) > 0) {
-            addCircleMarkers(map, data = data, 
-                             lng = jitter(data$long, factor = 1, amount = 0.0005), 
-                             lat = jitter(data$lat, factor = 1, amount = 0.0005), 
-                             radius = 4,
-                             stroke = FALSE,
-                             weight = 1,
-                             fillColor = color_code,
-                             fillOpacity = 0.5,
-                             label = popup_html,
-                             labelOptions = labelOptions(
-                               style = list("font-weight" = "normal", padding = "3px 8px"),
-                               textsize = "12px",
-                               direction = "right",
-                               offset = c(5,0)
-                             )
-            )  %>%
-              addLegend(
-                position = "bottomright",
-                colors = c(color_code),
-                opacity = 0.5,
-                labels = legend_title
-              )
-          }
-          else {
-            return(map)
-          }
-       }
-        
         # Loop over selected resources types, plotting the locations of each
-        for (col in colm_other()){
+        for (col in input$program_other){
+          
+          add_resource_markers <- function(map, data, color, popup) {
+            add_circle_markers(map, data, col, color, popup, opacity = 1.0)
+          }
         
           if(col == "Parks"){
             parks_popup <- sprintf(
@@ -419,7 +300,7 @@ shinyServer(
               ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
-              add_circle_markers(parks_data1, col, "green", parks_popup)
+              add_resource_markers(parks_data1, parks_color, parks_popup)
           }
          
           if(col == "Libraries"){
@@ -429,7 +310,7 @@ shinyServer(
             ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
-              add_circle_markers(libraries_data1, col, "blue", libraries_popup)
+              add_resource_markers(libraries_data1, libraries_color, libraries_popup)
           }
           
           if(col == "Rec Centers"){
@@ -464,7 +345,7 @@ shinyServer(
             ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
-              add_circle_markers(rec_centers_data1, col, "orange", rec_centers_popup)
+              add_resource_markers(rec_centers_data1, rec_centers_color, rec_centers_popup)
           }
           
           if(col == "Playgrounds"){
@@ -474,7 +355,7 @@ shinyServer(
             ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
-              add_circle_markers(playgrounds_data1, col, "red", playgrounds_popup)
+              add_resource_markers(playgrounds_data1, playgrounds_color, playgrounds_popup)
           }
           
           if(col == "Museums"){
@@ -484,7 +365,7 @@ shinyServer(
             ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
-              add_circle_markers(museums_data1, col, "purple", museums_popup)
+              add_resource_markers(museums_data1, museums_color, museums_popup)
           }
           
           if(col == "Fields"){
@@ -496,7 +377,7 @@ shinyServer(
             ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
-              add_circle_markers(fields_data1, col, "yellow", fields_popup)
+              add_resource_markers(fields_data1, fields_color, fields_popup)
           }
 
         }
@@ -507,18 +388,18 @@ shinyServer(
     
     # Make the data tables for the Other Resources Data Tab
     output$dt <- renderUI({
-      lapply(as.list(seq_len(length(as.list(colm_other())))), function(i) {
+      lapply(as.list(seq_len(length(as.list(input$program_other)))), function(i) {
         id <- paste0("dt", i)
         DT::dataTableOutput(id)
       })
     })
     
-    
-    # Function to get datatables for eaxh resources. Has a bunch of aesthetics
+    # Function to get datatables for each resources. Has a bunch of aesthetics
     data_table_function = function(checkbox_input, data, column_names){
       
       datatable(data,
                 options = list(pageLength = 3, 
+                               scrollX = TRUE,
                                initComplete = JS(
                                  "function(settings, json) {",
                                  "$(this.api().table().header()).css(
@@ -526,9 +407,10 @@ shinyServer(
                                   );",
                                  "}")),
                 caption = htmltools::tags$caption(
-                  style = 'caption-side: top; text-align: center; color: black ;',
+                  style = 'caption-side: top; text-align: left; color: black ;',
                   htmltools::h3(checkbox_input)
                 ), 
+                width = 300,
                 style = "bootstrap",
                 class = 'cell-border stripe',
                 rownames = FALSE,
@@ -540,10 +422,10 @@ shinyServer(
     }
     
     observe(
-      for (i in seq_len(length(colm_other()))) {
+      for (i in seq_len(length(input$program_other))) {
         id <- paste0("dt", i)
         
-        if(colm_other()[i] == "Parks"){
+        if(input$program_other[i] == "Parks"){
           output[[id]] <- DT::renderDataTable({
             dat <- data_table_function("Parks", 
                                        parks_data()[, c(3,4,5,6,7,8,11)],
@@ -552,7 +434,7 @@ shinyServer(
                                        )
             return(dat)    
           })}
-        else if(colm_other()[i] == "Libraries"){
+        else if(input$program_other[i] == "Libraries"){
           output[[id]] <- DT::renderDataTable({
             dat <- data_table_function("Libraries", 
                                        libraries_data()[, c(3,4,5,6,9)],
@@ -562,7 +444,7 @@ shinyServer(
           })
         }
        
-        else if(colm_other()[i] == "Rec Centers"){
+        else if(input$program_other[i] == "Rec Centers"){
           output[[id]] <- DT::renderDataTable({
             dat <- data_table_function("Rec Centers", rec_centers_data()[, c(3,4,9:20, 23)],
                                        c("Rec Center name", "Type", "Has cardio", 
@@ -575,14 +457,14 @@ shinyServer(
             return(dat)    
           })
         }
-        else if(colm_other()[i] == "Museums"){
+        else if(input$program_other[i] == "Museums"){
           output[[id]] <- DT::renderDataTable({
             dat <- data_table_function("Museums", museums_data()[, c(3,4,7)],
                                        c("Museum name", "Address", "Nbhd name"))
             return(dat)    
           })
         }
-        else if(colm_other()[i] == "Fields"){
+        else if(input$program_other[i] == "Fields"){
           output[[id]] <- DT::renderDataTable({
             dat <- data_table_function("Fields", 
                                        fields_data()[, c(3,4,5,6,7, 10)],
@@ -591,7 +473,7 @@ shinyServer(
             return(dat)    
           })
         }
-        else if(colm_other()[i] == "Playgrounds"){
+        else if(input$program_other[i] == "Playgrounds"){
           output[[id]] <-DT::renderDataTable({
             dat <- data_table_function("Playgrounds", 
                                        playgrounds_data()[, c(3,4,5,6,9)],
@@ -602,8 +484,159 @@ shinyServer(
         }
         
       })
-
     
+    
+    
+    #############################
+    # Search Data Tab
+    #############################
+    #Subset the search data depending on the slider input and the zipcode slected in the sidebar panel
+    # Getting column numbers depending on the type of the program selected. 
+    # (used to subset the data in the next step)
+    colm_search <- reactive({
+      input$program_search
+      
+      
+    })
+    
+    
+    subset_search_data = reactive({
+      
+      
+      
+      if(input$minprice_search != "No min price selected"){
+        mincost_search_data = subset(google_analytics, google_analytics$mincost  >= input$minprice_search)
+      }else{
+        mincost_search_data = google_analytics
+      }
+      
+      
+      
+      if(input$maxprice_search != "No max price selected"){
+        maxcost_search_data = subset(mincost_search_data, mincost_search_data$maxcost  <= input$maxprice_search)
+      }else{
+        maxcost_search_data = mincost_search_data
+      }
+      
+      
+      
+      if(input$zipcode_searchprog != "No zipcode selected" ) {
+        zipcode_search_data <- subset(maxcost_search_data, 
+                                      maxcost_search_data$location == input$zipcode_searchprog)
+      }
+      else {
+        zipcode_search_data <- maxcost_search_data
+        
+      }
+      
+      
+      if(input$sessiontimes_searchprog != "No session time selected selected" ) {
+        sessiontime_search_data <- subset(zipcode_search_data, 
+                                          zipcode_search_data$sessiontimes == input$sessiontimes_searchprog)
+      }
+      else {
+        sessiontime_search_data <- zipcode_search_data
+        
+      }
+      
+      if(length(colm_search()) > 0){
+        
+        data_list = list()
+        
+        for(i in 1:length(colm_search())){
+          
+          data_list[[i]] = sessiontime_search_data[which(sessiontime_search_data$category == colm_search()[i]),]
+        }
+        
+        final_search_data = as.data.frame(data.table::rbindlist(data_list))
+        
+        
+      }
+      
+      else {
+        
+        final_search_data = sessiontime_search_data
+      }
+      
+      
+      return(final_search_data) 
+      
+      
+    })
+    
+    
+    
+    #Display the total number of searches made with this combination selected in the side bar panel
+    output$Totalsearches <- renderText({ 
+      subsetted_data = subset_search_data()
+      return(sum(subsetted_data$users))
+      
+    })
+    
+    #Display the total percentage of searches made with this combination selected in the side bar panel
+    output$Percentsearches <- renderText({ 
+      subsetted_data = subset_search_data()
+      return((sum(subsetted_data$users)*100)/sum(google_analytics$users))
+      
+    })
+    
+    
+    # Output the relevant data in the data tab based on the search data tab
+    output$datatable_search <- DT::renderDataTable({
+      data_table1 <- subset_search_data()
+      DT::datatable(data_table1, 
+                    options = list(pageLength = 10, 
+                                   initComplete = JS(
+                                     "function(settings, json) {",
+                                     "$(this.api().table().header()).css(
+                                     {'background-color': '#000', 'color': '#fff'}
+                                   );",
+                                     "}")),
+                    caption = htmltools::tags$caption(
+                      style = 'caption-side: top; text-align: center; color: black ;',
+                      htmltools::h3("Search Data")
+                    ), 
+                    style = "bootstrap",
+                    class = 'cell-border stripe',
+                    rownames = FALSE
+                    
+      ) %>%
+        formatStyle(colnames(data_table1),
+                    backgroundColor = 'lightblue'
+        )
+      
+    })
+    
+    
+    
+    
+    
+    
+    
+    
+    #############################
+    # Access Index Tab
+    #############################
+    
+    # first calculate the aggregated access index based on user input
+    index <- reactive({calculate_aggregated_index(input$drive_or_transit,input$type_access,input$cost_access)})
+    # Bins and color palettes for demographic variables in leaflet map
+    pal_access <- reactive({colorBin("Blues", domain = index())})
+    
+    #output$test <- renderPrint({index()})
+    
+    # Create labels and stuff
+    access_label <- reactive({sprintf(
+      "<b>Access index: %f</b><br/><b>Block Group: %f</b>",
+      index(), as.numeric(as.character(shape_census_block@data$Id2))
+      ) %>% lapply(htmltools::HTML)
+    })
+    
+    # map it up
+    output$mymap_access <- renderLeaflet({
+      map <- make_base_map() %>%
+        add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
+                                vals=index(), legend_title="Access Index")
+      return(map)
+    })
   })  
-    
-
