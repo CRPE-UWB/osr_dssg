@@ -112,8 +112,13 @@ shinyServer(
           add_colored_polygon_map(shape_census, pal_all_races, ~labels_race_breakdown, 
                                   "majority_race", legend_titles_demographic)
       }
-
+      
       curr_map <- curr_map %>% add_circle_markers(neighborhood_data1, "program", myyellow, program_popup_text)
+      
+      if (input$neighborhoods != "No neighborhood selected") {
+        curr_map <- curr_map %>% add_neighborhood_outline(input$neighborhoods)
+      }
+      
       reschool_mapdata$dat <- curr_map
       return(curr_map)
     })
@@ -405,9 +410,12 @@ shinyServer(
 
         }
         
+        if (input$neighborhoods_other != "No neighborhood selected") {
+          open_resource_map <- open_resource_map %>% add_neighborhood_outline(input$neighborhoods_other)
+        }
+
         other_mapdata$dat <- open_resource_map
         return(open_resource_map)
-
       })
     
     # Make the download button for the other resources map
@@ -546,8 +554,8 @@ shinyServer(
     
     subset_search_data = reactive({
       
-
-      if(input$minprice_search != "No min price selected"){
+      print(input$minprice_search)
+      if(input$minprice_search != ""){
         mincost_search_data = google_analytics[which(google_analytics$mincost  >= as.numeric(input$minprice_search)),]
         
       }else{
@@ -555,7 +563,7 @@ shinyServer(
       }
       
 
-      if(input$maxprice_search != "No max price selected"){
+      if(input$maxprice_search != ""){
         maxcost_search_data = mincost_search_data[which(mincost_search_data$maxcost  <= as.numeric(input$maxprice_search)),]
         
       }else{
@@ -566,7 +574,7 @@ shinyServer(
       
       
       
-      if(input$minage_search != "No min age selected"){
+      if(input$minage_search != ""){
         minage_search_data = maxcost_search_data[which(maxcost_search_data$minage  >= as.numeric(input$minage_search)),]
         
       }else{
@@ -574,7 +582,7 @@ shinyServer(
       }
       
       
-      if(input$maxage_search != "No max age selected"){
+      if(input$maxage_search != ""){
         maxage_search_data = minage_search_data[which(minage_search_data$maxage  <= as.numeric(input$maxage_search)),]
         
       }else{
@@ -739,26 +747,35 @@ shinyServer(
       return(subset_for_cost(program_category_data_access(),0,cost_mapping[input$cost_access]))
     })
 
-    # neighborhood_data_access <- reactive({
-    #   return(subset_for_neighborhoods(program_cost_data_access(),input$neighborhoods))
-    # })
+    neighborhood_data_access <- reactive({
+      return(subset_for_neighborhoods(program_cost_data_access(),input$neighborhoods_access))
+    })
     
     
     
     # map it up
     output$mymap_access <- renderLeaflet({
-      # Subset to data for only this neighborhood
-      #neighborhood_data_access <- neighborhood_data_access()
-      neighborhood_data_access <- program_cost_data_access()
-      
-      # Construct pop-ups for when you click on a program marker
-      program_popup_text_access <- make_program_popups(neighborhood_data_access)
-      
-      map <- make_base_map() %>%
-        add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
-                                vals=index(), legend_title="Access Index") %>%
-        add_circle_markers(neighborhood_data_access, "program", myyellow, program_popup_text_access)
+      if (length(input$type_access)==0) {
+        curr_map <- make_base_map() %>% 
+          add_blank_map()
+      }
+      else {
+        # Subset to data for only this neighborhood
+        neighborhood_data_access <- neighborhood_data_access()
+        #neighborhood_data_access <- program_cost_data_access()
         
-      return(map)
+        # Construct pop-ups for when you click on a program marker
+        program_popup_text_access <- make_program_popups(neighborhood_data_access)
+        
+        curr_map <- make_base_map() %>%
+          add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
+                                  vals=index(), legend_title="Access Index") %>%
+          add_circle_markers(neighborhood_data_access, "program", myyellow, program_popup_text_access)
+      }
+      if (input$neighborhoods_access!="No neighborhood selected") {
+        curr_map <- curr_map %>%
+          add_neighborhood_outline(input$neighborhoods_access)
+      }
+      return(curr_map)
     })
   })  

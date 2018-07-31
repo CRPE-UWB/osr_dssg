@@ -146,6 +146,12 @@ add_circle_markers <- function(map, data, legend_title, color_code, popup_text, 
   }
 }
 
+# Function to draw an outline of a neighborhood:
+add_neighborhood_outline <- function(map, neighborhood_name) {
+  addPolygons(map, data = subset(shape_census, nbhd_name==neighborhood_name),
+              fill = FALSE, weight=5, color = 'black')
+}
+
 # Function to draw the base map + demographics + program markers
 ### DEPRECATED ###
 make_reschool_map <- function(df, popup_text, pal, col_name) {
