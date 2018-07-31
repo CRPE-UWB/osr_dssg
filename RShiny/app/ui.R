@@ -54,12 +54,17 @@ shinyUI(
                               # Sidebar panel for making selections about reschool programs
                               sidebarPanel(
                                 checkboxGroupInput("program", "Select one or more program types:", 
-                                                   choices = c("Academic" = 13, "Arts" = 14, 
-                                                               "Cooking" = 15, "Dance" = 16, 
-                                                               "Drama" = 17, "Music" = 18, 
-                                                               "Nature" = 19, "Sports" = 20, 
-                                                               "STEM" = 21), 
-                                                   selected = 13,
+                                                   choiceNames = c("Academic", "Arts", 
+                                                               "Cooking", "Dance", 
+                                                               "Drama", "Music", 
+                                                               "Nature", "Sports", 
+                                                               "STEM"), 
+                                                   choiceValues = c("has_academic", "has_arts", 
+                                                                    "has_cooking", "has_dance", 
+                                                                    "has_drama","has_music",
+                                                                    "has_nature", "has_sports",
+                                                                    "has_stem"),
+                                                   selected = "has_academic",
                                                    inline = TRUE
                                                    ),
                                 sliderInput("slider", "Select a range for program cost:", 
@@ -190,10 +195,16 @@ shinyUI(
                           checkboxGroupInput("program_search", 
                                              "Select one or more program type:", 
                                              choices = sort(unique(google_analytics$category)), 
-                                             selected = "academic", 
+                                             selected = character(0), 
                                              inline = TRUE
                                              )
                           ),
+                          radioButtons("specialneeds_search", 
+                                       "Special needs students selected", 
+                                       choices = c("Special needs students", "None Selected"),
+                                       selected = "None Selected"
+                                     
+                          )),
                         
                         mainPanel(
                           tabsetPanel(type = "tab",
@@ -202,11 +213,11 @@ shinyUI(
                                                fluidRow(
 
                                                  column(6, uiOutput("totalsearches", 
-                                                                    style = "background-color:yellow; 
-                                                                    height:120px; padding:20px;
+                                                                    style = "background-color:lightblue; 
+                                                                    height:100px; padding:20px;
                                                                     border:solid", align = "center")),
-                                                 column(6, uiOutput("percentagesearches", style = "background-color:yellow; 
-                                                                    height:120px; padding:20px;
+                                                 column(6, uiOutput("percentagesearches", style = "background-color:lightblue; 
+                                                                    height:100px; padding:20px;
                                                                     border:solid", align = "center")),
                                                  
                                                  DT::dataTableOutput("datatable_search")
@@ -215,7 +226,7 @@ shinyUI(
                                       tabPanel("Visualization")
                           ))  # end main panel of reschool search data tab
                         
-                      ))
+                      )
                       ),  # end reschool search data tab
                    
                    ## ACCESS INDEX TAB
