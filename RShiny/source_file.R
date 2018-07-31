@@ -76,8 +76,10 @@ dbUnloadDriver(drv)
 # Block group (access index) stuff
 ########################
 shape_census_block <- readOGR(dsn = "../data/census_block_groups", layer = "shape_census")
-access_driving <- geo_join(shape_census_block,driving_index, "Id2", "Id2", how="inner")
-access_transit <- geo_join(shape_census_block,transit_index, "Id2", "Id2", how="inner")
+shape_census_block@data$Id2 <- as.numeric(as.character(shape_census_block@data$Id2))
+shape_census_block <- shape_census_block[order(shape_census_block@data$Id2),]
+# access_driving <- geo_join(shape_census_block,driving_index, "Id2", "Id2", how="inner")
+# access_transit <- geo_join(shape_census_block,transit_index, "Id2", "Id2", how="inner")
 
 ########################
 # Neighborhood stuff

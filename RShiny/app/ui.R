@@ -220,14 +220,14 @@ shinyUI(
                                                    choiceNames = c("Academic", "Arts", "Athletic", "Nature"),
                                                    choiceValues = list("academic","art","sports","nature"),
                                                    inline = TRUE,
-                                                   selected = "academic"
+                                                   selected = c("academic","art","sports","nature")
                                                    ),
                                 br(),
                                 radioButtons("cost_access", 
                                              "Select a cost range for programs:", 
                                              choiceNames = list("Free", "Free to Low Cost", "All Programs"),
                                              choiceValues = list("free", "low", "any"),
-                                             selected = "Any"
+                                             selected = "any"
                                              ),
                                 br(),
                                 radioButtons("drive_or_transit",
@@ -240,6 +240,8 @@ shinyUI(
                               ),  # end sidebarPanel for access index
                               
                               mainPanel(
+                                
+                                textOutput("test"),
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
                                                      leafletOutput("mymap_access", height = 520))
