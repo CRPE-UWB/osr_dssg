@@ -1,5 +1,3 @@
-
-
 #############################
 # Simple helpers 
 #############################
@@ -7,15 +5,23 @@ wrap_text <- function(s, offset) {
   gsub('(.{1,50})(\\s|$)', '\\1<br/>',s)
 }
 
-calculate_aggregated_index <- function(df, types, cost) {
-  return(df[,"AI_overall"])
+calculate_aggregated_index <- function(transport_mode, types, cost) {
+  if (transport_mode=="drive") {
+    df <- driving_index
+  } else {
+    df <- transit_index
+  }
   # look for the intersection of indices containing the words in the string-vector "types"
   # and the string "cost"
-  # shared_indices <- stack(sapply(FUN=grep,X=c(types,cost),x=colnames(df)))$values
-  # shared_indices <- shared_indices[duplicated(shared_indices)]
-  # 
-  # val <- rowMeans(df[,shared_indices])
-  # return(val)
+  shared_indices <- stack(sapply(FUN=grep,X=c(types,cost),x=colnames(df)))$values
+  shared_indices <- shared_indices[duplicated(shared_indices)]
+
+  if (length(shared_indices)>1) {
+    val <- rowMeans(df[,shared_indices])
+  } else {
+    val <- df[,shared_indices]
+  }
+  return(val)
 }
 
 #############################
@@ -55,10 +61,10 @@ add_blank_map <- function(map) {
 
 # Function to add demographic info to a map
 add_colored_polygon_map <- function(map, spdf, pal_type, label_type, 
-                                    column_name=NULL, legend_titles=NULL, legend_name=NULL, 
+                                    column_name=NULL, legend_titles=NULL, legend_title=NULL, 
                                     vals=NULL){
   if (is.null(vals)) {vals <- spdf@data[,column_name]}
-  if (is.null(legend_name)) {legend_title <- legend_titles[column_name]}
+  if (is.null(legend_title)) {legend_title <- legend_titles[column_name]}
   addPolygons(map, data = spdf,
               fillColor = ~pal_type(vals),
               weight = 2,
@@ -89,33 +95,38 @@ add_colored_polygon_map <- function(map, spdf, pal_type, label_type,
 
 # Function to add circle markers to the map
 add_circle_markers <- function(map, data, legend_title, color_code, popup_text, opacity = 0.5){
-  addCircleMarkers(map, 
-                   lng = jitter(data$long, factor = 1, amount = 0.0005), 
-                   lat = jitter(data$lat, factor = 1, amount = 0.0005), 
-                   radius = 4,
-                   stroke = TRUE,
-                   weight = 0.5,
-                   color = 'gray',
-                   fillColor = color_code,
-                   fillOpacity = opacity,
-                   label = popup_text,
-                   labelOptions = labelOptions(
-                     style = list("font-weight" = "normal", padding = "3px 8px"),
-                     textsize = "12px",
-                     direction = "right",
-                     offset = c(5,0)
-                   )
-  ) %>%
-    addLegend(
-      position = "bottomright",
-      colors = c(color_code),
-      opacity = opacity,
-      labels = legend_title
-    )
+  if (nrow(data)>0){
+    addCircleMarkers(map, 
+                     lng = jitter(data$long, factor = 1, amount = 0.0005), 
+                     lat = jitter(data$lat, factor = 1, amount = 0.0005), 
+                     radius = 4,
+                     stroke = TRUE,
+                     weight = 0.5,
+                     color = 'gray',
+                     fillColor = color_code,
+                     fillOpacity = opacity,
+                     label = popup_text,
+                     labelOptions = labelOptions(
+                       style = list("font-weight" = "normal", padding = "3px 8px"),
+                       textsize = "12px",
+                       direction = "right",
+                       offset = c(5,0)
+                     )
+    ) %>%
+      addLegend(
+        position = "bottomright",
+        colors = c(color_code),
+        opacity = opacity,
+        labels = legend_title
+      )
+  }
+  else {
+    return(map)
+  }
 }
 
 # Function to draw the base map + demographics + program markers
-make_reschool_map <- function(df, popup_text, palette, col_name = NULL) {
+make_reschool_map <- function(df, popup_text, pal, col_name = NULL) {
   if (is.null(col_name)) {
     make_base_map() %>%
       add_blank_map() %>%
@@ -123,8 +134,19 @@ make_reschool_map <- function(df, popup_text, palette, col_name = NULL) {
   }
   else{
     make_base_map() %>%
-      add_colored_polygon_map(shape_census, palette, popup_text, col_name, legend_titles_demographic) %>%
+      add_colored_polygon_map(shape_census, pal, popup_text, col_name, legend_titles_demographic) %>%
       add_circle_markers(df, "program", myyellow, popup_text)
+  }
+}
+
+# Function to draw the base OTHER RESOURCES map + demographics
+make_demographic_map <- function(pal, col_name = NULL) {
+  if (is.null(col_name)) {
+    make_base_map() %>% add_blank_map()
+  }
+  else{
+    make_base_map() %>%
+      add_colored_polygon_map(shape_census, pal, nbhd_labels, col_name, legend_titles_demographic)
   }
 }
 

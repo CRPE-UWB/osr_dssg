@@ -21,7 +21,7 @@ Blues from Color Brewer (light to dark):
 
 /* styles for navigation bars (e.g. in the header) */
 nav {
-  font-family: 'Lobster', cursive;
+  /* font-family: 'Lobster', cursive; */
 }
 
 /*
@@ -32,17 +32,23 @@ nav {
 */
 
 .navbar-static-top {
-  background-color: #bccad6;
+  background-color: #DEEBF7;
   font-family: 'Lobster', cursive;
   width: 100%;
 }
 
+/* make slider color a nice blue */
+.js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar {
+  background: #6baed6;
+}
 
+.irs-from, .irs-to, .irs-single { 
+  background: #6baed6;
+}
 
 
 /* text families: headers, body text, etc.  */
 h1 {
-  font-family: 'Lobster', cursive;
   font-weight: 500;
   line-height: 1.1;
   color: #ad1d28;
@@ -50,4 +56,5 @@ h1 {
 
 body {
   background-color: #fff;
+  /* font-family: 'Arial'; */
 }
