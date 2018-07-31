@@ -236,6 +236,11 @@ shinyUI(
                                              choiceValues = list("drive", "transit"),
                                              selected = "drive"
                                              ),
+                                br(),
+                                selectInput("neighborhoods_access", "Restrict to one neighborhood:", 
+                                            choices = c("No neighborhood selected", 
+                                                        sort(neighborhoods_reshoolprograms))
+                                ),
                                 br()
                               ),  # end sidebarPanel for access index
                               
