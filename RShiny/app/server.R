@@ -595,7 +595,7 @@ shinyServer(
       
       sprintf(
         
-        "<font size=\"+1\"><b><i> Number of searches made in this combination </i><br/><font size=\"+3\"> %s </b>",
+        "<b><i> Number of searches made in this combination </i><br/><font size=\"+3\"> %s </b>",
         sum(subset_search_data()[,"users"])
       ) 
     })
@@ -604,7 +604,7 @@ shinyServer(
     output$percentagesearches <- renderText({
       
       sprintf(
-         "<font size=\"+1\"><b><i> Percentage searches </i><br/><font size=\"+3\"> %s%% </b>",
+         "<b><i> Percentage searches </i><br/><font size=\"+3\"> %s%% </b>",
          round(((sum(subset_search_data()[,"users"])*100)/sum(google_analytics$users)), 2)
       ) 
     })
