@@ -489,8 +489,8 @@ shinyServer(
     
     subset_search_data = reactive({
       
-
-      if(input$minprice_search != "No min price selected"){
+      print(input$minprice_search)
+      if(input$minprice_search != ""){
         mincost_search_data = google_analytics[which(google_analytics$mincost  >= as.numeric(input$minprice_search)),]
         
       }else{
@@ -498,7 +498,7 @@ shinyServer(
       }
       
 
-      if(input$maxprice_search != "No max price selected"){
+      if(input$maxprice_search != ""){
         maxcost_search_data = mincost_search_data[which(mincost_search_data$maxcost  <= as.numeric(input$maxprice_search)),]
         
       }else{
@@ -509,7 +509,7 @@ shinyServer(
       
       
       
-      if(input$minage_search != "No min age selected"){
+      if(input$minage_search != ""){
         minage_search_data = maxcost_search_data[which(maxcost_search_data$minage  >= as.numeric(input$minage_search)),]
         
       }else{
@@ -517,7 +517,7 @@ shinyServer(
       }
       
       
-      if(input$maxage_search != "No max age selected"){
+      if(input$maxage_search != ""){
         maxage_search_data = minage_search_data[which(minage_search_data$maxage  <= as.numeric(input$maxage_search)),]
         
       }else{
