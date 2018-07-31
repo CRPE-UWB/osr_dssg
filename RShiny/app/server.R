@@ -70,36 +70,39 @@ shinyServer(
       program_popup_text <- make_program_popups(neighborhood_data1)
       
       ##### ACTUALLY DRAW THE RESCHOOL MAP #####
-      if(is.null(input$demographics)){
-        make_reschool_map(neighborhood_data1, program_popup_text, my_palette = NULL, col_name = NULL)
+      if(input$demographics == "None selected"){
+        curr_map <- make_demographic_map(NULL, NULL)
       }
       else if(input$demographics == "Median household income ($)" ) {
-        make_reschool_map(neighborhood_data1, program_popup_text, pal_income, "MED_HH_")
+        curr_map <- make_demographic_map(pal_income, "MED_HH_")
       }
-      else if(input$demographics == "High school degree or equivalent (%)") {
-        make_reschool_map(neighborhood_data1, program_popup_text, pal_edu,"PCT_HS_")
+      else if(input$demographics == "Less than high school degree (%)") {
+        curr_map <- make_demographic_map(pal_edu, col_name="PCT_LES") 
+      }
+      else if(input$demographics == "College graduates (%)") {
+        curr_map <- make_demographic_map(pal_edu2, col_name="PCT_COL") 
       }
       else if(input$demographics == "Hispanic population (%)") {
-        make_reschool_map(neighborhood_data1, program_popup_text, pal_hispanic, "PCT_HIS") 
+        curr_map <- make_demographic_map(pal_hispanic, col_name="PCT_HIS") 
       }
       else if(input$demographics == "Black population (%)") {
-        make_reschool_map(neighborhood_data1, program_popup_text, pal_black, "PCT_BLA")
+        curr_map <- make_demographic_map(pal_black, col_name="PCT_BLA") 
       }
       else if(input$demographics == "White population (%)") {
-        make_reschool_map(neighborhood_data1, program_popup_text, pal_white, "PCT_WHI")
+        curr_map <- make_demographic_map(pal_white, col_name="PCT_WHI") 
       }
       else if(input$demographics == "Non-English speakers (%)") {
-        make_reschool_map(neighborhood_data1, program_popup_text, pal_language, "PCT_NON")
+        curr_map <- make_demographic_map(pal_language, col_name="PCT_NON") 
       }
       else if(input$demographics == "All races") {
         labels_race_breakdown <- shape_census@data$racial_dist_html
-        
-        make_base_map() %>%
+        curr_map <- make_base_map() %>%
           add_colored_polygon_map(shape_census, legend_titles_demographic, pal_all_races, ~labels_race_breakdown, 
-                                  "majority_race") %>%
-          add_circle_markers(neighborhood_data1, "program", myyellow, program_popup_text)
+                                  "majority_race") 
       }
-      
+      return(curr_map %>%
+               add_circle_markers(neighborhood_data1, "program", myyellow, program_popup_text)
+             )
     })
     
     ####### MAKE THE RESCHOOL PROGRAMS SUMMARY ANALYSIS #######
@@ -201,11 +204,6 @@ shinyServer(
   
     #### Other out of school resources tab ####
     
-    # this doesn't seem to get used at all anymore:
-    # colm_other <- reactive({
-    #   input$program_other
-    # })
-    
     #############################
     # Other Resources Tab
     #############################
@@ -230,37 +228,34 @@ shinyServer(
         fields_data1 <- fields_data()
         
         ##### ACTUALLY DRAW THE OTHER RESOURCES MAP #####
-        if(is.null(input$demographics_other) == TRUE){
-          open_resource_map <- make_base_map() %>%
-            add_blank_map()
+        if(input$demographics_other == "None selected"){
+          open_resource_map <- make_base_map() %>% add_blank_map()
         }
         else if(input$demographics_other == "Median household income ($)" ) {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_income,nbhd_labels, "MED_HH_", legend_titles_demographic)
+          open_resource_map <- make_demographic_map(pal_income, "MED_HH_")
         }
-        else if(input$demographics_other == "High school degree or equivalent (%)") {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_edu,nbhd_labels,"PCT_HS_", legend_titles_demographic)
+        else if(input$demographics_other == "Less than high school degree (%)") {
+          open_resource_map <- make_demographic_map(pal_edu, "PCT_LES")
+        }
+        else if(input$demographics_other == "College graduates (%)") {
+          open_resource_map <- make_demographic_map(pal_edu2, "PCT_COL")
         }
         else if(input$demographics_other == "Hispanic population (%)") {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_hispanic, nbhd_labels, "PCT_HIS", legend_titles_demographic)
+          open_resource_map <- make_demographic_map(pal_hispanic, "PCT_HIS")
         }
         else if(input$demographics_other == "Black population (%)") {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_black, nbhd_labels, "PCT_BLA", legend_titles_demographic)
+          open_resource_map <- make_demographic_map(pal_black, "PCT_BLA")
         }
         else if(input$demographics_other == "White population (%)") {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_white, nbhd_labels, "PCT_WHI", legend_titles_demographic)
+          open_resource_map <- make_demographic_map(pal_white, "PCT_WHI")
         }
         else if(input$demographics_other == "Non-English speakers (%)") {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_language, nbhd_labels, "PCT_NON", legend_titles_demographic)
+          open_resource_map <- make_demographic_map(pal_language, "PCT_NON")
         }
         else if(input$demographics_other == "All races") {
           open_resource_map <- make_base_map() %>%
-            add_colored_polygon_map(shape_census, pal_all_races, ~shape_census@data$racial_dist_html, "majority_race", legend_titles_demographic)
+            add_colored_polygon_map(shape_census, pal_all_races, ~shape_census@data$racial_dist_html, 
+                                    "majority_race", legend_titles_demographic)
         }
         
         # Loop over selected resources types, plotting the locations of each
@@ -514,7 +509,7 @@ shinyServer(
       }
       
       
-      if(input$sessiontimes_searchprog != "No session time selected selected" ) {
+      if(input$sessiontimes_searchprog != "No session time selected" ) {
         sessiontime_search_data <- subset(zipcode_search_data, 
                                           zipcode_search_data$sessiontimes == input$sessiontimes_searchprog)
       }
@@ -522,6 +517,8 @@ shinyServer(
         sessiontime_search_data <- zipcode_search_data
         
       }
+      
+      print(head(sessiontime_search_data))
       
       if(length(colm_search()) > 0){
         
@@ -532,7 +529,7 @@ shinyServer(
         }
         
         final_search_data = as.data.frame(data.table::rbindlist(data_list))
-        
+       
         
       }
       
@@ -547,21 +544,28 @@ shinyServer(
       
     })
     
+
     
-    
+
     #Display the total number of searches made with this combination selected in the side bar panel
-    output$Totalsearches <- renderText({ 
-      subsetted_data = subset_search_data()
-      return(sum(subsetted_data$users))
+    output$totalsearches <- renderText({
       
+      sprintf(
+        
+        "<font size=\"+1\"><b><i> Number of searches </i><br/><font size=\"+4\"> %s </b>",
+        sum(subset_search_data()[,"users"])
+      ) 
     })
-    
+  
     #Display the total percentage of searches made with this combination selected in the side bar panel
-    output$Percentsearches <- renderText({ 
-      subsetted_data = subset_search_data()
-      return((sum(subsetted_data$users)*100)/sum(google_analytics$users))
+    output$percentagesearches <- renderText({
       
+      sprintf(
+         "<font size=\"+1\"><b><i> Percentage searches </i><br/><font size=\"+4\"> %s%% </b>",
+         round(((sum(subset_search_data()[,"users"])*100)/sum(google_analytics$users)), 2)
+      ) 
     })
+  
     
     
     # Output the relevant data in the data tab based on the search data tab
@@ -569,6 +573,7 @@ shinyServer(
       data_table1 <- subset_search_data()
       DT::datatable(data_table1, 
                     options = list(pageLength = 10, 
+                                   scrollX = TRUE,
                                    initComplete = JS(
                                      "function(settings, json) {",
                                      "$(this.api().table().header()).css(

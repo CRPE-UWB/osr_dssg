@@ -1,11 +1,37 @@
-# User Interface for Shiny App
+# User Interface for OSR Shiny App
 
 library(shiny)
 library(leaflet)
 
 # Source needed data and functions for ui and server
-source('../source_file.R', chdir = TRUE)  # temp change working dir to same as source_file.R
-source('helpers.R')
+#source('../source_file.R', chdir = TRUE)  # temp changes working dir to same as source_file.R
+#source('helpers.R')
+
+# UI options for filtering by demographics
+demog_names <- list("None selected",
+                    "Median household income ($)", 
+                    "Less than high school degree (% over 25 years)",
+                    "College graduates (% over 25 years)",
+                    HTML("Language other than English spoken (%)<br><br>
+                                                                    <i>Race/Ethnicity Variables</i>"),
+                    "Hispanic population (%)", 
+                    "Black population (%)",
+                    "White population (%)",
+                    "Majority + breakdown"
+                    )
+
+# internal values for options for filtering by demographics
+demog_values <- list("None selected", 
+                     "Median household income ($)", 
+                     "Less than high school degree (%)",
+                     "College graduates (%)",
+                     "Non-English speakers (%)",
+                     "Hispanic population (%)", 
+                     "Black population (%)",
+                     "White population (%)",
+                     "All races"
+                     )
+
 
 shinyUI(
   
@@ -50,24 +76,9 @@ shinyUI(
                                 #br(),
                                 radioButtons("demographics", 
                                              "Select a demographics variable to visualize:", 
-                                             choiceNames = list("Median household income ($)", 
-                                                         "High school degree or equivalent (%)",
-                                                         HTML("Language other than English spoken (%)<br><br>
-                                                              <i>Race/Ethnicity Variables</i>"),
-                                                         "Hispanic population (%)", 
-                                                         "Black population (%)",
-                                                         "White population (%)",
-                                                         "Majority + breakdown"
-                                                         ),
-                                             choiceValues = list("Median household income ($)", 
-                                                         "High school degree or equivalent (%)",
-                                                         "Non-English speakers (%)",
-                                                         "Hispanic population (%)", 
-                                                         "Black population (%)",
-                                                         "White population (%)",
-                                                         "All races"
-                                             ),
-                                             selected = character(0)
+                                             choiceNames = demog_names,
+                                             choiceValues = demog_values,
+                                             selected = "None selected"
                                              ),
                                 br(),
                                 selectInput("neighborhoods", "Restrict to one neighborhood:", 
@@ -117,24 +128,9 @@ shinyUI(
                                 br(),
                                 radioButtons("demographics_other", 
                                              "Select a demographics variable to visualize:", 
-                                             choiceNames = list("Median household income ($)", 
-                                                                "High school degree or equivalent (%)",
-                                                                HTML("Language other than English spoken (%)<br><br>
-                                                              <i>Race/Ethnicity Variables</i>"),
-                                                                "Hispanic population (%)", 
-                                                                "Black population (%)",
-                                                                "White population (%)",
-                                                                "Majority + breakdown"
-                                             ),
-                                             choiceValues = list("Median household income ($)", 
-                                                                 "High school degree or equivalent (%)",
-                                                                 "Non-English speakers (%)",
-                                                                 "Hispanic population (%)", 
-                                                                 "Black population (%)",
-                                                                 "White population (%)",
-                                                                 "All races"
-                                             ),
-                                             selected = character(0)
+                                             choiceNames = demog_names,
+                                             choiceValues = demog_values,
+                                             selected = "None selected"
                                 ),
                                 br(),
                                 selectInput("neighborhoods_other", 
@@ -179,7 +175,7 @@ shinyUI(
                                                   sort(zipcode_searchdata))),
                           br(),
                           selectInput("sessiontimes_searchprog", "Restrict to one session time:", 
-                                      choices = c("No session time selected selected", 
+                                      choices = c("No session time selected", 
                                                   sort(unique(google_analytics$sessiontimes)))
                           ), br(),
                           checkboxGroupInput("program_search", 
@@ -194,8 +190,15 @@ shinyUI(
                                       tabPanel("Summary",
                                                
                                                fluidRow(
-                                                 column(6, verbatimTextOutput("Totalsearches")),
-                                                 column(6, verbatimTextOutput("Percentsearches")),
+
+                                                 column(6, uiOutput("totalsearches", 
+                                                                    style = "background-color:yellow; 
+                                                                    height:120px; padding:20px;
+                                                                    border:solid", align = "center")),
+                                                 column(6, uiOutput("percentagesearches", style = "background-color:yellow; 
+                                                                    height:120px; padding:20px;
+                                                                    border:solid", align = "center")),
+                                                 
                                                  DT::dataTableOutput("datatable_search")
                                                )
                                       ),
@@ -218,25 +221,26 @@ shinyUI(
                                                    choiceValues = list("academic","art","sports","nature"),
                                                    inline = TRUE,
                                                    selected = c("academic","art","sports","nature")
-                                ),
+                                                   ),
                                 br(),
                                 radioButtons("cost_access", 
                                              "Select a cost range for programs:", 
                                              choiceNames = list("Free", "Free to Low Cost", "All Programs"),
                                              choiceValues = list("free", "low", "any"),
                                              selected = "any"
-                                ),
+                                             ),
                                 br(),
                                 radioButtons("drive_or_transit",
                                              "Drive or transit?",
                                              choiceNames = list("Drive", "Transit"),
                                              choiceValues = list("drive", "transit"),
                                              selected = "drive"
-                                ),
+                                             ),
                                 br()
-                              ),
+                              ),  # end sidebarPanel for access index
                               
                               mainPanel(
+                                
                                 textOutput("test"),
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
@@ -245,11 +249,11 @@ shinyUI(
                                             #          uiOutput("dt")),
                                             # tabPanel("Summary analysis")
                                 )
-                              )
-                            )
-                   )
-                  
-)
-)
-)
-)
+                              )  # end main panel for access index
+                              
+                            ))  # end sidebar layrout and access index fluidPage
+                  )  # end access index tab
+             
+             )  # end navbarPage 
+  
+  ))  # end fluidPage for whole UI, and shinyUI
