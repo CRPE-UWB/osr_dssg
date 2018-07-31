@@ -77,25 +77,34 @@ shinyServer(
         curr_map <- make_demographic_map(NULL, NULL)
       }
       else if(input$demographics == "Median household income ($)" ) {
-        curr_map <- make_demographic_map(pal_income, "MED_HH_")
+        curr_map <- make_demographic_map(pal_income, "MED_HH_", labFormat = labelFormat(prefix = "$ "))
       }
       else if(input$demographics == "Less than high school degree (%)") {
-        curr_map <- make_demographic_map(pal_edu, col_name="PCT_LES") 
+        curr_map <- make_demographic_map(pal_edu, col_name="PCT_LES", labFormat = labelFormat(suffix = " %")) 
       }
       else if(input$demographics == "College graduates (%)") {
-        curr_map <- make_demographic_map(pal_edu2, col_name="PCT_COL") 
+        curr_map <- make_demographic_map(pal_edu2, col_name="PCT_COL", labFormat = labelFormat(suffix = " %")) 
       }
       else if(input$demographics == "Hispanic population (%)") {
-        curr_map <- make_demographic_map(pal_hispanic, col_name="PCT_HIS") 
+        curr_map <- make_demographic_map(pal_hispanic, col_name="PCT_HIS", labFormat = labelFormat(suffix = " %")) 
       }
       else if(input$demographics == "Black population (%)") {
-        curr_map <- make_demographic_map(pal_black, col_name="PCT_BLA") 
+        curr_map <- make_demographic_map(pal_black, col_name="PCT_BLA", labFormat = labelFormat(suffix = " %")) 
       }
       else if(input$demographics == "White population (%)") {
-        curr_map <- make_demographic_map(pal_white, col_name="PCT_WHI") 
+        curr_map <- make_demographic_map(pal_white, col_name="PCT_WHI", labFormat = labelFormat(suffix = " %")) 
       }
       else if(input$demographics == "Non-English speakers (%)") {
-        curr_map <- make_demographic_map(pal_language, col_name="PCT_NON") 
+        curr_map <- make_demographic_map(pal_language, col_name="PCT_NON", labFormat = labelFormat(suffix = " %")) 
+      }
+      else if(input$demographics == "Number of 5-17 year olds") {
+        curr_map <- make_demographic_map(pal_age, col_name="AGE_5_T", 
+                                         # make labels say the values instead of probabilities
+                                         labFormat = function(type, cuts, p) {
+                                           n = length(cuts)
+                                           paste0(round(cuts[-n]), " &ndash; ", round(cuts[-1]))
+                                         }
+                                           ) 
       }
       else if(input$demographics == "All races") {
         labels_race_breakdown <- shape_census@data$racial_dist_html
@@ -258,25 +267,34 @@ shinyServer(
           open_resource_map <- make_base_map() %>% add_blank_map()
         }
         else if(input$demographics_other == "Median household income ($)" ) {
-          open_resource_map <- make_demographic_map(pal_income, "MED_HH_")
+          open_resource_map <- make_demographic_map(pal_income, "MED_HH_", labFormat = labelFormat(prefix = "$ "))
         }
         else if(input$demographics_other == "Less than high school degree (%)") {
-          open_resource_map <- make_demographic_map(pal_edu, "PCT_LES")
+          open_resource_map <- make_demographic_map(pal_edu, "PCT_LES", labFormat = labelFormat(suffix = " %"))
         }
         else if(input$demographics_other == "College graduates (%)") {
-          open_resource_map <- make_demographic_map(pal_edu2, "PCT_COL")
+          open_resource_map <- make_demographic_map(pal_edu2, "PCT_COL", labFormat = labelFormat(suffix = " %"))
         }
         else if(input$demographics_other == "Hispanic population (%)") {
-          open_resource_map <- make_demographic_map(pal_hispanic, "PCT_HIS")
+          open_resource_map <- make_demographic_map(pal_hispanic, "PCT_HIS", labFormat = labelFormat(suffix = " %"))
         }
         else if(input$demographics_other == "Black population (%)") {
-          open_resource_map <- make_demographic_map(pal_black, "PCT_BLA")
+          open_resource_map <- make_demographic_map(pal_black, "PCT_BLA", labFormat = labelFormat(suffix = " %"))
         }
         else if(input$demographics_other == "White population (%)") {
-          open_resource_map <- make_demographic_map(pal_white, "PCT_WHI")
+          open_resource_map <- make_demographic_map(pal_white, "PCT_WHI", labFormat = labelFormat(suffix = " %"))
         }
         else if(input$demographics_other == "Non-English speakers (%)") {
-          open_resource_map <- make_demographic_map(pal_language, "PCT_NON")
+          open_resource_map <- make_demographic_map(pal_language, "PCT_NON", labFormat = labelFormat(suffix = " %"))
+        }
+        else if(input$demographics_other == "Number of 5-17 year olds") {
+          open_resource_map <- make_demographic_map(pal_age, "AGE_5_T",
+                                                    # make labels say the values instead of probabilities
+                                                    labFormat = function(type, cuts, p) {
+                                                      n = length(cuts)
+                                                      paste0(round(cuts[-n]), " &ndash; ", round(cuts[-1]))
+                                                    }
+                                                    )
         }
         else if(input$demographics_other == "All races") {
           open_resource_map <- make_base_map() %>%

@@ -193,13 +193,14 @@ shape_census@data$racial_dist_html <- mapply(
 ####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
 
 # Legend titles for demographic maps
-legend_titles_demographic <- list(MED_HH_ = "Median HH Income ($)",
-                                  PCT_LES = "Less Than <br> HS Degree (%)",
-                                  PCT_COL = "College <br> Graduates (%)",
+legend_titles_demographic <- list(MED_HH_ = "Median HH Income",
+                                  PCT_LES = "Less Than <br> HS Degree",
+                                  PCT_COL = "College <br> Graduates",
                                   PCT_HIS = "% Hispanic",
                                   PCT_BLA = "% Black",
                                   PCT_WHI = "% White",
-                                  PCT_NON = "Lang. Besides <br>English (%)",
+                                  PCT_NON = "Lang. Besides <br>English",
+                                  AGE_5_T = "5-17 Year Olds (#)",
                                   majority_race = "Most Common<br>Race/Ethnicity"
 )
 
@@ -227,7 +228,8 @@ pal_income <- colorBin("Greys", domain = shape_census@data$MED_HH_, bins = bins_
 pal_edu <- colorBin("Greys", domain = shape_census@data$PCT_LES, bins = 5)
 pal_edu2 <- colorBin("Greys", domain = shape_census@data$PCT_COL, bins = 5)
 # bins_language <- c(0, 15, 30, 45, 60, 75)
-pal_language <- colorBin("Greys", domain = shape_census@data$PCT_NON, bins = 5)
+pal_language <- colorBin("Greys", domain = shape_census@data$PCT_NON, bins = 4)
+pal_age <- colorQuantile("Greys", domain = shape_census@data$AGE_5_T, n = 5)
 
 # colorful ones for racial demographics
 pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS, bins = 5)

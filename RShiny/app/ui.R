@@ -9,6 +9,7 @@ source('helpers.R')
 
 # UI options for filtering by demographics
 demog_names <- list("None selected",
+                    "Number of 5-17 year olds",
                     "Median household income ($)", 
                     "Less than high school degree (% over 25 years)",
                     "College graduates (% over 25 years)",
@@ -24,6 +25,7 @@ demog_names <- list("None selected",
 
 # internal values for options for filtering by demographics
 demog_values <- list("None selected", 
+                     "Number of 5-17 year olds",
                      "Median household income ($)", 
                      "Less than high school degree (%)",
                      "College graduates (%)",
