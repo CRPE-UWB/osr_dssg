@@ -528,7 +528,7 @@ shinyServer(
       }
       
       
-      if(input$sessiontimes_searchprog != "No session time selected selected" ) {
+      if(input$sessiontimes_searchprog != "No session time selected" ) {
         sessiontime_search_data <- subset(zipcode_search_data, 
                                           zipcode_search_data$sessiontimes == input$sessiontimes_searchprog)
       }
@@ -536,6 +536,8 @@ shinyServer(
         sessiontime_search_data <- zipcode_search_data
         
       }
+      
+      print(head(sessiontime_search_data))
       
       if(length(colm_search()) > 0){
         
@@ -547,7 +549,7 @@ shinyServer(
         }
         
         final_search_data = as.data.frame(data.table::rbindlist(data_list))
-        
+       
         
       }
       
@@ -562,21 +564,28 @@ shinyServer(
       
     })
     
+
     
-    
+
     #Display the total number of searches made with this combination selected in the side bar panel
-    output$Totalsearches <- renderText({ 
-      subsetted_data = subset_search_data()
-      return(sum(subsetted_data$users))
+    output$totalsearches <- renderText({
       
+      sprintf(
+        
+        "<font size=\"+1\"><b><i> Number of searches </i><br/><font size=\"+4\"> %s </b>",
+        sum(subset_search_data()[,"users"])
+      ) 
     })
-    
+  
     #Display the total percentage of searches made with this combination selected in the side bar panel
-    output$Percentsearches <- renderText({ 
-      subsetted_data = subset_search_data()
-      return((sum(subsetted_data$users)*100)/sum(google_analytics$users))
+    output$percentagesearches <- renderText({
       
+      sprintf(
+         "<font size=\"+1\"><b><i> Percentage searches </i><br/><font size=\"+4\"> %s%% </b>",
+         round(((sum(subset_search_data()[,"users"])*100)/sum(google_analytics$users)), 2)
+      ) 
     })
+  
     
     
     # Output the relevant data in the data tab based on the search data tab
@@ -584,6 +593,7 @@ shinyServer(
       data_table1 <- subset_search_data()
       DT::datatable(data_table1, 
                     options = list(pageLength = 10, 
+                                   scrollX = TRUE,
                                    initComplete = JS(
                                      "function(settings, json) {",
                                      "$(this.api().table().header()).css(
