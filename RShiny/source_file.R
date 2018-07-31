@@ -182,13 +182,12 @@ mygreen3 <- brewer.pal(3, "Greens")[3]
 myblue3 <- brewer.pal(3, "Blues")[3]
 mypurple3 <- brewer.pal(3, "Purples")[3]
 
-other_resources_colors <- brewer.pal(6, "Blues")
-parks_color <- mygreen
-libraries_color <- myblue
+parks_color <- mygreen3
+playgrounds_color <- mypurple2
 rec_centers_color <- myblue3
-playgrounds_color <- mypurple
+libraries_color <- myblue
 museums_color <- mypurple3
-fields_color <- mygreen3
+fields_color <- mygreen
 
 # Legend titles for demographic maps
 legend_titles_demographic <- list(MED_HH_ = "Median HH Income ($)",
