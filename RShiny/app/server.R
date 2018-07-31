@@ -645,18 +645,23 @@ shinyServer(
     
     # map it up
     output$mymap_access <- renderLeaflet({
-      # Subset to data for only this neighborhood
-      #neighborhood_data_access <- neighborhood_data_access()
-      neighborhood_data_access <- program_cost_data_access()
-      
-      # Construct pop-ups for when you click on a program marker
-      program_popup_text_access <- make_program_popups(neighborhood_data_access)
-      
-      map <- make_base_map() %>%
-        add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
-                                vals=index(), legend_title="Access Index") %>%
-        add_circle_markers(neighborhood_data_access, "program", myyellow, program_popup_text_access)
+      if (length(input$type_access)==0) {
+        map <- make_base_map() %>% 
+          add_blank_map()
+      }
+      else {
+        # Subset to data for only this neighborhood
+        #neighborhood_data_access <- neighborhood_data_access()
+        neighborhood_data_access <- program_cost_data_access()
         
+        # Construct pop-ups for when you click on a program marker
+        program_popup_text_access <- make_program_popups(neighborhood_data_access)
+        
+        map <- make_base_map() %>%
+          add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
+                                  vals=index(), legend_title="Access Index") %>%
+          add_circle_markers(neighborhood_data_access, "program", myyellow, program_popup_text_access)
+      }
       return(map)
     })
   })  
