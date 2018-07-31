@@ -7,6 +7,32 @@ library(leaflet)
 source('../source_file.R', chdir = TRUE)  # temp changes working dir to same as source_file.R
 source('helpers.R')
 
+# UI options for filtering by demographics
+demog_names <- list("None selected",
+                    "Median household income ($)", 
+                    "Less than high school degree (% over 25 years)",
+                    "College graduates (% over 25 years)",
+                    HTML("Language other than English spoken (%)<br><br>
+                                                                    <i>Race/Ethnicity Variables</i>"),
+                    "Hispanic population (%)", 
+                    "Black population (%)",
+                    "White population (%)",
+                    "Majority + breakdown"
+                    )
+
+# internal values for options for filtering by demographics
+demog_values <- list("None selected", 
+                     "Median household income ($)", 
+                     "Less than high school degree (%)",
+                     "College graduates (%)",
+                     "Non-English speakers (%)",
+                     "Hispanic population (%)", 
+                     "Black population (%)",
+                     "White population (%)",
+                     "All races"
+                     )
+
+
 shinyUI(
   
   fluidPage(
@@ -45,27 +71,8 @@ shinyUI(
                                 #br(),
                                 radioButtons("demographics", 
                                              "Select a demographics variable to visualize:", 
-                                             choiceNames = list("None selected",
-                                                                "Median household income ($)", 
-                                                                "Less than high school degree (% over 25 years)",
-                                                                "College graduates (% over 25 years)",
-                                                               HTML("Language other than English spoken (%)<br><br>
-                                                                    <i>Race/Ethnicity Variables</i>"),
-                                                               "Hispanic population (%)", 
-                                                               "Black population (%)",
-                                                               "White population (%)",
-                                                               "Majority + breakdown"
-                                                               ),
-                                             choiceValues = list("None selected", 
-                                                                 "Median household income ($)", 
-                                                                 "Less than high school degree (%)",
-                                                                 "College graduates (%)",
-                                                                 "Non-English speakers (%)",
-                                                                 "Hispanic population (%)", 
-                                                                 "Black population (%)",
-                                                                 "White population (%)",
-                                                                 "All races"
-                                                                 ),
+                                             choiceNames = demog_names,
+                                             choiceValues = demog_values,
                                              selected = "None selected"
                                              ),
                                 br(),
@@ -116,27 +123,8 @@ shinyUI(
                                 br(),
                                 radioButtons("demographics_other", 
                                              "Select a demographics variable to visualize:", 
-                                             choiceNames = list("None selected",
-                                                                "Median household income ($)", 
-                                                                "Less than high school degree (% over 25 years)",
-                                                                "College graduates (% over 25 years)",
-                                                                HTML("Language other than English spoken (%)<br><br>
-                                                              <i>Race/Ethnicity Variables</i>"),
-                                                                "Hispanic population (%)", 
-                                                                "Black population (%)",
-                                                                "White population (%)",
-                                                                "Majority + breakdown"
-                                             ),
-                                             choiceValues = list("None selected",
-                                                                 "Median household income ($)", 
-                                                                 "Less than high school degree (%)",
-                                                                 "College graduates (%)",
-                                                                 "Non-English speakers (%)",
-                                                                 "Hispanic population (%)", 
-                                                                 "Black population (%)",
-                                                                 "White population (%)",
-                                                                 "All races"
-                                             ),
+                                             choiceNames = demog_names,
+                                             choiceValues = demog_values,
                                              selected = "None selected"
                                 ),
                                 br(),

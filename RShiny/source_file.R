@@ -149,11 +149,10 @@ shape_census@data$racial_dist_html <- mapply(
   # color palette generated from brewer.pal()
   function(nbhd, pct_hisp, pct_white, pct_black, pct_native, pct_asian){
     
-    pal <- brewer.pal(4, "Set2")  # color palette - match to the server.R code
-    color1 <- pal[1]
-    color2 <- pal[2]
-    color3 <- pal[3]
-    color4 <- pal[4]
+    black_color <- myblue
+    hispanic_color <- mygreen
+    white_color <- mypurple
+    other_color <- "gray"
     
     sprintf(
       "<div style='font-size:12px;width:180px;float:left'>
@@ -171,14 +170,14 @@ shape_census@data$racial_dist_html <- mapply(
             </div>
         </div>",
       nbhd,
-      color1, pct_black, 
-      color2, pct_hisp, pct_black,
-      color3, pct_white, pct_hisp + pct_black,
-      color4, 100 - (pct_white + pct_hisp + pct_black), pct_white + pct_hisp + pct_black,
-      color1, pct_black, 
-      color2, pct_hisp, 
-      color3, pct_white, 
-      color4, 100 - (pct_white + pct_hisp + pct_black)
+      black_color, pct_black, 
+      hispanic_color, pct_hisp, pct_black,
+      white_color, pct_white, pct_hisp + pct_black,
+      other_color, 100 - (pct_white + pct_hisp + pct_black), pct_white + pct_hisp + pct_black,
+      black_color, pct_black, 
+      hispanic_color, pct_hisp, 
+      white_color, pct_white, 
+      other_color, 100 - (pct_white + pct_hisp + pct_black)
     ) %>% lapply(htmltools::HTML)
   },
   
