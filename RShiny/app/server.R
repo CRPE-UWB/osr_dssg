@@ -62,6 +62,8 @@ shinyServer(
     
     ####### RESCHOOL PROGRAMS MAP #######
     
+    reschool_mapdata <- reactiveValues(dat = 0)
+    
     output$mymap <- renderLeaflet({
       
       # Subset to data for only this neighborhood
@@ -88,33 +90,33 @@ shinyServer(
       
       ##### ACTUALLY DRAW THE RESCHOOL MAP #####
       if(input$demographics == "None selected"){
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal = NULL, col_name = NULL)
+        reschool_mapdata$dat <- make_reschool_map(neighborhood_data1, marker_popup_text, pal = NULL, col_name = NULL)
       }
       else if(input$demographics == "Median household income ($)" ) {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_income, "MED_HH_")
+        reschool_mapdata$dat <- make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_income, "MED_HH_")
       }
       else if(input$demographics == "Less than high school degree (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_edu,"PCT_LES")
+        reschool_mapdata$dat <- make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_edu,"PCT_LES")
       }
       else if(input$demographics == "College graduates (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_edu2,"PCT_COL")
+        reschool_mapdata$dat <- make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_edu2,"PCT_COL")
       }
       else if(input$demographics == "Hispanic population (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_hispanic, "PCT_HIS") 
+        reschool_mapdata$dat <- make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_hispanic, "PCT_HIS") 
       }
       else if(input$demographics == "Black population (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_black, "PCT_BLA")
+        reschool_mapdata$dat <- make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_black, "PCT_BLA")
       }
       else if(input$demographics == "White population (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_white, "PCT_WHI")
+        reschool_mapdata$dat <- make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_white, "PCT_WHI")
       }
       else if(input$demographics == "Non-English speakers (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_language, "PCT_NON")
+        reschool_mapdata$dat <- make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_language, "PCT_NON")
       }
       else if(input$demographics == "All races") {
         labels_race_breakdown <- shape_census@data$racial_dist_html
         
-        make_base_map() %>%
+        reschool_mapdata$dat <- make_base_map() %>%
           add_colored_polygon_map(shape_census, pal_all_races, ~shape_census@data$racial_dist_html, 
                                   "majority_race", legend_titles_demographic) %>%
           add_circle_markers(neighborhood_data1, "program", myyellow, marker_popup_text)
@@ -124,14 +126,21 @@ shinyServer(
     
     ####### MAKE THE DOWNLOAD FEATURE FOR THE RESCHOOL PROGRAMS MAP #######
     output$reschool_map_down <- downloadHandler(
-      filename = 'reschool_programs_map.pdf',
+      filename = 'reschool_programs_map.jpeg',
       content = function(file) {
         # temporarily switch to the temp dir, in case you do not have write
         # permission to the current working directory
         owd <- setwd(tempdir())
         on.exit(setwd(owd))
         
-        mapshot(output$mymap, file = file, cliprect = "viewport")
+        # set the zoom and pan based on current status of map
+        reschool_mapdata$dat <-setView(reschool_mapdata$dat,
+                              lat = input$mymap_center$lat,
+                              lng = input$mymap_center$lng,
+                              zoom = input$mymap_zoom
+                              )
+        
+        mapshot(reschool_mapdata$dat, file = file, cliprect = "viewport")
       }
     )
     

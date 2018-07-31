@@ -12,8 +12,10 @@ demog_names <- list("None selected",
                     "Median household income ($)", 
                     "Less than high school degree (% over 25 years)",
                     "College graduates (% over 25 years)",
-                    HTML("Language other than English spoken (%)<br><br>
-                                                                    <i>Race/Ethnicity Variables</i>"),
+                     HTML("Language other than English spoken (%)
+                          <br><br>
+                          <i>Race/Ethnicity Variables</i>"
+                          ),
                     "Hispanic population (%)", 
                     "Black population (%)",
                     "White population (%)",
