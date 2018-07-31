@@ -97,9 +97,9 @@ shinyServer(
       else if(input$demographics == "All races") {
         labels_race_breakdown <- shape_census@data$racial_dist_html
         curr_map <- make_base_map() %>%
-          add_colored_polygon_map(shape_census, legend_titles_demographic, pal_all_races, ~labels_race_breakdown, 
-                                  "majority_race") 
-      }
+          add_colored_polygon_map(shape_census, pal_all_races, ~labels_race_breakdown, 
+                                  "majority_race", legend_titles_demographic)
+        }
       return(curr_map %>%
                add_circle_markers(neighborhood_data1, "program", myyellow, program_popup_text)
              )
