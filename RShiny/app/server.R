@@ -481,30 +481,59 @@ shinyServer(
     
     subset_search_data = reactive({
       
-      
-      
+
       if(input$minprice_search != "No min price selected"){
-        mincost_search_data = subset(google_analytics, google_analytics$mincost  >= input$minprice_search)
+        mincost_search_data = google_analytics[which(google_analytics$mincost  >= as.numeric(input$minprice_search)),]
+        
       }else{
         mincost_search_data = google_analytics
       }
       
-      
-      
+
       if(input$maxprice_search != "No max price selected"){
-        maxcost_search_data = subset(mincost_search_data, mincost_search_data$maxcost  <= input$maxprice_search)
+        maxcost_search_data = mincost_search_data[which(mincost_search_data$maxcost  <= as.numeric(input$maxprice_search)),]
+        
       }else{
         maxcost_search_data = mincost_search_data
       }
       
       
       
+      
+      
+      if(input$minage_search != "No min age selected"){
+        minage_search_data = maxcost_search_data[which(maxcost_search_data$minage  >= as.numeric(input$minage_search)),]
+        
+      }else{
+        minage_search_data = maxcost_search_data
+      }
+      
+      
+      if(input$maxage_search != "No max age selected"){
+        maxage_search_data = minage_search_data[which(minage_search_data$maxage  <= as.numeric(input$maxage_search)),]
+        
+      }else{
+        maxage_search_data = minage_search_data
+      }
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
       if(input$zipcode_searchprog != "No zipcode selected" ) {
-        zipcode_search_data <- subset(maxcost_search_data, 
-                                      maxcost_search_data$location == input$zipcode_searchprog)
+        zipcode_search_data <- subset(maxage_search_data, 
+                                      maxage_search_data$location == input$zipcode_searchprog)
       }
       else {
-        zipcode_search_data <- maxcost_search_data
+        zipcode_search_data <- maxage_search_data
         
       }
       
@@ -538,10 +567,16 @@ shinyServer(
       }
       
       
-      if(input$specialneeds_search == "Special needs students selected" ) {
+      if(input$specialneeds_search == "Special needs students" ) {
         final_search_data <- subset(category_search_data, 
                                     category_search_data$specialneeds  == "specialNeedsStudent")
       }
+      
+      else if(input$specialneeds_search == "Scholarships Available" ) {
+        final_search_data <- subset(category_search_data, 
+                                    category_search_data$scholarships  == "scholarshipsAvailable")
+      }
+      
       else {
         final_search_data <- category_search_data
         
