@@ -177,9 +177,8 @@ shinyUI(
                                                   )
                                       ),
                           br(),
-                          selectInput("sessiontimes_searchprog", 
-                                      "Restrict to one session time:", 
-                                      choices = c("No session time selected selected", 
+                          selectInput("sessiontimes_searchprog", "Restrict to one session time:", 
+                                      choices = c("No session time selected", 
                                                   sort(unique(google_analytics$sessiontimes))
                                                   )
                                       ), 
@@ -197,8 +196,15 @@ shinyUI(
                                       tabPanel("Summary",
                                                
                                                fluidRow(
-                                                 column(6, verbatimTextOutput("Totalsearches")),
-                                                 column(6, verbatimTextOutput("Percentsearches")),
+
+                                                 column(6, uiOutput("totalsearches", 
+                                                                    style = "background-color:yellow; 
+                                                                    height:120px; padding:20px;
+                                                                    border:solid", align = "center")),
+                                                 column(6, uiOutput("percentagesearches", style = "background-color:yellow; 
+                                                                    height:120px; padding:20px;
+                                                                    border:solid", align = "center")),
+                                                 
                                                  DT::dataTableOutput("datatable_search")
                                                )
                                       ),
