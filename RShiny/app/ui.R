@@ -176,8 +176,14 @@ shinyUI(
                           checkboxGroupInput("program_search", 
                                              "Select one or more program type:", 
                                              choices = sort(unique(google_analytics$category)), 
-                                             selected = "academic", 
+                                             selected = character(0), 
                                              inline = TRUE
+                          ), br(),
+                          radioButtons("specialneeds_search", 
+                                       "Special needs students selected", 
+                                       choices = c("Special needs students", "None Selected"),
+                                       selected = "None Selected"
+                                     
                           )),
                         
                         mainPanel(
@@ -187,11 +193,11 @@ shinyUI(
                                                fluidRow(
 
                                                  column(6, uiOutput("totalsearches", 
-                                                                    style = "background-color:yellow; 
-                                                                    height:120px; padding:20px;
+                                                                    style = "background-color:lightblue; 
+                                                                    height:100px; padding:20px;
                                                                     border:solid", align = "center")),
-                                                 column(6, uiOutput("percentagesearches", style = "background-color:yellow; 
-                                                                    height:120px; padding:20px;
+                                                 column(6, uiOutput("percentagesearches", style = "background-color:lightblue; 
+                                                                    height:100px; padding:20px;
                                                                     border:solid", align = "center")),
                                                  
                                                  DT::dataTableOutput("datatable_search")

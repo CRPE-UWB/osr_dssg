@@ -534,9 +534,8 @@ shinyServer(
         
       }
       
-      print(head(sessiontime_search_data))
       
-      if(length(colm_search()) > 0){
+      if(length(colm_search()) != 0){
         
         data_list = list()
         
@@ -545,16 +544,25 @@ shinyServer(
           data_list[[i]] = sessiontime_search_data[which(sessiontime_search_data$category == colm_search()[i]),]
         }
         
-        final_search_data = as.data.frame(data.table::rbindlist(data_list))
+        category_search_data = as.data.frame(data.table::rbindlist(data_list))
        
         
       }
       
       else {
         
-        final_search_data = sessiontime_search_data
+        category_search_data = sessiontime_search_data
       }
       
+      
+      if(input$specialneeds_search == "Special needs students selected" ) {
+        final_search_data <- subset(category_search_data, 
+                                    category_search_data$specialneeds  == "specialNeedsStudent")
+      }
+      else {
+        final_search_data <- category_search_data
+        
+      }
       
       return(final_search_data) 
       
@@ -569,7 +577,7 @@ shinyServer(
       
       sprintf(
         
-        "<font size=\"+1\"><b><i> Number of searches </i><br/><font size=\"+4\"> %s </b>",
+        "<font size=\"+1\"><b><i> Number of searches made in this combination </i><br/><font size=\"+3\"> %s </b>",
         sum(subset_search_data()[,"users"])
       ) 
     })
@@ -578,7 +586,7 @@ shinyServer(
     output$percentagesearches <- renderText({
       
       sprintf(
-         "<font size=\"+1\"><b><i> Percentage searches </i><br/><font size=\"+4\"> %s%% </b>",
+         "<font size=\"+1\"><b><i> Percentage searches </i><br/><font size=\"+3\"> %s%% </b>",
          round(((sum(subset_search_data()[,"users"])*100)/sum(google_analytics$users)), 2)
       ) 
     })
@@ -589,7 +597,7 @@ shinyServer(
     output$datatable_search <- DT::renderDataTable({
       data_table1 <- subset_search_data()
       DT::datatable(data_table1, 
-                    options = list(pageLength = 10, 
+                    options = list(pageLength = 7, 
                                    scrollX = TRUE,
                                    initComplete = JS(
                                      "function(settings, json) {",
