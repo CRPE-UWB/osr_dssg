@@ -60,15 +60,13 @@ shinyUI(
                                                    selected = 13,
                                                    inline = TRUE
                                                    ),
-                                #br(),
                                 sliderInput("slider", "Select a range for program cost:", 
                                             min = minprice_reschoolprograms, 
                                             max = maxprice_reschoolprograms , 
                                             value = c(minprice_reschoolprograms, 
                                                       maxprice_reschoolprograms),
                                             pre = "$"
-                                ),
-                                #br(),
+                                            ),
                                 radioButtons("demographics", 
                                              "Select a demographics variable to visualize:", 
                                              choiceNames = demog_names,
@@ -78,16 +76,18 @@ shinyUI(
                                 br(),
                                 selectInput("neighborhoods", "Restrict to one neighborhood:", 
                                             choices = c("No neighborhood selected", 
-                                                        sort(neighborhoods_reshoolprograms))
-                                ),
+                                                        sort(neighborhoods_reshoolprograms)
+                                                        )
+                                            ),
                                 width = 4
-                              ),
+                                ),
                               
                               # Main panel for reschool programs: map tab + data tab + analysis tab
                               mainPanel(
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
-                                                     leafletOutput("mymap", height = 520)
+                                                     leafletOutput("mymap", height = 520),
+                                                     downloadButton('reschool_map_down')
                                                      ),
                                             tabPanel("Data",
                                                      DT::dataTableOutput("datatable")
@@ -120,7 +120,7 @@ shinyUI(
                                                    selected = "Parks", 
                                                    inline = TRUE
                                                    ),
-                                br(),
+                                # br(),
                                 radioButtons("demographics_other", 
                                              "Select a demographics variable to visualize:", 
                                              choiceNames = demog_names,
@@ -145,40 +145,52 @@ shinyUI(
                                                      uiOutput("dt")),
                                             tabPanel("Summary analysis")
                                 )
-                              )
-                            )
-                          )
-                   ),
+                              )  # end mainPanel of open data tab
+                              
+                            ))
+                            
+                   ),  # end open data tab
 
                    ## RESCHOOL SEARCH DATA TAB
-             tabPanel("ReSchool Program Searches",
+                   tabPanel("ReSchool Program Searches",
                       
                       fluidPage(sidebarLayout(
                         
                         sidebarPanel(
-                          selectInput("minprice_search", "Select Min Price:", 
+                          selectInput("minprice_search", 
+                                      "Select Min Price:", 
                                       choices = c("No min price selected", 
-                                                  sort(unique(google_analytics$mincost)))
-                          ),
-                          selectInput("maxprice_search", "Select Max Price:", 
+                                                  sort(unique(google_analytics$mincost))
+                                                  )
+                                      ),
+                          selectInput("maxprice_search", 
+                                      "Select Max Price:", 
                                       choices = c("No max price selected", 
-                                                  sort(unique(google_analytics$maxcost)))
-                          ),
+                                                  sort(unique(google_analytics$maxcost))
+                                                  )
+                                      ),
                           br(),
-                          selectInput("zipcode_searchprog", "Restrict to one zipcode:", 
+                          selectInput("zipcode_searchprog", 
+                                      "Restrict to one zipcode:", 
                                       choices = c("No zipcode selected", 
-                                                  sort(zipcode_searchdata))),
+                                                  sort(zipcode_searchdata)
+                                                  )
+                                      ),
                           br(),
-                          selectInput("sessiontimes_searchprog", "Restrict to one session time:", 
+                          selectInput("sessiontimes_searchprog", 
+                                      "Restrict to one session time:", 
                                       choices = c("No session time selected selected", 
-                                                  sort(unique(google_analytics$sessiontimes)))
-                          ), br(),
+                                                  sort(unique(google_analytics$sessiontimes))
+                                                  )
+                                      ), 
+                          br(),
                           checkboxGroupInput("program_search", 
                                              "Select one or more program type:", 
                                              choices = sort(unique(google_analytics$category)), 
                                              selected = "academic", 
                                              inline = TRUE
-                          )),
+                                             )
+                          ),
                         
                         mainPanel(
                           tabsetPanel(type = "tab",
@@ -191,12 +203,10 @@ shinyUI(
                                                )
                                       ),
                                       tabPanel("Visualization")
-                          )
-                        )
+                          ))  # end main panel of reschool search data tab
+                        
                       ))
-                      
-                      
-             ),
+                      ),  # end reschool search data tab
                    
                    ## ACCESS INDEX TAB
                    tabPanel("Access Index",
