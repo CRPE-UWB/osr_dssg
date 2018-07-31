@@ -52,12 +52,17 @@ shinyUI(
                               # Sidebar panel for making selections about reschool programs
                               sidebarPanel(
                                 checkboxGroupInput("program", "Select one or more program types:", 
-                                                   choices = c("Academic" = 13, "Arts" = 14, 
-                                                               "Cooking" = 15, "Dance" = 16, 
-                                                               "Drama" = 17, "Music" = 18, 
-                                                               "Nature" = 19, "Sports" = 20, 
-                                                               "STEM" = 21), 
-                                                   selected = 13,
+                                                   choiceNames = c("Academic", "Arts", 
+                                                               "Cooking", "Dance", 
+                                                               "Drama", "Music", 
+                                                               "Nature", "Sports", 
+                                                               "STEM"), 
+                                                   choiceValues = c("has_academic", "has_arts", 
+                                                                    "has_cooking", "has_dance", 
+                                                                    "has_drama","has_music",
+                                                                    "has_nature", "has_sports",
+                                                                    "has_stem"),
+                                                   selected = "has_academic",
                                                    inline = TRUE
                                                    ),
                                 #br(),
