@@ -87,25 +87,28 @@ shinyServer(
       
       ##### ACTUALLY DRAW THE RESCHOOL MAP #####
       if(input$demographics == "None selected"){
-        make_reschool_map(neighborhood_data1, marker_popup_text, palette = NULL, col_name = NULL)
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal = NULL, col_name = NULL)
       }
       else if(input$demographics == "Median household income ($)" ) {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal_income, "MED_HH_")
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_income, "MED_HH_")
       }
-      else if(input$demographics == "High school degree or equivalent (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal_edu,"PCT_HS_")
+      else if(input$demographics == "Less than high school degree (%)") {
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_edu,"PCT_LES")
+      }
+      else if(input$demographics == "College graduates (%)") {
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_edu2,"PCT_COL")
       }
       else if(input$demographics == "Hispanic population (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal_hispanic, "PCT_HIS") 
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_hispanic, "PCT_HIS") 
       }
       else if(input$demographics == "Black population (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal_black, "PCT_BLA")
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_black, "PCT_BLA")
       }
       else if(input$demographics == "White population (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal_white, "PCT_WHI")
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_white, "PCT_WHI")
       }
       else if(input$demographics == "Non-English speakers (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal_language, "PCT_NON")
+        make_reschool_map(neighborhood_data1, marker_popup_text, pal = pal_language, "PCT_NON")
       }
       else if(input$demographics == "All races") {
         labels_race_breakdown <- shape_census@data$racial_dist_html
@@ -217,11 +220,6 @@ shinyServer(
   
     #### Other out of school resources tab ####
     
-    # this doesn't seem to get used at all anymore:
-    # colm_other <- reactive({
-    #   input$program_other
-    # })
-    
     #############################
     # Other Resources Tab
     #############################
@@ -247,36 +245,33 @@ shinyServer(
         
         ##### ACTUALLY DRAW THE OTHER RESOURCES MAP #####
         if(input$demographics_other == "None selected"){
-          open_resource_map <- make_base_map() %>%
-            add_blank_map()
+          open_resource_map <- make_base_map() %>% add_blank_map()
         }
         else if(input$demographics_other == "Median household income ($)" ) {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_income,nbhd_labels, "MED_HH_", legend_titles_demographic)
+          open_resource_map <- make_demographic_map(pal_income, "MED_HH_")
         }
-        else if(input$demographics_other == "High school degree or equivalent (%)") {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_edu,nbhd_labels,"PCT_HS_", legend_titles_demographic)
+        else if(input$demographics_other == "Less than high school degree (%)") {
+          open_resource_map <- make_demographic_map(pal_edu, "PCT_LES")
+        }
+        else if(input$demographics_other == "College graduates (%)") {
+          open_resource_map <- make_demographic_map(pal_edu2, "PCT_COL")
         }
         else if(input$demographics_other == "Hispanic population (%)") {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_hispanic, nbhd_labels, "PCT_HIS", legend_titles_demographic)
+          open_resource_map <- make_demographic_map(pal_hispanic, "PCT_HIS")
         }
         else if(input$demographics_other == "Black population (%)") {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_black, nbhd_labels, "PCT_BLA", legend_titles_demographic)
+          open_resource_map <- make_demographic_map(pal_black, "PCT_BLA")
         }
         else if(input$demographics_other == "White population (%)") {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_white, nbhd_labels, "PCT_WHI", legend_titles_demographic)
+          open_resource_map <- make_demographic_map(pal_white, "PCT_WHI")
         }
         else if(input$demographics_other == "Non-English speakers (%)") {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_language, nbhd_labels, "PCT_NON", legend_titles_demographic)
+          open_resource_map <- make_demographic_map(pal_language, "PCT_NON")
         }
         else if(input$demographics_other == "All races") {
           open_resource_map <- make_base_map() %>%
-            add_colored_polygon_map(shape_census, pal_all_races, ~shape_census@data$racial_dist_html, "majority_race", legend_titles_demographic)
+            add_colored_polygon_map(shape_census, pal_all_races, ~shape_census@data$racial_dist_html, 
+                                    "majority_race", legend_titles_demographic)
         }
         
         # Loop over selected resources types, plotting the locations of each

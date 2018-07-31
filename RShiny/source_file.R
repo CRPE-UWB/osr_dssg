@@ -7,6 +7,7 @@ library(tigris)
 library(rgeos)
 library(RPostgreSQL)
 library(RColorBrewer)
+library(leaflet)
 
 #############################
 # Color settings
@@ -23,6 +24,14 @@ mypurple2 <- brewer.pal(3, "Purples")[1]
 mygreen3 <- brewer.pal(3, "Greens")[3]
 myblue3 <- brewer.pal(3, "Blues")[3]
 mypurple3 <- brewer.pal(3, "Purples")[3]
+
+other_resources_colors <- brewer.pal(6, "Blues")
+parks_color <- mygreen
+libraries_color <- myblue
+rec_centers_color <- myblue3
+playgrounds_color <- mypurple
+museums_color <- mypurple3
+fields_color <- mygreen3
 
 ################## Getting data from the database e#############################################
 
@@ -73,7 +82,7 @@ access_transit <- geo_join(shape_census_block,transit_index, "Id2", "Id2", how="
 ########################
 # Neighborhood stuff
 ########################
-shape_census <- readOGR(dsn = "../data/nbhd_dem_shapes", layer = "nbhd_dem_shapes")
+shape_census <- readOGR(dsn = file.path("..", "data", "nbhd_dem_shapes"), layer = "nbhd_dem_shapes")
 
 # Joining the 'number of sessions' information with the census shape file
 shape_census <- geo_join(shape_census, aggregate_session_nbhds, 
@@ -184,7 +193,8 @@ shape_census@data$racial_dist_html <- mapply(
 
 # Legend titles for demographic maps
 legend_titles_demographic <- list(MED_HH_ = "Median HH Income ($)",
-                                  PCT_HS_ = "HS Degree <br> Or Equiv. (%)",
+                                  PCT_LES = "Less Than <br> HS Degree (%)",
+                                  PCT_COL = "College <br> Graduates (%)",
                                   PCT_HIS = "% Hispanic",
                                   PCT_BLA = "% Black",
                                   PCT_WHI = "% White",
@@ -213,10 +223,10 @@ nbhd_labels <- sprintf(
 # Bins and color palettes for demographic variables in leaflet map
 bins_income <- c(0, 25000, 50000, 75000, 100000, Inf)
 pal_income <- colorBin("Greys", domain = shape_census@data$MED_HH_, bins = bins_income)
-bins_edu <- c(0, 5, 10, 15, 20, 25)
-pal_edu <- colorBin("Greys", domain = shape_census@data$PCT_HSD, bins = bins_edu)
-bins_language <- c(0, 15, 30, 45, 60, 75)
-pal_language <- colorBin("Greys", domain = shape_census@data$PCT_NON, bins = bins_language)
+pal_edu <- colorBin("Greys", domain = shape_census@data$PCT_LES, bins = 5)
+pal_edu2 <- colorBin("Greys", domain = shape_census@data$PCT_COL, bins = 5)
+# bins_language <- c(0, 15, 30, 45, 60, 75)
+pal_language <- colorBin("Greys", domain = shape_census@data$PCT_NON, bins = 5)
 
 # colorful ones for racial demographics
 pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS, bins = 5)

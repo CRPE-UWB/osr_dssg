@@ -118,7 +118,7 @@ add_circle_markers <- function(map, data, legend_title, color_code, popup_text, 
 }
 
 # Function to draw the base map + demographics + program markers
-make_reschool_map <- function(df, popup_text, palette, col_name = NULL) {
+make_reschool_map <- function(df, popup_text, pal, col_name = NULL) {
   if (is.null(col_name)) {
     make_base_map() %>%
       add_blank_map() %>%
@@ -126,8 +126,19 @@ make_reschool_map <- function(df, popup_text, palette, col_name = NULL) {
   }
   else{
     make_base_map() %>%
-      add_colored_polygon_map(shape_census, palette, popup_text, col_name, legend_titles_demographic) %>%
+      add_colored_polygon_map(shape_census, pal, popup_text, col_name, legend_titles_demographic) %>%
       add_circle_markers(df, "program", myyellow, popup_text)
+  }
+}
+
+# Function to draw the base OTHER RESOURCES map + demographics
+make_demographic_map <- function(pal, col_name = NULL) {
+  if (is.null(col_name)) {
+    make_base_map() %>% add_blank_map()
+  }
+  else{
+    make_base_map() %>%
+      add_colored_polygon_map(shape_census, pal, nbhd_labels, col_name, legend_titles_demographic)
   }
 }
 
