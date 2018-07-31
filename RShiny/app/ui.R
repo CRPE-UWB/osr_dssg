@@ -95,7 +95,7 @@ shinyUI(
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
                                                      leafletOutput("mymap", height = 520),
-                                                     downloadButton('reschool_map_down')
+                                                     downloadButton('reschool_map_down', label = "Download Map")
                                                      ),
                                             tabPanel("Data",
                                                      DT::dataTableOutput("datatable")
@@ -149,7 +149,7 @@ shinyUI(
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
                                                      leafletOutput("mymap_other", height = 520),
-                                                     downloadButton('other_map_down')
+                                                     downloadButton('other_map_down', label = "Download Map")
                                                      ),
                                             tabPanel("Data",
                                                      uiOutput("dt")),
@@ -280,7 +280,9 @@ shinyUI(
                                 textOutput("test"),
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
-                                                     leafletOutput("mymap_access", height = 520))
+                                                     leafletOutput("mymap_access", height = 520),
+                                                     downloadButton('access_map_down', label = "Download Map")
+                                                     )
                                             # tabPanel("Data",
                                             #          uiOutput("dt")),
                                             # tabPanel("Summary analysis")

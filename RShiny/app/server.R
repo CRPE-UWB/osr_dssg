@@ -751,9 +751,9 @@ shinyServer(
       return(subset_for_neighborhoods(program_cost_data_access(),input$neighborhoods_access))
     })
     
-    
-    
     # map it up
+    access_mapdata <- reactiveValues(dat = 0)
+    
     output$mymap_access <- renderLeaflet({
       if (length(input$type_access)==0) {
         curr_map <- make_base_map() %>% 
@@ -776,6 +776,30 @@ shinyServer(
         curr_map <- curr_map %>%
           add_neighborhood_outline(input$neighborhoods_access)
       }
+      
+      access_mapdata$dat <- curr_map
       return(curr_map)
     })
+    
+    ####### MAKE THE DOWNLOAD FEATURE FOR THE ACCESS INDEX MAP #######
+    output$access_map_down <- downloadHandler(
+      filename = 'access_index_map.jpeg',
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        # set the zoom and pan based on current status of map
+        access_mapdata$dat <-setView(access_mapdata$dat,
+                                       lat = input$mymap_access_center$lat,
+                                       lng = input$mymap_access_center$lng,
+                                       zoom = input$mymap_access_zoom
+        )
+        
+        mapshot(access_mapdata$dat, file = file, cliprect = "viewport")
+      }
+    )
+    
   })  
+
