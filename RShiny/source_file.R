@@ -83,9 +83,10 @@ maxprice_reschoolprograms = max(reschool_summer_program$session_cost)
 google_analytics$mincost = as.numeric(google_analytics$mincost)
 google_analytics$maxcost = as.numeric(google_analytics$maxcost)
 
-#Get the min and max cost to be used in the input slider
-minprice_search = min(google_analytics$mincost, na.rm = TRUE)
-maxprice_search = max(google_analytics$maxcost, na.rm = TRUE)
+#Convert the age column  to numeric
+google_analytics$minage = as.numeric(google_analytics$minage)
+google_analytics$maxage = as.numeric(google_analytics$maxage)
+
 
 #Creating unique zipcodes for the third tab search data
 #We take only the locations which have zipcodes which make sense
@@ -104,6 +105,29 @@ neighborhoods_other = unique(all_neighbourhoods$nbhd_name)
 demographic_filters = c("Median Income", "Percent below poverty level")
 
 ############################## Racial distributions variables ####################################
+
+####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
+
+# Color settings
+myyellow <- "#FFFF66"
+mygreen <- brewer.pal(3, "Greens")[2]
+myblue <- brewer.pal(3, "Blues")[2]
+mypurple <- brewer.pal(3, "Purples")[2]
+
+mygreen2 <- brewer.pal(3, "Greens")[1]
+myblue2 <- brewer.pal(3, "Blues")[1]
+mypurple2 <- brewer.pal(3, "Purples")[1]
+
+mygreen3 <- brewer.pal(3, "Greens")[3]
+myblue3 <- brewer.pal(3, "Blues")[3]
+mypurple3 <- brewer.pal(3, "Purples")[3]
+
+parks_color <- mygreen
+libraries_color <- myblue
+rec_centers_color <- myblue3
+playgrounds_color <- mypurple
+museums_color <- mypurple3
+fields_color <- mygreen3
 
 # Creating majority race variables for each neighborhood
 # (could probably do this ahead of time)
@@ -167,27 +191,6 @@ shape_census@data$racial_dist_html <- mapply(
 )
 
 ####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
-
-# Color settings
-myyellow <- "#FFFF66"
-mygreen <- brewer.pal(3, "Greens")[2]
-myblue <- brewer.pal(3, "Blues")[2]
-mypurple <- brewer.pal(3, "Purples")[2]
-
-mygreen2 <- brewer.pal(3, "Greens")[1]
-myblue2 <- brewer.pal(3, "Blues")[1]
-mypurple2 <- brewer.pal(3, "Purples")[1]
-
-mygreen3 <- brewer.pal(3, "Greens")[3]
-myblue3 <- brewer.pal(3, "Blues")[3]
-mypurple3 <- brewer.pal(3, "Purples")[3]
-
-parks_color <- mygreen3
-playgrounds_color <- mypurple2
-rec_centers_color <- myblue3
-libraries_color <- myblue
-museums_color <- mypurple3
-fields_color <- mygreen
 
 # Legend titles for demographic maps
 legend_titles_demographic <- list(MED_HH_ = "Median HH Income ($)",

@@ -34,7 +34,6 @@ demog_values <- list("None selected",
                      "All races"
                      )
 
-
 shinyUI(
   
   fluidPage(
@@ -110,8 +109,8 @@ shinyUI(
                                                      )
                                             )
                                 ) 
-                              ))
-                            ),
+                              )) # end sidebar layout and fluidPage
+                            ),  # end B4S programs tab
                    
                    
                    ## OPEN DATA TAB - Parks, Libraries, etc.
@@ -165,19 +164,25 @@ shinyUI(
                       
                       fluidPage(sidebarLayout(
                         
-                        sidebarPanel(
-                          selectInput("minprice_search", 
-                                      "Select Min Price:", 
+                        sidebarPanel(fluidRow(
+                          column(6,selectInput("minprice_search", "Select Min Price:", 
                                       choices = c("No min price selected", 
-                                                  sort(unique(google_analytics$mincost))
-                                                  )
-                                      ),
-                          selectInput("maxprice_search", 
-                                      "Select Max Price:", 
+                                                  sort(unique(google_analytics$mincost)))
+                          )),
+                          column(6,selectInput("maxprice_search", "Select Max Price:", 
                                       choices = c("No max price selected", 
-                                                  sort(unique(google_analytics$maxcost))
-                                                  )
-                                      ),
+                                                  sort(unique(google_analytics$maxcost)))
+                          )),
+                          br(),
+                          
+                          column(6,selectInput("minage_search", "Select Min Age:", 
+                                               choices = c("No min age selected", 
+                                                           sort(unique(google_analytics$minage)))
+                          )),
+                          column(6,selectInput("maxage_search", "Select Max Age:", 
+                                               choices = c("No max age selected", 
+                                                           sort(unique(google_analytics$maxage)))
+                          )),
                           br(),
                           selectInput("zipcode_searchprog", 
                                       "Restrict to one zipcode:", 
@@ -200,8 +205,8 @@ shinyUI(
                                              )
                           ),
                           radioButtons("specialneeds_search", 
-                                       "Special needs students selected", 
-                                       choices = c("Special needs students", "None Selected"),
+                                       "Other selections", 
+                                       choices = c("Special needs students", "Scholarships Available", "None Selected"),
                                        selected = "None Selected"
                                      
                           )),
@@ -226,7 +231,7 @@ shinyUI(
                                       tabPanel("Visualization")
                           ))  # end main panel of reschool search data tab
                         
-                      )
+                      ))
                       ),  # end reschool search data tab
                    
                    ## ACCESS INDEX TAB
