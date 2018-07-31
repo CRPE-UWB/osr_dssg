@@ -142,7 +142,9 @@ shinyUI(
                               mainPanel(
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
-                                                     leafletOutput("mymap_other", height = 520)),
+                                                     leafletOutput("mymap_other", height = 520),
+                                                     downloadButton('other_map_down')
+                                                     ),
                                             tabPanel("Data",
                                                      uiOutput("dt")),
                                             tabPanel("Summary analysis")

@@ -256,6 +256,8 @@ shinyServer(
     fields_data <- reactive({subset_for_neighborhoods(fields, input$neighborhoods_other)})
     
     # Create the map
+    other_mapdata <- reactiveValues(dat = 0)
+    
     output$mymap_other = renderLeaflet({
         
         # Get the data
@@ -400,9 +402,30 @@ shinyServer(
 
         }
         
+        other_mapdata$dat <- open_resource_map
         return(open_resource_map)
 
       })
+    
+    # Make the download button for the other resources map
+    output$other_map_down <- downloadHandler(
+      filename = 'other_resources_map.jpeg',
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        # set the zoom and pan based on current status of map
+        other_mapdata$dat <-setView(other_mapdata$dat,
+                                       lat = input$mymap_other_center$lat,
+                                       lng = input$mymap_other_center$lng,
+                                       zoom = input$mymap_other_zoom
+        )
+        
+        mapshot(other_mapdata$dat, file = file, cliprect = "viewport")
+      }
+    )
     
     # Make the data tables for the Other Resources Data Tab
     output$dt <- renderUI({
