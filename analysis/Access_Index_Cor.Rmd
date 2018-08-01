@@ -245,8 +245,8 @@ cor_driving_dps <- cor_table
 dps_agg_transit <- dps_agg[-c(23:35)]
 dps_agg_transit <- merge(dps_agg_transit,transit_index)
 
-cor_tests <- colnames(dps_agg_transit)[2:21] #prepare dataframe
-index_tests <- colnames(dps_agg_transit)[23:length(colnames(dps_agg_transit))] #prepare things we want to loop
+cor_tests <- colnames(dps_agg_transit)[c(2:21,23:25)] #prepare dataframe
+index_tests <- colnames(dps_agg_transit)[26:length(colnames(dps_agg_transit))] #prepare things we want to loop
 cor_table <- data.frame(cor_tests)
 
 for (i in 1:length(index_tests)){ #here we loop the aggregation of students we want to test for correlations, store p_values and results in a dataframe. 
@@ -277,7 +277,7 @@ cor_transit_dps <- cor_table
 ```{r}
 library(ggplot2)
 library(gridExtra)
-plot_list <- list()
+plot_list_t <- list()
 for (i in 1:length(index_tests)){
   test <- index_tests[i]
   p <- ggplot(cor_table, aes(y=cor_table[,test],x=cor_tests)) +
@@ -287,17 +287,11 @@ for (i in 1:length(index_tests)){
   geom_hline(yintercept = 0,color="grey3") +
   ylab("Overall Driving Access Index") + 
   xlab("Percent of Students in Block Group")
-  plot_list[[i]] <- p
+  plot_list_t[[i]] <- p
   print(p)
   print(paste(i,"working..."))
 }
 
 ```
 
-
-###Geospatial Regression To Return Effect of race on access?
-Why? Besides that you want to do it what is the value?
-```{r}
-
-```
 
