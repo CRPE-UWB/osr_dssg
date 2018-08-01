@@ -1,0 +1,185 @@
+---
+title: "Denver_Crime_Reprocessing"
+author: "Andrew Taylor"
+date: "7/31/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###RDS Pull
+```{r}
+denver_crimes <- dbGetQuery(con, "select * from clean.crimes")
+denver_hate_crimes <- dbGetQuery(con, "select * from clean.hate_crimes")
+acs_demographics <- dbGetQuery(con, "select * from clean.acs_demographics")
+```
+
+###Aggregate by crime category
+```{r}
+denver_crimes$n <- 1
+denver_crimes_agg <- aggregate(n ~ category+lat+long,data=denver_crimes,FUN=sum)
+```
+
+###Hard Code Fix coords to block groups function
+```{r}
+coords_to_blockgroups <- function(df) {
+  # get block group polygons
+  #setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+  mypath <- getwd()
+  dataPath <- file.path(dirname(mypath), "osr_dssg2018-3", "data", "census_clean", "shape_census")
+  blockGroups <- readOGR(dsn = "/Users/Andrew/osr_dssg2018-3/data/census_clean/shape_census") #can't seem to read the path thing 
+  
+  # get the lat / long coordinates to code as spatial points
+  coords <- data.frame(df$long, df$lat)
+  colnames(coords) <- c("long", "lat")
+  spdf <- SpatialPoints(coords, proj4string = CRS(proj4string(blockGroups)))
+  
+  # figure out which block group each lat / long is in
+  nests <- gIntersects(spdf, blockGroups, byid = TRUE)  # rows = bgroups, cols = df entries
+  true_idxs <- which(nests==TRUE, arr.ind=TRUE)  # col1 = bgroup idx, col2 = df entries
+  bgroup_idxs  <- true_idxs[,1]
+  df_idxs <- true_idxs[,2]
+  
+  # make a dataframe with the coordinates and corresponding block groups
+  df_bgroups <- data.frame(coords[df_idxs,], blockGroups$Id2[bgroup_idxs])
+  colnames(df_bgroups) <- c("long", "lat", "bgroup_id2")
+  
+  # strip leading 0's in block groups numbers
+  df_bgroups$bgroup_id2 <- as.character(as.numeric(as.character(df_bgroups$bgroup_id2))) 
+  
+  df_out <- merge(df, df_bgroups)
+  return(df_out)
+}
+```
+
+###Lat Long to blockgroups
+```{r}
+library(rgeos)
+library(rgdal)
+library(raster)
+library(tidyverse)
+#denver all crimes
+denver_crimes$n <- 1
+denver_crimes_agg <- aggregate(n ~ category+lat+long,data=denver_crimes,FUN=sum)
+denver_crimes_agg <- coords_to_blockgroups(denver_crimes_agg)
+denver_crimes_agg <- aggregate(n ~ bgroup_id2+category,data=denver_crimes_agg,FUN=sum)
+colnames(denver_crimes_agg)[colnames(denver_crimes_agg)=="n"] <- "n_crimes"
+
+#denver hate crimes
+denver_hate_crimes$n <- 1
+denver_hate_crimes_agg <- aggregate(n ~ long+lat+bias_type,data=denver_hate_crimes,FUN=sum)
+denver_hate_crimes_agg <- coords_to_blockgroups(denver_hate_crimes_agg)
+denver_hate_crimes_agg <- aggregate(n ~ bgroup_id2+bias_type,data=denver_hate_crimes_agg,FUN=sum)
+colnames(denver_hate_crimes_agg)[colnames(denver_hate_crimes_agg)=="n"] <- "hate_crimes"
+```
+
+###Spread Long Dataframes
+```{r}
+test <- denver_hate_crimes_agg
+test <- reshape(test, idvar=c("bgroup_id2"),timevar="bias_type",direction="wide")
+head(test)
+denver_hate_crimes_agg <- test
+denver_hate_crimes_agg[is.na(denver_hate_crimes_agg)] <- 0
+denver_hate_crimes_agg$total_hate <- rowSums(denver_hate_crimes_agg[,c(2:length(denver_hate_crimes_agg))])
+
+test <- denver_crimes_agg
+test <- reshape(test, idvar=c("bgroup_id2"),timevar="category",direction="wide")
+head(test)
+denver_crimes_agg <- test
+denver_crimes_agg[is.na(denver_crimes_agg)] <- 0
+denver_crimes_agg$total_crime <- rowSums(denver_crimes_agg[,c(2:length(denver_crimes_agg))])
+```
+
+###Merge Hate & All Crime 
+```{r}
+total_crimes <- merge(denver_crimes_agg,denver_hate_crimes_agg,by="bgroup_id2",all.x=TRUE)
+total_crimes[is.na(total_crimes)] <- 0
+```
+
+###Merge Demographics for per 100,000 rates
+```{r}
+acs_pop <- acs_demographics[c("ttl_population","Id2")]
+acs_pop$Id2 <- as.character(acs_pop$Id2)
+colnames(total_crimes)[colnames(total_crimes)=="bgroup_id2"] <- "Id2"
+total_crimes <- merge(total_crimes,acs_pop,by="Id2")
+```
+
+###Per 100 Population Rates
+Big difference in scale here
+
+A.) Crime is total per five years + current to 7/31. so divided by 5.583333
+
+B.) Hate crimes is MUCH broader, 8.686813 years worth of data, based on the range from first to last date. 
+
+So here we divide by population, multiply by 100 to get the per 100 rate, then divide by the n of years (including the aprox n of months)
+
+Note: This returns one NA, because there is a block group with population. 
+```{r}
+crime_rates <- total_crimes
+crime_rates[,2:15] <- ((total_crimes[,2:15]/total_crimes$ttl_population)*100)/5.58333
+crime_rates[,16:length(crime_rates)] <- ((total_crimes[,16:length(crime_rates)]/total_crimes$ttl_population)*100)/8.6868
+crime_rates <- subset(crime_rates,crime_rates$ttl_population!=0)
+```
+
+###Adding Aggregate Crimes
+Violent Crime = Aggregate of murder, robbery, aggrvated assault rates (verify FBI incident status, I think there's some sexual assualt esq charge that goes into this?)
+Property Crime = Aggregte of robbery, burglary, theft from motor vehicle (car prowling), larceny, (again, verify FBI)
+```{r}
+crime_rates$violent_crime <- rowSums(crime_rates[,c("n_crimes.murder","n_crimes.robbery","n_crimes.aggravated-assault")])
+crime_rates$property_crime <- rowSums(crime_rates[,c("n_crimes.robbery","n_crimes.burglary","n_crimes.theft-from-motor-vehicle","n_crimes.larceny")])
+```
+
+
+###Validation visualizations
+```{r}
+library(leaflet)
+library(RColorBrewer)
+
+#order shit
+census_blocks <- census_blocks[order(census_blocks$Id2),]
+crime_rates <- crime_rates[order(crime_rates$Id2),]
+
+#Pal
+range <- range(crime_rates$total_crime)
+pal <- colorNumeric(palette = "Reds",domain = range)
+
+#Plot Overall
+Ai_crime_overall <- leaflet(census_blocks) %>%
+  addTiles() %>%
+  addPolygons(color = "RdYlBu",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.9,
+              fillColor = ~pal(crime_rates$total_crime),
+              popup=paste("Crime Rate =",crime_rates$total_crime),
+              highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
+  addLegend(pal = pal, values = ~crime_rates$total_crime, opacity = 1, title = "Crime Rate Per 100 Residents") %>%
+  setView(lat=39.7,lng=-104.9,zoom=11.5)
+
+#Plot Violent
+range <- range(crime_rates$violent_crime)
+pal <- colorNumeric(palette = "Reds",domain = range)
+
+Ai_crime_violent <- leaflet(census_blocks) %>%
+  addTiles() %>%
+  addPolygons(color = "RdYlBu",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.9,
+              fillColor = ~pal(crime_rates$violent_crime),
+              popup=paste("Crime Rate =",crime_rates$violent_crime),
+              highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
+  addLegend(pal = pal, values = ~crime_rates$violent_crime, opacity = 1, title = "Violent Crime Rate Per 100 Residents") %>%
+  setView(lat=39.7,lng=-104.9,zoom=11.5)
+
+#Plot Property
+range <- range(crime_rates$property_crime)
+pal <- colorNumeric(palette = "Reds",domain = range)
+
+Ai_crime_property <- leaflet(census_blocks) %>%
+  addTiles() %>%
+  addPolygons(color = "RdYlBu",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.9,
+              fillColor = ~pal(crime_rates$property_crime),
+              popup=paste("Crime Rate =",crime_rates$property_crime),
+              highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
+  addLegend(pal = pal, values = ~crime_rates$property_crime, opacity = 1, title = "Property Crime Rate Per 100 Residents") %>%
+  setView(lat=39.7,lng=-104.9,zoom=11.5)
+
+```
+

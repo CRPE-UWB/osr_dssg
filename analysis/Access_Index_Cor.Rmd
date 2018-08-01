@@ -167,7 +167,7 @@ dps_agg <- merge(dps_agg,SLI)
 
 #Mean LRE Scores
 #lre <- aggregate(lre ~ Id2,data=dps_demographics,FUN=mean) #WRONG, LRE = LEAST RESTRICTIVE ENVIR WITH A NUMERIC CODE, SEE CODEBOOK, REDO
-dps_agg <- merge(dps_agg,lre,all.x=TRUE)
+#dps_agg <- merge(dps_agg,lre,all.x=TRUE)
 
 #EL Status
 dps_demographics$ESL <- ifelse(dps_demographics$el_status=="EL",1,0)
@@ -208,8 +208,8 @@ dps_agg <- merge(dps_agg,driving_index)
 ####Loop for cor table, driving
 We wanna look at everything right? well there's a lot of things to look at, so here we return a dataframe of correlations for all ranges, and free vs. low and high cost. For driving.
 ```{r}
-cor_tests <- colnames(dps_agg)[2:22] #prepare dataframe
-index_tests <- colnames(dps_agg)[24:length(colnames(dps_agg))] #prepare things we want to loop
+cor_tests <- colnames(dps_agg)[2:21] #prepare dataframe
+index_tests <- colnames(dps_agg)[23:length(colnames(dps_agg))] #prepare things we want to loop
 cor_table <- data.frame(cor_tests)
 
 for (i in 1:length(index_tests)){ #here we loop the aggregation of students we want to test for correlations, store p_values and results in a dataframe. 
@@ -238,11 +238,11 @@ cor_driving_dps <- cor_table
 
 ###Loop for transit 
 ```{r}
-dps_agg_transit <- dps_agg[-c(24:36)]
+dps_agg_transit <- dps_agg[-c(23:35)]
 dps_agg_transit <- merge(dps_agg_transit,transit_index)
 
-cor_tests <- colnames(dps_agg_transit)[2:22] #prepare dataframe
-index_tests <- colnames(dps_agg_transit)[24:length(colnames(dps_agg_transit))] #prepare things we want to loop
+cor_tests <- colnames(dps_agg_transit)[2:21] #prepare dataframe
+index_tests <- colnames(dps_agg_transit)[23:length(colnames(dps_agg_transit))] #prepare things we want to loop
 cor_table <- data.frame(cor_tests)
 
 for (i in 1:length(index_tests)){ #here we loop the aggregation of students we want to test for correlations, store p_values and results in a dataframe. 
@@ -269,8 +269,23 @@ for (i in 1:length(index_tests)){ #here we loop the aggregation of students we w
 cor_transit_dps <- cor_table
 ```
 
-###Plots
+###plot loop
 ```{r}
+library(ggplot2)
+library(gridExtra)
+plot_list <- list()
+for (i in 1:length(index_tests)){
+  test <- index_tests[i]
+  p <- ggplot(cor_table, aes(y=cor_table[,test],x=cor_tests)) +
+         geom_errorbar(data=cor_table,aes(ymin=cor_table[,(paste0("lower_",test))],ymax=cor_table[,(paste0("upper_",test))]),width=.1,color="blue3",alpha=.5) + 
+         geom_point(color="blue3")+
+         labs(title=paste("Student Correlations",test)) + 
+  geom_hline(yintercept = 0,color="grey3") +
+  ylab("Overall Driving Access Index") + 
+  xlab("Percent of Students in Block Group")
+  print(p)
+  print(paste(i,"working..."))
+}
 
 ```
 
