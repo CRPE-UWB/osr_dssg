@@ -79,13 +79,14 @@ minprice_reschoolprograms = min(reschool_summer_program$session_cost)
 maxprice_reschoolprograms = max(reschool_summer_program$session_cost)
 
 #Defining the variables to be used in the program search tab sidebar panel
-#Convert the cost column  to numeric
+#Convert the necessary columns  to numeric
 google_analytics$mincost = as.numeric(google_analytics$mincost)
 google_analytics$maxcost = as.numeric(google_analytics$maxcost)
 
-#Convert the age column  to numeric
 google_analytics$minage = as.numeric(google_analytics$minage)
 google_analytics$maxage = as.numeric(google_analytics$maxage)
+
+google_analytics$distance = as.numeric(google_analytics$distance)
 
 
 #Creating unique zipcodes for the third tab search data
@@ -103,6 +104,13 @@ neighborhoods_other = unique(all_neighbourhoods$nbhd_name)
 
 # Defining variables for choosing demographic information
 demographic_filters = c("Median Income", "Percent below poverty level")
+
+#Creating necessary summary tables to be used in the visualization tab in the search data tab
+search_sort_summary = google_analytics %>% select(sort, users) %>% filter(sort != '') %>% 
+  group_by(sort) %>% summarize(total_searches = sum(users))
+
+search_distance_summary = google_analytics %>% select(distance, users) %>% filter(distance != '') %>% 
+  group_by(distance) %>% summarize(total_searches = sum(users)) %>% arrange(distance) %>% filter(distance <= 100)
 
 ############################## Racial distributions variables ####################################
 

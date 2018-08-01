@@ -160,28 +160,16 @@ shinyUI(
                       
                       fluidPage(sidebarLayout(
                         
-                        sidebarPanel(fluidRow(
-                          # column(6,selectInput("minprice_search", "Select Min Price:", 
-                          #             choices = c("No min price selected", 
-                          #                         sort(unique(google_analytics$mincost)))
-                          # )),
-                          # column(6,selectInput("maxprice_search", "Select Max Price:", 
-                          #             choices = c("No max price selected", 
-                          #                         sort(unique(google_analytics$maxcost)))
-                          # )),
-                          # br(),
+                      
+                        
+                        sidebarPanel(
                           
+                          conditionalPanel(condition = "input.conditionedPanels == 'Summary'",
+                          
+                          fluidRow(
+                        
                           column(6, textInput("minprice_search", "Enter Min Cost:","")),
                           column(6, textInput("maxprice_search", "Enter Max Cost:","")),
-                          
-                          # column(6,selectInput("minage_search", "Select Min Age:", 
-                          #                      choices = c("No min age selected", 
-                          #                                  sort(unique(google_analytics$minage)))
-                          # )),
-                          # column(6,selectInput("maxage_search", "Select Max Age:", 
-                          #                      choices = c("No max age selected", 
-                          #                                  sort(unique(google_analytics$maxage)))
-                          # )),
                           br(),
                           column(6, textInput("minage_search", "Enter Min Age:","")),
                           column(6, textInput("maxage_search", "Enter Max Age:","")),
@@ -206,6 +194,11 @@ shinyUI(
                                        selected = "None Selected"
                                      
                           ))),
+                          
+                          conditionalPanel(condition = "input.conditionedPanels == 'Visualization'",
+                                           selectInput("specific_search_questions", "Select a question:", 
+                                                       choices = c("What is the most preferred choice during a search")))
+                          ),
                         
                         mainPanel(
                           tabsetPanel(type = "tab",
@@ -224,8 +217,8 @@ shinyUI(
                                                  DT::dataTableOutput("datatable_search")
                                                )
                                       ),
-                                      tabPanel("Visualization")
-                          )
+                                      tabPanel("Visualization"), id = "conditionedPanels"
+                          ) 
                         )
                       ))
                       
