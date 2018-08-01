@@ -211,7 +211,8 @@ shinyUI(
                           
                           conditionalPanel(condition = "input.conditionedPanels == 'Visualization'",
                                            selectInput("specific_search_questions", "Select a question:", 
-                                                       choices = c("What is the most preferred choice during a search")))
+                                                       choices = c("What is the most 'sorted by' variable during a search",
+                                                       "Analysing the 'distance' searched")))
                           ),
 
                         
@@ -233,7 +234,11 @@ shinyUI(
                                                )
                                       ),
 
-                                      tabPanel("Visualization"), id = "conditionedPanels"
+                                      tabPanel("Visualization",
+                                               br(),br(),br(),
+                                              div(plotOutput("search_sort_plot", height = "100%"), 
+                                                      align = "center")),
+                                      id = "conditionedPanels"
                           ) 
                         )#end of main panel
 

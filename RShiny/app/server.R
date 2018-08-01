@@ -8,6 +8,8 @@ library(DT)
 library(leaflet)
 library(sp)
 library(mapview)
+library(plotly)
+
 
 shinyServer(
   function(input, output) {
@@ -713,8 +715,38 @@ shinyServer(
     })
     
 
-    #Rendering 
+    #Rendering plots for visualization tab in the search data tab
+    #'Sort by' variable graph
+    output$search_sort_plot <- renderPlot({
+      
+      search_sort_summary %>%
+        plot_ly(labels = ~sort, values = ~total_searches) %>%
+        add_pie(hole = 0.6) %>%
+        layout(title = "Most 'sorted by' in the searches",  showlegend = T,
+               xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE),
+               yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE))
+      
+    })
     
+    #Distance graph
+    output$search_distance_plot <- renderPlot({
+      
+      packing <- circleProgressiveLayout(search_distance_summary$total_searches, sizetype='area')
+      search_distance_summary = cbind(search_distance_summary, packing)
+      search_distance_summary.gg <- circleLayoutVertices(packing, npoints=50)
+      q = ggplot() + 
+        geom_polygon_interactive(data = search_distance_summary.gg, aes(x, y, group = id, fill=id, 
+                                                                        tooltip = search_distance_summary$text[id], 
+                                                                        data_id = id), colour = "black", alpha = 0.6) +
+        scale_fill_viridis() +
+        geom_text(data = search_distance_summary, aes(x, y, label = distance), size=2, color="black") +
+        theme_void() + 
+        theme(legend.position="none", plot.margin=unit(c(0,0,0,0),"cm") ) + 
+        coord_equal()
+      
+      widg=ggiraph(ggobj = q, width_svg = 7, height_svg = 7)
+      return(widg)
+    })
     
 
     #############################
