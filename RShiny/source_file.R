@@ -86,9 +86,9 @@ maxprice_reschoolprograms = max(reschool_summer_program$session_cost)
 google_analytics$mincost = as.numeric(google_analytics$mincost)
 google_analytics$maxcost = as.numeric(google_analytics$maxcost)
 
+#Convert columns  to numeric
 google_analytics$minage = as.numeric(google_analytics$minage)
 google_analytics$maxage = as.numeric(google_analytics$maxage)
-
 google_analytics$distance = as.numeric(google_analytics$distance)
 
 

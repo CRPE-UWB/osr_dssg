@@ -82,12 +82,12 @@ add_blank_map <- function(map) {
 # Function to add demographic info to a map
 add_colored_polygon_map <- function(map, spdf, pal_type, label_type, 
                                     column_name=NULL, legend_titles=NULL, legend_title=NULL, 
-                                    vals=NULL, labFormat = labelFormat()){
+                                    vals=NULL, labFormat = labelFormat(), my_weight=1){
   if (is.null(vals)) {vals <- spdf@data[,column_name]}
   if (is.null(legend_title)) {legend_title <- legend_titles[column_name]}
   addPolygons(map, data = spdf,
               fillColor = ~pal_type(vals),
-              weight = 1,
+              weight = my_weight,
               opacity = 1,
               color = "#777",
               dashArray = "",
@@ -146,7 +146,7 @@ add_circle_markers <- function(map, data, legend_title, color_code, popup_text, 
   }
 }
 
-# Function to draw an outline of a neighborhood:
+# Function to draw an outline of a SINGLE neighborhood:
 add_neighborhood_outline <- function(map, neighborhood_name) {
   addPolygons(map, data = subset(shape_census, NBHD_NA==neighborhood_name),
               fill = FALSE, weight=5, color = "#777", opacity = 1)
@@ -168,7 +168,7 @@ make_demographic_map <- function(pal, col_name, labFormat) {
 
 # Function to subset all the resource datasets based on the neighborhood selected
 subset_for_neighborhoods <- function(df, neighborhoods_list){
-    if(neighborhoods_list != "No neighborhood selected" ) {
+    if( ! ("All neighborhoods" %in% neighborhoods_list| is.null(neighborhoods_list)) ) {
       a <- df[which(df[, "nbhd_name"] %in% neighborhoods_list),]
     }
     else {

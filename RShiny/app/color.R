@@ -1,5 +1,7 @@
 # Color settings for the Shiny app
 
+library(RColorBrewer)
+
 myyellow <- "#FFFF66"
 mygreen <- brewer.pal(3, "Greens")[2]
 myblue <- brewer.pal(3, "Blues")[2]
