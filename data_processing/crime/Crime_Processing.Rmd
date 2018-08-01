@@ -22,38 +22,6 @@ denver_crimes$n <- 1
 denver_crimes_agg <- aggregate(n ~ category+lat+long,data=denver_crimes,FUN=sum)
 ```
 
-###Hard Code Fix coords to block groups function
-```{r}
-coords_to_blockgroups <- function(df) {
-  # get block group polygons
-  #setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-  mypath <- getwd()
-  dataPath <- file.path(dirname(mypath), "osr_dssg2018-3", "data", "census_clean", "shape_census")
-  blockGroups <- readOGR(dsn = "/Users/Andrew/osr_dssg2018-3/data/census_clean/shape_census") #can't seem to read the path thing 
-  
-  # get the lat / long coordinates to code as spatial points
-  coords <- data.frame(df$long, df$lat)
-  colnames(coords) <- c("long", "lat")
-  spdf <- SpatialPoints(coords, proj4string = CRS(proj4string(blockGroups)))
-  
-  # figure out which block group each lat / long is in
-  nests <- gIntersects(spdf, blockGroups, byid = TRUE)  # rows = bgroups, cols = df entries
-  true_idxs <- which(nests==TRUE, arr.ind=TRUE)  # col1 = bgroup idx, col2 = df entries
-  bgroup_idxs  <- true_idxs[,1]
-  df_idxs <- true_idxs[,2]
-  
-  # make a dataframe with the coordinates and corresponding block groups
-  df_bgroups <- data.frame(coords[df_idxs,], blockGroups$Id2[bgroup_idxs])
-  colnames(df_bgroups) <- c("long", "lat", "bgroup_id2")
-  
-  # strip leading 0's in block groups numbers
-  df_bgroups$bgroup_id2 <- as.character(as.numeric(as.character(df_bgroups$bgroup_id2))) 
-  
-  df_out <- merge(df, df_bgroups)
-  return(df_out)
-}
-```
-
 ###Lat Long to blockgroups
 ```{r}
 library(rgeos)
@@ -115,7 +83,6 @@ B.) Hate crimes is MUCH broader, 8.686813 years worth of data, based on the rang
 
 So here we divide by population, multiply by 100 to get the per 100 rate, then divide by the n of years (including the aprox n of months)
 
-Note: This returns one NA, because there is a block group with population. 
 ```{r}
 crime_rates <- total_crimes
 crime_rates[,2:15] <- ((total_crimes[,2:15]/total_crimes$ttl_population)*100)/5.58333
@@ -124,15 +91,94 @@ crime_rates <- subset(crime_rates,crime_rates$ttl_population!=0)
 ```
 
 ###Adding Aggregate Crimes
-Violent Crime = Aggregate of murder, robbery, aggrvated assault rates (verify FBI incident status, I think there's some sexual assualt esq charge that goes into this?)
-Property Crime = Aggregte of robbery, burglary, theft from motor vehicle (car prowling), larceny, (again, verify FBI)
+Violent Crime = murder, nonnegligent manslaughter, robbery, aggravated assault, burglary, larceny-theft, and motor vehicle theft.
+
+Note that sexual assualt charges are not listed in the Denver Open Data, potentially out of concern for the victim. Therefore our violent crime defintion is one category short of the FBI definition, but a very close approximation nonetheless. 
+
+Property Crime = burglary, larceny-theft, motor vehcile theft, arson
+
+Identical to FBI definition. 
+
+Because there's rollover here there's more or less no difference in areas with high violent & high property crime. 
 ```{r}
-crime_rates$violent_crime <- rowSums(crime_rates[,c("n_crimes.murder","n_crimes.robbery","n_crimes.aggravated-assault")])
-crime_rates$property_crime <- rowSums(crime_rates[,c("n_crimes.robbery","n_crimes.burglary","n_crimes.theft-from-motor-vehicle","n_crimes.larceny")])
+crime_rates$violent_crime <- rowSums(crime_rates[,c("n_crimes.murder","n_crimes.robbery","n_crimes.aggravated-assault","n_crimes.burglary","n_crimes.larceny","n_crimes.auto-theft","n_crimes.theft-from-motor-vehicle","n_crimes.auto-theft")])
+crime_rates$property_crime <- rowSums(crime_rates[,c("n_crimes.burglary","n_crimes.theft-from-motor-vehicle","n_crimes.larceny","n_crimes.auto-theft","n_crimes.arson")])
+```
+
+###Block Groups to Neighborhoods
+Small problem with block group level population crime rates. There are few, but noticable block groups with more crimes than people, which leads to a pretty weird interpretation. This problem persisits with neighborhoods, but hey, what can you do. 
+```{r}
+#source("open_data_functions.R")
+#source("block_groups_to_nbhds.R")
+
+#Prep data for neighborhoods
+colnames(dfFinal)[colnames(dfFinal)=="bgroup_id2"] <- "Id2"
+denver_crimes_nbhd <- aggregate(n ~ category+lat+long,data=denver_crimes,FUN=sum)
+denver_crimes_nbhd <- coords_to_blockgroups(denver_crimes_nbhd)
+colnames(denver_crimes_nbhd)[colnames(denver_crimes_nbhd)=="bgroup_id2"] <- "Id2"
+
+#merge and reshape crime neigbhorhood level
+crime_rates_nbhd <- merge(denver_crimes_nbhd,dfFinal,by="Id2") 
+crime_rates_nbhd <- aggregate(n ~ category+nbhd_id+nbhd_name,data=crime_rates_nbhd,FUN=sum)
+crime_rates_nbhd <- reshape(crime_rates_nbhd, idvar=c("nbhd_id","nbhd_name"),timevar="category",direction="wide")
+crime_rates_nbhd[is.na(crime_rates_nbhd)] <- 0
+
+#get neighborhood population
+nbhd_pop <- merge(acs_demographics,dfFinal,by="Id2")
+nbhd_pop <- aggregate(ttl_population ~ nbhd_id+nbhd_name,data=nbhd_pop,FUN=sum)
+
+#make aggregate crimes
+crime_rates_nbhd$violent_crimes <- rowSums(crime_rates_nbhd[,c("n.murder","n.robbery","n.aggravated-assault","n.burglary","n.larceny","n.auto-theft","n.theft-from-motor-vehicle","n.auto-theft")])
+crime_rates_nbhd$property_crimes <- rowSums(crime_rates_nbhd[,c("n.burglary","n.theft-from-motor-vehicle","n.larceny","n.auto-theft","n.arson")])
+
+#population rates per 100 rates average annual rates
+crime_rates_nbhd <- merge(crime_rates_nbhd,nbhd_pop,by=c("nbhd_name","nbhd_id"))
+crime_rates_nbhd[,3:(length(crime_rates_nbhd)-1)] <- ((crime_rates_nbhd[,3:(length(crime_rates_nbhd)-1)] / crime_rates_nbhd$ttl_population)*100)/5.5833
 ```
 
 
-###Validation visualizations
+###Push to RDS
+```{r}
+require("RPostgreSQL")
+
+# loads the PostgreSQL driver
+drv <- dbDriver("PostgreSQL")
+
+# creates a connection to the postgres database
+# note that "con" will be used later in each connection to the database
+con <- dbConnect(drv, dbname = "dssg2018uw",
+                 host = "localhost", port = 9000,
+                 user = user, password = password)
+
+# specify data and schema and table names
+data <- crime_rates  # must be already loaded in your environment
+schemaName <- "clean"
+tableName <- "crime_rates"
+
+dbWriteTable(con,
+             c(schemaName, tableName),
+             value = data,
+             row.names = FALSE,
+             overwrite = TRUE  # overwrite an existing table
+)
+
+data <- crime_rates_nbhd
+schemaName <- "clean"
+tableName <- "crime_rates_nbhd"
+
+dbWriteTable(con,
+             c(schemaName, tableName),
+             value = data,
+             row.names = FALSE,
+             overwrite = TRUE  # overwrite an existing table
+)
+
+# when you're done, close the connection and unload the driver 
+dbDisconnect(con) 
+dbUnloadDriver(drv)
+```
+
+###Block Group Validation visualizations
 ```{r}
 library(leaflet)
 library(RColorBrewer)
@@ -146,7 +192,7 @@ range <- range(crime_rates$total_crime)
 pal <- colorNumeric(palette = "Reds",domain = range)
 
 #Plot Overall
-Ai_crime_overall <- leaflet(census_blocks) %>%
+bg_crime_overall <- leaflet(census_blocks) %>%
   addTiles() %>%
   addPolygons(color = "RdYlBu",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.9,
               fillColor = ~pal(crime_rates$total_crime),
@@ -159,7 +205,7 @@ Ai_crime_overall <- leaflet(census_blocks) %>%
 range <- range(crime_rates$violent_crime)
 pal <- colorNumeric(palette = "Reds",domain = range)
 
-Ai_crime_violent <- leaflet(census_blocks) %>%
+bg_crime_violent <- leaflet(census_blocks) %>%
   addTiles() %>%
   addPolygons(color = "RdYlBu",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.9,
               fillColor = ~pal(crime_rates$violent_crime),
@@ -172,7 +218,7 @@ Ai_crime_violent <- leaflet(census_blocks) %>%
 range <- range(crime_rates$property_crime)
 pal <- colorNumeric(palette = "Reds",domain = range)
 
-Ai_crime_property <- leaflet(census_blocks) %>%
+bg_crime_property <- leaflet(census_blocks) %>%
   addTiles() %>%
   addPolygons(color = "RdYlBu",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.9,
               fillColor = ~pal(crime_rates$property_crime),
@@ -181,5 +227,38 @@ Ai_crime_property <- leaflet(census_blocks) %>%
   addLegend(pal = pal, values = ~crime_rates$property_crime, opacity = 1, title = "Property Crime Rate Per 100 Residents") %>%
   setView(lat=39.7,lng=-104.9,zoom=11.5)
 
+```
+
+###Neighborhood Validation Visuals
+There's still, downtown neighborhoods in particular, where n of crimes > n of people 
+```{r}
+crime_rates_nbhd <- crime_rates_nbhd[order(crime_rates_nbhd$nbhd_id),]
+nbhds <- nbhds[order(nbhds$NBHD_ID),]
+
+#Violent
+range <- range(crime_rates_nbhd$violent_crime)
+pal <- colorNumeric(palette = "Reds",domain = range)
+
+nbhd_crime_violent <- leaflet(nbhds) %>%
+  addTiles() %>%
+  addPolygons(color = "White",weight=5,smoothFactor = 0.5,opacity = 1,fillOpacity = 0.9,
+              fillColor = ~pal(crime_rates_nbhd$violent_crime),
+              popup=paste(round(crime_rates_nbhd$violent_crime,digits=0),crime_rates_nbhd$nbhd_name),
+              highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
+  addLegend(pal = pal, values = ~crime_rates_nbhd$violent_crime, opacity = 1, title = "Violent Crime Rate Per 100 Residents") %>%
+  setView(lat=39.7,lng=-104.9,zoom=11.5)
+
+#property
+range <- range(crime_rates_nbhd$property_crimes)
+pal <- colorNumeric(palette = "Reds",domain = range)
+
+nbhd_crime_property <- leaflet(nbhds) %>%
+  addTiles() %>%
+  addPolygons(color = "White",weight=5,smoothFactor = 0.5,opacity = 1,fillOpacity = 0.9,
+              fillColor = ~pal(crime_rates_nbhd$property_crimes),
+              popup=paste(round(crime_rates_nbhd$property_crimes,digits=0),crime_rates_nbhd$nbhd_name),
+              highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
+  addLegend(pal = pal, values = ~crime_rates_nbhd$property_crimes, opacity = 1, title = "Property Crime Rate Per 100 Residents") %>%
+  setView(lat=39.7,lng=-104.9,zoom=11.5)
 ```
 
