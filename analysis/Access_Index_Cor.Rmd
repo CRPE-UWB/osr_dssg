@@ -201,6 +201,10 @@ dps_agg$students <- dps_agg$male+dps_agg$female
 
 #merge in AI scores
 dps_agg <- merge(dps_agg,driving_index)
+
+#merge in crime
+crime <- crime_rates[,c("Id2","total_crime","violent_crime","property_crime")]
+dps_agg <- merge(dps_agg,crime)
 ```
 
 ###Driving Correlations with DPS demographics
@@ -208,8 +212,8 @@ dps_agg <- merge(dps_agg,driving_index)
 ####Loop for cor table, driving
 We wanna look at everything right? well there's a lot of things to look at, so here we return a dataframe of correlations for all ranges, and free vs. low and high cost. For driving.
 ```{r}
-cor_tests <- colnames(dps_agg)[2:21] #prepare dataframe
-index_tests <- colnames(dps_agg)[23:length(colnames(dps_agg))] #prepare things we want to loop
+cor_tests <- colnames(dps_agg)[c(2:21,36:38)] #prepare dataframe
+index_tests <- colnames(dps_agg)[23:35] #prepare things we want to loop
 cor_table <- data.frame(cor_tests)
 
 for (i in 1:length(index_tests)){ #here we loop the aggregation of students we want to test for correlations, store p_values and results in a dataframe. 
@@ -283,12 +287,12 @@ for (i in 1:length(index_tests)){
   geom_hline(yintercept = 0,color="grey3") +
   ylab("Overall Driving Access Index") + 
   xlab("Percent of Students in Block Group")
+  plot_list[[i]] <- p
   print(p)
   print(paste(i,"working..."))
 }
 
 ```
-
 
 
 ###Geospatial Regression To Return Effect of race on access?

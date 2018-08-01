@@ -16,7 +16,7 @@ drv <- dbDriver("PostgreSQL")
 
 # load credentials for the connection: dbname, host, port, user, password
 # looks for cred.txt in parent dir to cloned github repo
-source('cred.txt')
+source('../../cred.txt')
 
 # create a connection to the postgres database
 # note that "con" will be used later in each connection to the database
@@ -54,8 +54,6 @@ dbUnloadDriver(drv)
 shape_census_block <- readOGR(dsn = "../data/census_block_groups", layer = "shape_census")
 shape_census_block@data$Id2 <- as.numeric(as.character(shape_census_block@data$Id2))
 shape_census_block <- shape_census_block[order(shape_census_block@data$Id2),]
-# access_driving <- geo_join(shape_census_block,driving_index, "Id2", "Id2", how="inner")
-# access_transit <- geo_join(shape_census_block,transit_index, "Id2", "Id2", how="inner")
 
 ########################
 # Neighborhood stuff
@@ -74,7 +72,8 @@ shape_census <- geo_join(shape_census, aggregate_dps_student_nbhds,
 
 # Creating filter variables: distinct zipcode, minimum cost, maximum cost, program type
 # (for the ReSchool tab sidebar panel)
-neighborhoods_reshoolprograms = unique(reschool_summer_program$nbhd_name)
+neighborhoods_list <- sort(unique(as.character(shape_census$NBHD_NA)))
+#neighborhoods_reshoolprograms = unique(reschool_summer_program$nbhd_name)
 minprice_reschoolprograms = min(reschool_summer_program$session_cost)
 maxprice_reschoolprograms = max(reschool_summer_program$session_cost)
 

@@ -27,7 +27,8 @@ shinyServer(
     })
     
     neighborhood_data <- reactive({
-      return(subset_for_neighborhoods(program_cost_data(),input$neighborhoods))
+      return(program_cost_data())
+      #return(subset_for_neighborhoods(program_cost_data(),input$neighborhoods))
     })
     
     ####### RESCHOOL PROGRAMS DATA TAB #######
@@ -104,7 +105,7 @@ shinyServer(
                                            n = length(cuts)
                                            paste0(round(cuts[-n]), " &ndash; ", round(cuts[-1]))
                                          }
-                                           ) 
+                                        ) 
       }
       else if(input$demographics == "All races") {
         labels_race_breakdown <- shape_census@data$racial_dist_html
@@ -146,34 +147,42 @@ shinyServer(
     
     ####### MAKE THE RESCHOOL PROGRAMS SUMMARY ANALYSIS #######
     
-    # subset to only this neighborhood
-    # CAN PROBABLY REMOVE THIS FUNCTION AND REPLACE WITH THE ONE JOE WROTE
-    subset_reschool_for_neighborhoods <- function(df){
-      b <- reactive({
-        a <- df[which(df[, "nbhd_name"] == input$neighborhoods), ]
-        return(a) 
-      })
-      return(b)
-    }
+    # for subsetting to only the given neighborhood
+    summary_data <- reactive({
+      if (input$neighborhoods=="No neighborhood selected") {
+        return(nbhd_program_summary[which(nbhd_program_summary[, "nbhd_name"] == input$neighborhoods),])
+      }
+      else {
+        return(subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods))
+      }
+    })
     
     output$summary_title <- renderUI({
-      summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
+      #summary_data <- subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods)
       sprintf('<h3> "%s" Summary </h3>',
-              summary_data[, "nbhd_name"]
+              summary_data()[, "nbhd_name"]
       ) %>% lapply(htmltools::HTML)
-      
     })
     
     output$program_type_summary <- renderPlot(
       {
-        summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
-      
-        data <- unlist(summary_data[,c(3:9, 12:13)])
-        names(data) <- c("academic", "arts", "cooking", "dance", "drama",
-                         "music", "nature", "sports", "stem")
+        #summary_data <- subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods)
+        
+        data_names <- c("academic", "arts", "cooking", "dance", "drama",
+                        "music", "nature", "sports", "stem")
+        relevant_colnames <- c("total_academic", "total_arts", "total_cooking", "total_dance", "total_drama",
+                               "total_music", "total_nature", "total_sports", "total_stem")
+        
+        if (nrow(summary_data())==0) {
+          dat <- rep(0,9)
+        } else {
+          dat <- unlist(summary_data()[,relevant_colnames])
+        }
+        
+        names(dat) <- relevant_colnames
         
         par(mar = c(3.1, 5.1, 2.1, 2.1))  # make left margin larger to fit names(data)
-        barplot(rev(data),  # reverse so that reads top - bottom alphabetically
+        barplot(rev(dat),  # reverse so that reads top - bottom alphabetically
                 main = "Program Types",
                 col = c(mygreen2, mypurple3, myblue2, 
                         mygreen, myblue, mygreen3,
@@ -187,17 +196,20 @@ shinyServer(
     )
     
     output$program_special_cats <- renderUI({
-      summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
-      
-      sprintf("Programs with Scholarships: %i <br/> Special Needs Programs: %i <br/><br/>",
-              summary_data[, "total_scholarships"],
-              summary_data[, "total_special_needs"]
-      ) %>% lapply(htmltools::HTML)
+      #summary_data <- subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods)
+      if (nrow(summary_data())==0) {
+        sprintf("No programs in this neighborhood.") %>% lapply(htmltools::HTML)
+      } else {
+        sprintf("Programs with Scholarships: %i <br/> Special Needs Programs: %i <br/><br/>",
+                summary_data()[, "total_scholarships"],
+                summary_data()[, "total_special_needs"]
+        ) %>% lapply(htmltools::HTML)
+      }
     })
     
     output$program_cost_summary <- renderPlot(
       {
-        summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
+        #summary_data <- subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods)
         # dummy plot just to check
         par(mar = c(3.1, 2.1, 2.1, 2.1))  # make margins same as other plot
         barplot(1,
@@ -208,9 +220,9 @@ shinyServer(
     )
     
     output$nbhd_summary <- renderDataTable({
-      summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
+      #summary_data <- subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods)
       
-      datatable(summary_data, 
+      datatable(summary_data(), 
                     options = list(pageLength = 1, 
                                    scrollX = TRUE,
                                    searching = FALSE,
@@ -749,7 +761,8 @@ shinyServer(
     })
 
     neighborhood_data_access <- reactive({
-      return(subset_for_neighborhoods(program_cost_data_access(),input$neighborhoods_access))
+      return(program_cost_data_access())
+      #return(subset_for_neighborhoods(program_cost_data_access(),input$neighborhoods_access))
     })
     
     # map it up

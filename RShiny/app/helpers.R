@@ -148,25 +148,10 @@ add_circle_markers <- function(map, data, legend_title, color_code, popup_text, 
 
 # Function to draw an outline of a neighborhood:
 add_neighborhood_outline <- function(map, neighborhood_name) {
+
   addPolygons(map, data = subset(shape_census, nbhd_name==neighborhood_name),
               fill = FALSE, weight=1, color = "#777", opacity = 1)
 }
-
-# # Function to draw the base map + demographics + program markers
-# ### DEPRECATED ###
-# make_reschool_map <- function(df, popup_text, pal, col_name) {
-#   if (is.null(col_name)) {
-#     make_base_map() %>%
-#       add_blank_map() %>%
-#       add_circle_markers(df, "program", myyellow, popup_text)
-#   }
-#   else{
-#     make_base_map() %>%
-#       make_demographic_map(pal, col_name)
-#       #add_colored_polygon_map(shape_census, pal, popup_text, col_name, legend_titles_demographic) %>%
-#       #add_circle_markers(df, "program", myyellow, popup_text)
-#   }
-# }
 
 # Function to draw the base OTHER RESOURCES map + demographics
 make_demographic_map <- function(pal, col_name, labFormat) {
