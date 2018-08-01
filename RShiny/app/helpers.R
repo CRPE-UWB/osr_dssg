@@ -57,12 +57,12 @@ make_base_map <- function() {
 
 add_blank_map <- function(map) {
   addPolygons(map, data = shape_census,
-              color = "black",
+              color = "#777",
               weight = 1, 
               smoothFactor = 0.5,
               opacity = 1.0,
               fillColor = "#999",
-              fillOpacity = 0.7,
+              fillOpacity = 0.3,
               label = nbhd_labels,
               labelOptions = labelOptions(
                 style = list("font-weight" = "normal", 
@@ -82,16 +82,16 @@ add_blank_map <- function(map) {
 # Function to add demographic info to a map
 add_colored_polygon_map <- function(map, spdf, pal_type, label_type, 
                                     column_name=NULL, legend_titles=NULL, legend_title=NULL, 
-                                    vals=NULL){
+                                    vals=NULL, labFormat = labelFormat()){
   if (is.null(vals)) {vals <- spdf@data[,column_name]}
   if (is.null(legend_title)) {legend_title <- legend_titles[column_name]}
   addPolygons(map, data = spdf,
               fillColor = ~pal_type(vals),
-              weight = 2,
+              weight = 1,
               opacity = 1,
               color = "#777",
               dashArray = "",
-              fillOpacity = 0.5,
+              fillOpacity = 0.4,
               highlight = highlightOptions(
                 weight = 5,
                 color = "#666",
@@ -107,22 +107,23 @@ add_colored_polygon_map <- function(map, spdf, pal_type, label_type,
   ) %>% 
     addLegend(pal = pal_type,
               values = vals,
-              opacity = 0.7,
+              opacity = 0.45,
               title = as.character(legend_title),
+              labFormat = labFormat,
               position = "bottomright"
     )
 }
 
 # Function to add circle markers to the map
-add_circle_markers <- function(map, data, legend_title, color_code, popup_text, opacity = 0.5){
+add_circle_markers <- function(map, data, legend_title, color_code, popup_text, opacity = 0.5, weight = 1.0){
   if (nrow(data)>0){
     addCircleMarkers(map, 
                      lng = jitter(data$long, factor = 1, amount = 0.0005), 
                      lat = jitter(data$lat, factor = 1, amount = 0.0005), 
                      radius = 4,
                      stroke = TRUE,
-                     weight = 0.5,
-                     color = 'gray',
+                     weight = weight,
+                     color = "black",
                      fillColor = color_code,
                      fillOpacity = opacity,
                      label = popup_text,
@@ -145,30 +146,21 @@ add_circle_markers <- function(map, data, legend_title, color_code, popup_text, 
   }
 }
 
-# Function to draw the base map + demographics + program markers
-### DEPRECATED ###
-make_reschool_map <- function(df, popup_text, pal, col_name) {
-  if (is.null(col_name)) {
-    make_base_map() %>%
-      add_blank_map() %>%
-      add_circle_markers(df, "program", myyellow, popup_text)
-  }
-  else{
-    make_base_map() %>%
-      make_demographic_map(pal, col_name)
-      #add_colored_polygon_map(shape_census, pal, popup_text, col_name, legend_titles_demographic) %>%
-      #add_circle_markers(df, "program", myyellow, popup_text)
-  }
+# Function to draw an outline of a neighborhood:
+add_neighborhood_outline <- function(map, neighborhood_name) {
+  addPolygons(map, data = subset(shape_census, NBHD_NA==neighborhood_name),
+              fill = FALSE, weight=5, color = "#777", opacity = 1)
 }
 
 # Function to draw the base OTHER RESOURCES map + demographics
-make_demographic_map <- function(pal, col_name) {
+make_demographic_map <- function(pal, col_name, labFormat) {
   if (is.null(col_name)) {
     make_base_map() %>% add_blank_map()
   }
   else{
     make_base_map() %>%
-      add_colored_polygon_map(shape_census, pal, nbhd_labels, col_name, legend_titles_demographic)
+      add_colored_polygon_map(shape_census, pal, nbhd_labels, col_name, 
+                              legend_titles_demographic, labFormat = labFormat)
   }
 }
 
@@ -177,7 +169,7 @@ make_demographic_map <- function(pal, col_name) {
 # Function to subset all the resource datasets based on the neighborhood selected
 subset_for_neighborhoods <- function(df, neighborhoods_list){
     if(neighborhoods_list != "No neighborhood selected" ) {
-      a <- df[which(df[, "nbhd_name"] == neighborhoods_list),]
+      a <- df[which(df[, "nbhd_name"] %in% neighborhoods_list),]
     }
     else {
       a <- df

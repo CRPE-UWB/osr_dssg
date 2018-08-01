@@ -54,8 +54,6 @@ dbUnloadDriver(drv)
 shape_census_block <- readOGR(dsn = "../data/census_block_groups", layer = "shape_census")
 shape_census_block@data$Id2 <- as.numeric(as.character(shape_census_block@data$Id2))
 shape_census_block <- shape_census_block[order(shape_census_block@data$Id2),]
-# access_driving <- geo_join(shape_census_block,driving_index, "Id2", "Id2", how="inner")
-# access_transit <- geo_join(shape_census_block,transit_index, "Id2", "Id2", how="inner")
 
 ########################
 # Neighborhood stuff
@@ -74,7 +72,8 @@ shape_census <- geo_join(shape_census, aggregate_dps_student_nbhds,
 
 # Creating filter variables: distinct zipcode, minimum cost, maximum cost, program type
 # (for the ReSchool tab sidebar panel)
-neighborhoods_reshoolprograms = unique(reschool_summer_program$nbhd_name)
+neighborhoods_list <- sort(unique(as.character(shape_census$NBHD_NA)))
+#neighborhoods_reshoolprograms = unique(reschool_summer_program$nbhd_name)
 minprice_reschoolprograms = min(reschool_summer_program$session_cost)
 maxprice_reschoolprograms = max(reschool_summer_program$session_cost)
 
@@ -114,32 +113,6 @@ search_distance_summary = google_analytics %>% select(distance, users) %>% filte
 
 ############################## Racial distributions variables ####################################
 
-####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
-
-# Color settings
-myyellow <- "#FFFF66"
-mygreen <- brewer.pal(3, "Greens")[2]
-myblue <- brewer.pal(3, "Blues")[2]
-mypurple <- brewer.pal(3, "Purples")[2]
-
-mygreen2 <- brewer.pal(3, "Greens")[1]
-myblue2 <- brewer.pal(3, "Blues")[1]
-mypurple2 <- brewer.pal(3, "Purples")[1]
-
-mygreen3 <- brewer.pal(3, "Greens")[3]
-myblue3 <- brewer.pal(3, "Blues")[3]
-mypurple3 <- brewer.pal(3, "Purples")[3]
-
-other_resources_colors <- brewer.pal(6, "Blues")
-parks_color <- mygreen
-libraries_color <- myblue
-rec_centers_color <- myblue3
-playgrounds_color <- mypurple
-museums_color <- mypurple3
-fields_color <- mygreen3
-
-
-
 # Creating majority race variables for each neighborhood
 # (could probably do this ahead of time)
 shape_census@data$majority_race <- max.col(as.matrix(
@@ -160,9 +133,9 @@ shape_census@data$racial_dist_html <- mapply(
   # color palette generated from brewer.pal()
   function(nbhd, pct_hisp, pct_white, pct_black, pct_native, pct_asian){
     
-    black_color <- myblue
-    hispanic_color <- mygreen
-    white_color <- mypurple
+    black_color <- colors_all_races[1]
+    hispanic_color <- colors_all_races[2]
+    white_color <- colors_all_races[3]
     other_color <- "gray"
     
     sprintf(
@@ -201,15 +174,15 @@ shape_census@data$racial_dist_html <- mapply(
   
 )
 
-
 # Legend titles for demographic maps
-legend_titles_demographic <- list(MED_HH_ = "Median HH Income ($)",
-                                  PCT_LES = "Less Than <br> HS Degree (%)",
-                                  PCT_COL = "College <br> Graduates (%)",
+legend_titles_demographic <- list(MED_HH_ = "Median HH Income",
+                                  PCT_LES = "Less Than <br> HS Degree",
+                                  PCT_COL = "College <br> Graduates",
                                   PCT_HIS = "% Hispanic",
                                   PCT_BLA = "% Black",
                                   PCT_WHI = "% White",
-                                  PCT_NON = "Lang. Besides <br>English (%)",
+                                  PCT_NON = "Lang. Besides <br>English",
+                                  AGE_5_T = "5-17 Year Olds (#)",
                                   majority_race = "Most Common<br>Race/Ethnicity"
 )
 
@@ -237,12 +210,13 @@ pal_income <- colorBin("Greys", domain = shape_census@data$MED_HH_, bins = bins_
 pal_edu <- colorBin("Greys", domain = shape_census@data$PCT_LES, bins = 5)
 pal_edu2 <- colorBin("Greys", domain = shape_census@data$PCT_COL, bins = 5)
 # bins_language <- c(0, 15, 30, 45, 60, 75)
-pal_language <- colorBin("Greys", domain = shape_census@data$PCT_NON, bins = 5)
+pal_language <- colorBin("Greys", domain = shape_census@data$PCT_NON, bins = 4)
+pal_age <- colorQuantile("Greys", domain = shape_census@data$AGE_5_T, n = 5)
 
 # colorful ones for racial demographics
 pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS, bins = 5)
 pal_black <- colorBin("Blues", domain = shape_census@data$PCT_BLA, bins = 5)
 pal_white <- colorBin("Purples", domain = shape_census@data$PCT_WHI, bins = 5)
 
-pal_all_races <- colorFactor(c(myblue, mygreen, mypurple), 
+pal_all_races <- colorFactor(colors_all_races, 
                              domain = shape_census@data$majority_race)

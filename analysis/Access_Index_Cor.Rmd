@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-##Analysis Notebook
+##Intro
 This is notebook for calculations for the analysis in the report. In theory, you should just be able to run these code chunks and return the correlations requested per whatever specific access index we want. 
 
 ###RDS Pull
@@ -29,8 +29,11 @@ con <- dbConnect(drv, dbname = "dssg2018uw",
                  user = user, password = password) #local source credentials
 
 #get reschool_programs
-#reschool_programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs")
+reschool_programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs")
 acs_demographics <- dbGetQuery(con, "select * from clean.acs_demographics")
+dps_demographics <- dbGetQuery(con, "select * from clean.dps_students")
+dps_block_locations <- dbGetQuery(con, "select * from clean.dps_block_locations")
+
 
 #disconnect
 dbDisconnect(con) 
@@ -39,59 +42,258 @@ dbUnloadDriver(drv)
 
 ###Census Merge
 ```{r}
+#pre acs for merge
 acs_demographics$id2 <- as.numeric(acs_demographics$id2)
 acs_demographics <- acs_demographics[order(acs_demographics$id2),]
-
-#order access index dataframe by Id2 and extract Ai scores
-summary_index_user <- summary_index_user[order(summary_index_user$Id2),]
-AI <- summary_index_user$AccessIndex
+colnames(acs_demographics)[colnames(acs_demographics)=="id2"] <- "Id2"
 
 #merge access index with census block data
-acs_AI <- cbind(acs_demographics,AI)
-colnames(acs_AI)
+driving_index <- driving_index[order(driving_index$Id2),]
+acs_driving_AI <- merge(driving_index,acs_demographics,by="Id2")
+
+#make an overall column
+acs_driving_AI$AI_overall <- rowMeans(acs_driving_AI[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
 ```
 
-###Census Race Correlations
+##Census Correlations
 ```{r}
 library(haven)
-acs_AI$pct_white <- acs_AI$pct_white/100
-acs_AI$pct_african <- acs_AI$pct_african/100
-acs_AI$pct_americanindian <- acs_AI$pct_americanindian/100
-acs_AI$pct_asian <- acs_AI$pct_asian/100
-acs_AI$pct_hispanic <- acs_AI$pct_hispanic/100
-
 #Stat Sig
-white_cor <- cor.test(acs_AI$pct_white, acs_AI$AI, method=c("pearson"))
-black_cor <- cor.test(acs_AI$pct_african, acs_AI$AI, method=c("pearson"))
-hsp_cor <- cor.test(acs_AI$pct_hispanic, acs_AI$AI, method=c("pearson"))
+white_cor <- cor.test(acs_driving_AI$pct_white, acs_driving_AI$AI_overall, method=c("pearson"))
+black_cor <- cor.test(acs_driving_AI$pct_african, acs_driving_AI$AI_overall, method=c("pearson"))
+hsp_cor <- cor.test(acs_driving_AI$pct_hispanic, acs_driving_AI$AI_overall, method=c("pearson"))
 
 
 #Not Stat Sig
-asn_cor <- cor.test(acs_AI$pct_asian, acs_AI$AI, method=c("pearson"))
-AmI_cor <- cor.test(acs_AI$pct_americanindian, acs_AI$AI, method=c("pearson"))
-PcI_cor <- cor.test(acs_AI$pct_pacificislander,acs_AI$AI,method=c("pearson"))
+asn_cor <- cor.test(acs_driving_AI$pct_asian, acs_driving_AI$AI_overall, method=c("pearson"))
+AmI_cor <- cor.test(acs_driving_AI$pct_americanindian, acs_driving_AI$AI_overall, method=c("pearson"))
+PcI_cor <- cor.test(acs_driving_AI$pct_pacificislander,acs_driving_AI$AI_overall,method=c("pearson"))
 ```
 
 ###Income Correlations
 Add single mom & dad? / Single parent? 
+Consider some kind of transformation with median hh income so it's not $s? 
 ```{r}
-acs_AI$poverty_pct_hh <- acs_AI$poverty_pct_hh/100
-
 #sig
-median_income_cor <- cor.test(acs_AI$median_hh_income,acs_AI$AI,method=c("pearson"))
+median_income_cor <- cor.test(acs_driving_AI$median_hh_income,acs_driving_AI$AI_overall,method=c("pearson"))
 
 #not sig
-poverty_cor <- cor.test(acs_AI$poverty_pct_hh,acs_AI$AI,method=c("pearson"))
+poverty_cor <- cor.test(acs_driving_AI$poverty_pct_hh,acs_driving_AI$AI_overall,method=c("pearson"))
 ```
 
 ###Language Correlations
 ```{r}
 #make percent of ESLs
-acs_AI$pcnt_english <- acs_AI$lng_english/acs_AI$ttpop_18plus_lng
-acs_AI$pcnt_ESL <- 1-acs_AI$pcnt_english
+acs_driving_AI$pcnt_english <- acs_driving_AI$lng_english/acs_driving_AI$ttpop_18plus_lng
+acs_driving_AI$pcnt_ESL <- 1-acs_driving_AI$pcnt_english
 
-ESL_cor <- cor.test(acs_AI$pcnt_ESL,acs_AI$AI,methods=c("pearson"))
+ESL_cor <- cor.test(acs_driving_AI$pcnt_ESL,acs_driving_AI$AI_overall,methods=c("pearson"))
 ```
+
+##DPS demographics
+
+###Merging block groups to DPS demographic data
+```{r}
+dps_demographics <- subset(dps_demographics,is.na(dps_demographics$block)==FALSE)
+dps_demographics <- merge(dps_demographics,dps_block_locations,by="block")
+dps_demographics$Id2 <- dps_demographics$block_group
+#dps_demographics$Id2 <- as.numeric(substr(dps_demographics$block,1,11)) #FYI if you ever don't have a relational file, cutting the block level digits to this length should return block groups
+```
+
+###Aggregating to the block group level
+There's def a better way to do this, but gathering by this many factors proved to be a pretty big headache for dcast and gather functions. 
+```{r}
+#Aggregate things we're interested in
+#doing this the inefficient way
+
+#Gender
+dps_demographics$male <- ifelse(dps_demographics$gender=="M",1,0)
+dps_demographics$female <- ifelse(dps_demographics$gender=="M",0,1)
+
+male <- aggregate(male ~ Id2,data=dps_demographics,FUN=sum)
+female <- aggregate(female ~ Id2,data=dps_demographics,FUN=sum)
+
+#Race
+dps_demographics$white <- ifelse(dps_demographics$race=="White",1,0)
+dps_demographics$black <- ifelse(dps_demographics$race=="Black",1,0)
+dps_demographics$hispanic <- ifelse(dps_demographics$race=="Hispanic",1,0)
+dps_demographics$native <- ifelse(dps_demographics$race=="Nat. American",1,0)
+dps_demographics$pci <- ifelse(dps_demographics$race=="Pac. Islander",1,0)
+dps_demographics$asian <- ifelse(dps_demographics$race=="Asian",1,0)
+
+white <- aggregate(white ~ Id2,data=dps_demographics,FUN=sum)
+black <- aggregate(black ~ Id2,data=dps_demographics,FUN=sum)
+hispanic <- aggregate(hispanic ~ Id2,data=dps_demographics,FUN=sum)
+native <- aggregate(native ~ Id2,data=dps_demographics,FUN=sum)
+pci <- aggregate(pci ~ Id2,data=dps_demographics,FUN=sum)
+asian <- aggregate(asian ~ Id2,data=dps_demographics,FUN=sum)
+
+dps_agg <- merge(male,female)
+dps_agg <- merge(dps_agg,white)
+dps_agg <- merge(dps_agg,black)
+dps_agg <- merge(dps_agg,hispanic)
+dps_agg <- merge(dps_agg,native)
+dps_agg <- merge(dps_agg,pci)
+dps_agg <- merge(dps_agg,asian)
+
+#Disability
+dps_demographics$any_disability <- ifelse(dps_demographics$primary_disability=="No Disability",0,1)
+dps_demographics$autism <- ifelse(dps_demographics$primary_disability=="Autism",1,0)
+dps_demographics$developdelay <- ifelse(dps_demographics$primary_disability=="Developmental Delay",1,0)
+dps_demographics$emotional <- ifelse(dps_demographics$primary_disability=="Emotional Disability",1,0)
+dps_demographics$hearing <- ifelse(dps_demographics$primary_disability=="Hearing Impairment",1,0)
+dps_demographics$physical <- ifelse(dps_demographics$primary_disability=="Physical Disability",1,0)
+dps_demographics$SLD <- ifelse(dps_demographics$primary_disability=="SLD",1,0) #specific learning disability
+dps_demographics$SLI <- ifelse(dps_demographics$primary_disability=="SLI",1,0) #speech or language impariment
+
+
+any_disability <- aggregate(any_disability ~ Id2,data=dps_demographics,FUN=sum)
+autism <- aggregate(autism ~ Id2, data=dps_demographics,FUN=sum)
+developdelay <- aggregate(developdelay ~ Id2, data=dps_demographics,FUN=sum)
+emotional <- aggregate(emotional ~ Id2,data=dps_demographics,FUN=sum)
+hearing <- aggregate(hearing ~ Id2, data=dps_demographics,FUN=sum)
+physical <- aggregate(physical ~ Id2, data=dps_demographics,FUN=sum)
+SLD <- aggregate(SLD ~ Id2, data=dps_demographics,FUN=sum)
+SLI <- aggregate(SLI ~ Id2, data=dps_demographics,FUN=sum)
+
+dps_agg <- merge(dps_agg,any_disability)
+dps_agg <- merge(dps_agg,autism)
+dps_agg <- merge(dps_agg,developdelay)
+dps_agg <- merge(dps_agg,emotional)
+dps_agg <- merge(dps_agg,hearing)
+dps_agg <- merge(dps_agg,physical)
+dps_agg <- merge(dps_agg,SLD)
+dps_agg <- merge(dps_agg,SLI)
+
+#Mean LRE Scores
+#lre <- aggregate(lre ~ Id2,data=dps_demographics,FUN=mean) #WRONG, LRE = LEAST RESTRICTIVE ENVIR WITH A NUMERIC CODE, SEE CODEBOOK, REDO
+#dps_agg <- merge(dps_agg,lre,all.x=TRUE)
+
+#EL Status
+dps_demographics$ESL <- ifelse(dps_demographics$el_status=="EL",1,0)
+ESL <- aggregate(ESL ~ Id2,data=dps_demographics,FUN=sum)
+
+dps_agg <- merge(dps_agg,ESL)
+
+#Primary Language
+#THERE ARE SO MANY OPTIONS
+#would love to do more
+#let's start with english spanish and other?
+
+dps_demographics$english <- ifelse(dps_demographics$primary_home_language=="English",1,0)
+dps_demographics$spanish <- ifelse(dps_demographics$primary_home_language=="Spanish",1,0)
+dps_demographics$other <- ifelse(dps_demographics$primary_home_language=="English" | dps_demographics$primary_home_language=="Spanish",0,1)
+
+english <- aggregate(english ~ Id2, data=dps_demographics,FUN=sum)
+spanish <- aggregate(spanish ~ Id2, data=dps_demographics,FUN=sum)
+other <-aggregate(other ~ Id2, data=dps_demographics,FUN=sum)
+
+dps_agg <- merge(dps_agg,english,all.x=TRUE)
+dps_agg <- merge(dps_agg,spanish,all.x=TRUE)
+dps_agg <- merge(dps_agg,other,all.x=TRUE)
+
+#convert NAs to 0s
+
+dps_agg[is.na(dps_agg)] <- 0
+
+#get total students
+dps_agg$students <- dps_agg$male+dps_agg$female
+
+#merge in AI scores
+dps_agg <- merge(dps_agg,driving_index)
+
+#merge in crime
+crime <- crime_rates[,c("Id2","total_crime","violent_crime","property_crime")]
+dps_agg <- merge(dps_agg,crime)
+```
+
+###Driving Correlations with DPS demographics
+
+####Loop for cor table, driving
+We wanna look at everything right? well there's a lot of things to look at, so here we return a dataframe of correlations for all ranges, and free vs. low and high cost. For driving.
+```{r}
+cor_tests <- colnames(dps_agg)[c(2:21,36:38)] #prepare dataframe
+index_tests <- colnames(dps_agg)[23:35] #prepare things we want to loop
+cor_table <- data.frame(cor_tests)
+
+for (i in 1:length(index_tests)){ #here we loop the aggregation of students we want to test for correlations, store p_values and results in a dataframe. 
+  cor_table$temp <- 0
+  cor_table$p_temp <- 0
+  cor_table$confit_utemp <- 0
+  cor_table$confit_ltemp <- 0
+  y <- index_tests[i]
+  colnames(cor_table)[colnames(cor_table)=="temp"] <- paste0(y)
+  colnames(cor_table)[colnames(cor_table)=="p_temp"] <- paste0("p_",y)
+  colnames(cor_table)[colnames(cor_table)=="confit_utemp"] <- paste0("upper_",y)
+  colnames(cor_table)[colnames(cor_table)=="confit_ltemp"] <- paste0("lower_",y)
+  for (z in 1:length(cor_tests)){
+    x <- cor_tests[z]
+    test <- cor.test((dps_agg[,paste(x)]/dps_agg$students),dps_agg[,paste(y)],methods=c("pearson")) #note we are using % of students, not n of students here, to match census specifications
+    cor_table[z,paste0(y)] <- round(as.numeric(test$estimate),3)
+    cor_table[z,paste0("p_",y)] <- round(as.numeric(test$p.value),3)
+    cor_table[z,paste0("upper_",y)] <- round(as.numeric(test$conf.int)[2],3)
+    cor_table[z,paste0("lower_",y)] <- round(as.numeric(test$conf.int)[1],3)
+  }
+  print(paste(i,"working..."))
+}
+
+cor_driving_dps <- cor_table
+```
+
+###Loop for transit 
+```{r}
+dps_agg_transit <- dps_agg[-c(23:35)]
+dps_agg_transit <- merge(dps_agg_transit,transit_index)
+
+cor_tests <- colnames(dps_agg_transit)[2:21] #prepare dataframe
+index_tests <- colnames(dps_agg_transit)[23:length(colnames(dps_agg_transit))] #prepare things we want to loop
+cor_table <- data.frame(cor_tests)
+
+for (i in 1:length(index_tests)){ #here we loop the aggregation of students we want to test for correlations, store p_values and results in a dataframe. 
+  cor_table$temp <- 0
+  cor_table$p_temp <- 0
+  cor_table$confit_utemp <- 0
+  cor_table$confit_ltemp <- 0
+  y <- index_tests[i]
+  colnames(cor_table)[colnames(cor_table)=="temp"] <- paste0(y)
+  colnames(cor_table)[colnames(cor_table)=="p_temp"] <- paste0("p_",y)
+  colnames(cor_table)[colnames(cor_table)=="confit_utemp"] <- paste0("upper_",y)
+  colnames(cor_table)[colnames(cor_table)=="confit_ltemp"] <- paste0("lower_",y)
+  for (z in 1:length(cor_tests)){
+    x <- cor_tests[z]
+    test <- cor.test((dps_agg_transit[,paste(x)]/dps_agg_transit$students),dps_agg_transit[,paste(y)],methods=c("pearson")) #note we are using % of students, not n of students here, to match census specifications
+    cor_table[z,paste0(y)] <- round(as.numeric(test$estimate),3)
+    cor_table[z,paste0("p_",y)] <- round(as.numeric(test$p.value),3)
+    cor_table[z,paste0("upper_",y)] <- round(as.numeric(test$conf.int)[2],3)
+    cor_table[z,paste0("lower_",y)] <- round(as.numeric(test$conf.int)[1],3)
+  }
+  print(paste(i,"working..."))
+}
+
+cor_transit_dps <- cor_table
+```
+
+###plot loop
+```{r}
+library(ggplot2)
+library(gridExtra)
+plot_list <- list()
+for (i in 1:length(index_tests)){
+  test <- index_tests[i]
+  p <- ggplot(cor_table, aes(y=cor_table[,test],x=cor_tests)) +
+         geom_errorbar(data=cor_table,aes(ymin=cor_table[,(paste0("lower_",test))],ymax=cor_table[,(paste0("upper_",test))]),width=.1,color="blue3",alpha=.5) + 
+         geom_point(color="blue3")+
+         labs(title=paste("Student Correlations",test)) + 
+  geom_hline(yintercept = 0,color="grey3") +
+  ylab("Overall Driving Access Index") + 
+  xlab("Percent of Students in Block Group")
+  plot_list[[i]] <- p
+  print(p)
+  print(paste(i,"working..."))
+}
+
+```
+
 
 ###Geospatial Regression To Return Effect of race on access?
 Why? Besides that you want to do it what is the value?

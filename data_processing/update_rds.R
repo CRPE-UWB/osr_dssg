@@ -14,7 +14,7 @@ update_rds <- function(data, schemaName, tableName, overwrite = FALSE) {
   
   # load credentials for the connection:
   # dbname, host, port, user, password
-  source('/Users/kelliemacphee/Desktop/dssg2018/cred.txt')
+  source('../Rshiny/cred.txt')
   
   # creates a connection to the postgres database
   # note that "con" will be used later in each connection to the database
