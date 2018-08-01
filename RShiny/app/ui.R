@@ -52,66 +52,69 @@ shinyUI(
                               
                               sidebarLayout(
                               
-                              # Sidebar panel for making selections about reschool programs
-                              sidebarPanel(
-                                checkboxGroupInput("program", "Select one or more program types:", 
-                                                   choiceNames = c("Academic", "Arts", 
-                                                               "Cooking", "Dance", 
-                                                               "Drama", "Music", 
-                                                               "Nature", "Sports", 
-                                                               "STEM"), 
-                                                   choiceValues = c("has_academic", "has_arts", 
-                                                                    "has_cooking", "has_dance", 
-                                                                    "has_drama","has_music",
-                                                                    "has_nature", "has_sports",
-                                                                    "has_stem"),
-                                                   selected = "has_academic",
-                                                   inline = TRUE
-                                                   ),
-                                sliderInput("slider", "Select a range for program cost:", 
-                                            min = minprice_reschoolprograms, 
-                                            max = maxprice_reschoolprograms , 
-                                            value = c(minprice_reschoolprograms, 
-                                                      maxprice_reschoolprograms),
-                                            pre = "$"
-                                            ),
-                                radioButtons("demographics", 
-                                             "Select a demographics variable to visualize:", 
-                                             choiceNames = demog_names,
-                                             choiceValues = demog_values,
-                                             selected = "None selected"
-                                             ),
-                                br(),
-                                selectInput("neighborhoods", "Restrict to one neighborhood:", 
-                                            choices = c("No neighborhood selected", 
-                                                        sort(neighborhoods_reshoolprograms)
-                                                        )
-                                            ),
-                                width = 4
-                                ),
-                              
-                              # Main panel for reschool programs: map tab + data tab + analysis tab
-                              mainPanel(
-                                tabsetPanel(type = "tab",
-                                            tabPanel("Map",
-                                                     leafletOutput("mymap", height = 520),
-                                                     downloadButton('reschool_map_down', label = "Download Map")
+                                # Sidebar panel for making selections about reschool programs
+                                sidebarPanel(
+                                  checkboxGroupInput("program", "Select one or more program types:", 
+                                                     choiceNames = c("Academic", "Arts", 
+                                                                 "Cooking", "Dance", 
+                                                                 "Drama", "Music", 
+                                                                 "Nature", "Sports", 
+                                                                 "STEM"), 
+                                                     choiceValues = c("has_academic", "has_arts", 
+                                                                      "has_cooking", "has_dance", 
+                                                                      "has_drama","has_music",
+                                                                      "has_nature", "has_sports",
+                                                                      "has_stem"),
+                                                     selected = "has_academic",
+                                                     inline = TRUE
                                                      ),
-                                            tabPanel("Data",
-                                                     DT::dataTableOutput("datatable")
-                                                     ),
-                                            tabPanel("Summary analysis",
-                                                     uiOutput("summary_title"),
-                                                     fluidRow(
-                                                       column(6, plotOutput("program_type_summary")),
-                                                       column(6, plotOutput("program_cost_summary"))
-                                                     ),
-                                                     uiOutput("program_special_cats"),
-                                                     DT::dataTableOutput("nbhd_summary")
-                                                     )
-                                            )
-                                ) 
-                              )) # end sidebar layout and fluidPage
+                                  sliderInput("slider", "Select a range for program cost:", 
+                                              min = minprice_reschoolprograms, 
+                                              max = maxprice_reschoolprograms , 
+                                              value = c(minprice_reschoolprograms, 
+                                                        maxprice_reschoolprograms),
+                                              pre = "$"
+                                              ),
+                                  radioButtons("demographics", 
+                                               "Select a demographics variable to visualize:", 
+                                               choiceNames = demog_names,
+                                               choiceValues = demog_values,
+                                               selected = "None selected"
+                                               ),
+                                  br(),
+                                  selectInput("neighborhoods", "Outline neighborhood:", 
+                                              choices = c("No neighborhood selected", 
+                                                          neighborhoods_list
+                                                          )
+                                              ),
+                                  width = 4
+                                  ),
+                                
+                                # Main panel for reschool programs: map tab + data tab + analysis tab
+                                mainPanel(
+                                  tabsetPanel(type = "tab",
+                                              tabPanel("Map",
+                                                       leafletOutput("mymap", height = 520),
+                                                       downloadButton('reschool_map_down', label = "Download Map")
+                                                       ),
+                                              tabPanel("Data",
+                                                       DT::dataTableOutput("datatable")
+                                                       ),
+                                              tabPanel(
+                                                "Summary analysis",
+                                                 uiOutput("summary_title"),
+                                                 fluidRow(
+                                                   column(6, plotOutput("program_type_summary")),
+                                                   column(6, plotOutput("program_cost_summary"))
+                                                 ),
+                                                 uiOutput("program_special_cats"),
+                                                 DT::dataTableOutput("nbhd_summary")
+                                              )
+                                              
+                                    )
+                                  ) 
+                                )
+                              ) # end sidebar layout and fluidPage
                             ),  # end B4S programs tab
                    
                    
@@ -270,7 +273,7 @@ shinyUI(
                                 br(),
                                 selectInput("neighborhoods_access", "Restrict to one neighborhood:", 
                                             choices = c("No neighborhood selected", 
-                                                        sort(neighborhoods_reshoolprograms))
+                                                        neighborhoods_list)
                                 ),
                                 br()
                               ),  # end sidebarPanel for access index
