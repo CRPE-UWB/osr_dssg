@@ -114,7 +114,8 @@ shinyServer(
                                   "majority_race", legend_titles_demographic)
       }
       
-      curr_map <- curr_map %>% add_circle_markers(neighborhood_data1, "program", myyellow, program_popup_text)
+      curr_map <- curr_map %>% add_circle_markers(neighborhood_data1, "program", myyellow, 
+                                                  program_popup_text, weight = 0.7, opacity = 0.8)
       
       if (input$neighborhoods != "No neighborhood selected") {
         curr_map <- curr_map %>% add_neighborhood_outline(input$neighborhoods)
@@ -184,8 +185,8 @@ shinyServer(
         barplot(rev(dat),  # reverse so that reads top - bottom alphabetically
                 main = "Program Types",
                 col = c(mygreen2, mypurple3, myblue2, 
-                        mygreen, myblue3, mygreen3,
-                        mypurple2, myblue, mypurple),
+                        mygreen, myblue, mygreen3,
+                        mypurple2, myblue3, mypurple),
                 horiz = TRUE,
                 las = 1
                 )
