@@ -175,8 +175,7 @@ shinyServer(
     
     output$program_type_summary <- renderPlot(
       {
-        #summary_data <- subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods)
-        
+
         data_names <- c("academic", "arts", "cooking", "dance", "drama",
                         "music", "nature", "sports", "stem")
         relevant_colnames <- c("total_academic", "total_arts", "total_cooking", "total_dance", "total_drama",
@@ -205,7 +204,6 @@ shinyServer(
     )
     
     output$program_special_cats <- renderUI({
-      #summary_data <- subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods)
       if (nrow(summary_data())==0) {
         sprintf("No programs in this neighborhood.") %>% lapply(htmltools::HTML)
       } else {
@@ -218,7 +216,6 @@ shinyServer(
     
     output$program_cost_summary <- renderPlot(
       {
-        #summary_data <- subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods)
         # dummy plot just to check
         par(mar = c(3.1, 2.1, 2.1, 2.1))  # make margins same as other plot
         barplot(1,
@@ -229,8 +226,6 @@ shinyServer(
     )
     
     output$nbhd_summary <- renderDataTable({
-      #summary_data <- subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods)
-      
       datatable(summary_data(), 
                     options = list(pageLength = 1, 
                                    scrollX = TRUE,
@@ -788,7 +783,7 @@ shinyServer(
         
         curr_map <- make_base_map() %>%
           add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
-                                  vals=index(), legend_title="Access Index") %>%
+                                  vals=index(), legend_title="Access Index", my_weight=.4) %>%
           add_circle_markers(neighborhood_data_access, "program", myyellow, program_popup_text_access)
       }
       if (input$neighborhoods_access!="All neighborhoods") {
