@@ -65,7 +65,7 @@ Pathtest <- google_analytics(
   ga_id_two, 
   date_range=c("2018-01-01",(todays_date)),
   metrics=c('Users','timeOnPage','pageviews','uniquePageviews'),
-  dimensions =c("geolocation","PagePath"),max=50000)
+  dimensions =c("PagePath"),max=50000)
 ```
 
 ###Parsing the Clean Paths
@@ -131,8 +131,18 @@ colnames(Search_Summary) <- c("gender","distance","category","mincost"
 ,"sort","location","scholarships","specialneeds","beforeaftercare","gifted","keywords","lat","long","users")
 ```
 
-###Writing to a CSV to upload into the RDS
-Here we write our aggregated data frame to a csv to upload into the RDS.
 ```{r}
-write.csv(Search_Summary,"GoogleAnalyticsSearchSummary.csv",na="",row.names=FALSE)
+keep_only_numerics <- function(vec) {
+  as.numeric(gsub("^.*[^0-9]+.*$", NA, vec))
+}
+relevant_columns <- c("mincost", "maxcost", "minage", "maxage") 
+for (relevant_column in relevant_columns) {
+  Search_Summary[,relevant_column] <- keep_only_numerics(Search_Summary[,relevant_column])
+}
+```
+
+###Writing to the database
+```{r}
+source("../update_rds.R",chdir=TRUE)
+update_rds(Search_Summary, "clean", "google_analytics", overwrite = TRUE)
 ```
