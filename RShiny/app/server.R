@@ -577,7 +577,7 @@ shinyServer(
       
     })
     
-    
+    #Subsetting the data depending on the various selections made in the sidebar panel 
     subset_search_data = reactive({
       
       print(input$minprice_search)
@@ -596,9 +596,7 @@ shinyServer(
         maxcost_search_data = mincost_search_data
       }
       
-      
-      
-      
+
       
       if(input$minage_search != ""){
         minage_search_data = maxcost_search_data[which(maxcost_search_data$minage  >= as.numeric(input$minage_search)),]
@@ -615,17 +613,7 @@ shinyServer(
         maxage_search_data = minage_search_data
       }
       
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
+
       
       if(input$zipcode_searchprog != "No zipcode selected" ) {
         zipcode_search_data <- subset(maxage_search_data, 
@@ -737,7 +725,11 @@ shinyServer(
       
     })
     
+
+    #Rendering 
     
+    
+
     #############################
     # Access Index Tab
     #############################

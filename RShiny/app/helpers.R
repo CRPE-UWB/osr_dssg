@@ -168,7 +168,7 @@ make_demographic_map <- function(pal, col_name, labFormat) {
 
 # Function to subset all the resource datasets based on the neighborhood selected
 subset_for_neighborhoods <- function(df, neighborhoods_list){
-    if(neighborhoods_list != "All neighborhoods" & !is.null(neighborhoods_list) ) {
+    if( ! ("All neighborhoods" %in% neighborhoods_list| is.null(neighborhoods_list)) ) {
       a <- df[which(df[, "nbhd_name"] %in% neighborhoods_list),]
     }
     else {
