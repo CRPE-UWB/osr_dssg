@@ -54,39 +54,45 @@ shinyUI(
                               
                                 # Sidebar panel for making selections about reschool programs
                                 sidebarPanel(
-                                  checkboxGroupInput("program", "Select one or more program types:", 
-                                                     choiceNames = c("Academic", "Arts", 
-                                                                 "Cooking", "Dance", 
-                                                                 "Drama", "Music", 
-                                                                 "Nature", "Sports", 
-                                                                 "STEM"), 
-                                                     choiceValues = c("has_academic", "has_arts", 
-                                                                      "has_cooking", "has_dance", 
-                                                                      "has_drama","has_music",
-                                                                      "has_nature", "has_sports",
-                                                                      "has_stem"),
-                                                     selected = "has_academic",
-                                                     inline = TRUE
-                                                     ),
-                                  sliderInput("slider", "Select a range for program cost:", 
-                                              min = minprice_reschoolprograms, 
-                                              max = maxprice_reschoolprograms , 
-                                              value = c(minprice_reschoolprograms, 
-                                                        maxprice_reschoolprograms),
-                                              pre = "$"
-                                              ),
-                                  radioButtons("demographics", 
-                                               "Select a demographics variable to visualize:", 
-                                               choiceNames = demog_names,
-                                               choiceValues = demog_values,
-                                               selected = "None selected"
-                                               ),
+                                  conditionalPanel(condition = "input.program_panel != 'Summary analysis'",
+                                    checkboxGroupInput("program", "Select one or more program types:", 
+                                                       choiceNames = c("Academic", "Arts", 
+                                                                   "Cooking", "Dance", 
+                                                                   "Drama", "Music", 
+                                                                   "Nature", "Sports", 
+                                                                   "STEM"), 
+                                                       choiceValues = c("has_academic", "has_arts", 
+                                                                        "has_cooking", "has_dance", 
+                                                                        "has_drama","has_music",
+                                                                        "has_nature", "has_sports",
+                                                                        "has_stem"),
+                                                       selected = "has_academic",
+                                                       inline = TRUE
+                                                       )
+                                  ),
+                                  conditionalPanel(condition = "input.program_panel != 'Summary analysis'",
+                                    sliderInput("slider", "Select a range for program cost:", 
+                                                min = minprice_reschoolprograms, 
+                                                max = maxprice_reschoolprograms , 
+                                                value = c(minprice_reschoolprograms, 
+                                                          maxprice_reschoolprograms),
+                                                pre = "$"
+                                                )
+                                    ),
+                                  conditionalPanel(condition = "input.program_panel != 'Data' & input.program_panel != 'Summary analysis'",
+                                    radioButtons("demographics", 
+                                                 "Select a demographics variable to visualize:", 
+                                                 choiceNames = demog_names,
+                                                 choiceValues = demog_values,
+                                                 selected = "None selected"
+                                                 )
+                                    ),
                                   br(),
                                   selectInput("neighborhoods", "Outline neighborhood:", 
                                               choices = c("No neighborhood selected", 
                                                           neighborhoods_list
                                                           )
-                                              ),
+                                            ),
                                   width = 4
                                   ),
                                 
@@ -109,7 +115,8 @@ shinyUI(
                                                  ),
                                                  uiOutput("program_special_cats"),
                                                  DT::dataTableOutput("nbhd_summary")
-                                              )
+                                              ),
+                                              id = "program_panel"
                                               
                                     )
                                   ) 
