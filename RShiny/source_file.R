@@ -16,7 +16,7 @@ drv <- dbDriver("PostgreSQL")
 
 # load credentials for the connection: dbname, host, port, user, password
 # looks for cred.txt in parent dir to cloned github repo
-source('../../cred.txt')
+source('cred.txt')
 
 # create a connection to the postgres database
 # note that "con" will be used later in each connection to the database
