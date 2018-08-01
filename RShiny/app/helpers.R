@@ -82,12 +82,12 @@ add_blank_map <- function(map) {
 # Function to add demographic info to a map
 add_colored_polygon_map <- function(map, spdf, pal_type, label_type, 
                                     column_name=NULL, legend_titles=NULL, legend_title=NULL, 
-                                    vals=NULL, labFormat = labelFormat()){
+                                    vals=NULL, labFormat = labelFormat(), my_weight=1){
   if (is.null(vals)) {vals <- spdf@data[,column_name]}
   if (is.null(legend_title)) {legend_title <- legend_titles[column_name]}
   addPolygons(map, data = spdf,
               fillColor = ~pal_type(vals),
-              weight = 1,
+              weight = my_weight,
               opacity = 1,
               color = "#777",
               dashArray = "",
