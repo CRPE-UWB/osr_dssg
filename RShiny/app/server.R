@@ -74,7 +74,10 @@ shinyServer(
       program_popup_text <- make_program_popups(neighborhood_data1)
       
       ##### ACTUALLY DRAW THE RESCHOOL MAP #####
-      if(input$demographics == "None selected"){
+      if(is.null(input$demographics)){
+        curr_map <- make_demographic_map(NULL, NULL)
+      }
+      else if(input$demographics == "None selected"){
         curr_map <- make_demographic_map(NULL, NULL)
       }
       else if(input$demographics == "Median household income ($)" ) {
@@ -117,8 +120,15 @@ shinyServer(
       curr_map <- curr_map %>% add_circle_markers(neighborhood_data1, "program", myyellow, 
                                                   program_popup_text, weight = 0.7, opacity = 0.8)
       
-      if (input$neighborhoods != "No neighborhood selected") {
-        curr_map <- (curr_map %>% add_neighborhood_outline(input$neighborhoods))
+      # Outline the selected neighborhoods!
+      if ( !is.null(input$neighborhoods) ) {
+        if ("All neighborhoods" %in% input$neighborhoods) {
+          curr_map <- curr_map %>% add_neighborhood_outline()
+        } else {
+          for (nbhd in input$neighborhoods){
+            curr_map <- curr_map %>% add_neighborhood_outline(nbhd)
+          }
+        }
       }
       
       reschool_mapdata$dat <- curr_map
@@ -149,7 +159,7 @@ shinyServer(
     
     # for subsetting to only the given neighborhood
     summary_data <- reactive({
-      if (input$neighborhoods=="No neighborhood selected") {
+      if (input$neighborhoods=="All neighborhoods") {
         return(nbhd_program_summary[which(nbhd_program_summary[, "nbhd_name"] == input$neighborhoods),])
       }
       else {
@@ -418,8 +428,12 @@ shinyServer(
 
         }
         
-        if (input$neighborhoods_other != "No neighborhood selected") {
-          open_resource_map <- open_resource_map %>% add_neighborhood_outline(input$neighborhoods_other)
+        # Outline selected neighborhoods
+        if ( !is.null(input$neighborhoods_other) ){
+          for (nbhd in input$neighborhoods_other){
+            if (nbhd != "All neighborhoods")
+              open_resource_map <- open_resource_map %>% add_neighborhood_outline(nbhd)
+          }
         }
 
         other_mapdata$dat <- open_resource_map
@@ -562,7 +576,6 @@ shinyServer(
     #Subsetting the data depending on the various selections made in the sidebar panel 
     subset_search_data = reactive({
       
-      print(input$minprice_search)
       if(input$minprice_search != ""){
         mincost_search_data = google_analytics[which(google_analytics$mincost  >= as.numeric(input$minprice_search)),]
         
@@ -773,7 +786,7 @@ shinyServer(
                                   vals=index(), legend_title="Access Index", my_weight=.4) %>%
           add_circle_markers(neighborhood_data_access, "program", myyellow, program_popup_text_access)
       }
-      if (input$neighborhoods_access!="No neighborhood selected") {
+      if (input$neighborhoods_access!="All neighborhoods") {
         curr_map <- curr_map %>%
           add_neighborhood_outline(input$neighborhoods_access)
       }
