@@ -179,7 +179,7 @@ shinyServer(
           dat <- unlist(summary_data()[,relevant_colnames])
         }
         
-        names(dat) <- relevant_colnames
+        names(dat) <- data_names
         
         par(mar = c(3.1, 5.1, 2.1, 2.1))  # make left margin larger to fit names(data)
         barplot(rev(dat),  # reverse so that reads top - bottom alphabetically
