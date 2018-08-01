@@ -4,6 +4,7 @@ library(shiny)
 library(leaflet)
 
 # Source needed data and functions for ui and server
+source('color.R')
 source('../source_file.R', chdir = TRUE)  # temp changes working dir to same as source_file.R
 source('helpers.R')
 
