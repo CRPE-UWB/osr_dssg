@@ -2,7 +2,6 @@
 
 library(shiny)
 library(leaflet)
-
 # Source needed data and functions for ui and server
 source('color.R')
 source('../source_file.R', chdir = TRUE)  # temp changes working dir to same as source_file.R
@@ -83,12 +82,12 @@ shinyUI(
                                                selected = "None selected"
                                                ),
                                   br(),
-                                  selectInput("neighborhoods", "Outline neighborhood:", 
-                                              choices = c("No neighborhood selected", 
+                                  selectInput("neighborhoods", "Focus on neighborhoods:", 
+                                              choices = c("All neighborhoods", 
                                                           neighborhoods_list
                                                           ),
                                               multiple = TRUE,
-                                              selected = "No neighborhood selected"
+                                              selected = "All neighborhoods"
                                               ),
                                   width = 4
                                   ),
@@ -143,12 +142,12 @@ shinyUI(
                                 ),
                                 br(),
                                 selectInput("neighborhoods_other", 
-                                            "Restrict to one neighborhood:", 
-                                            choices = c("No neighborhood selected", 
-                                                        sort(neighborhoods_other)
+                                            "Focus on neighborhoods:", 
+                                            choices = c("All neighborhoods", 
+                                                            neighborhoods_list
                                                         ),
                                             multiple = TRUE,
-                                            selected = "No neighborhood selected"
+                                            selected = "All neighborhoods"
                                 ),
                                 br()
                               ),

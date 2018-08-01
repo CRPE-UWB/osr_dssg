@@ -123,7 +123,7 @@ shinyServer(
       # Outline the selected neighborhoods!
       if ( !is.null(input$neighborhoods) ) {
         for (nbhd in input$neighborhoods){
-          if (nbhd != "No neighborhood selected"){
+          if (nbhd != "All neighborhoods"){
             print(nbhd)
             curr_map <- curr_map %>% add_neighborhood_outline(nbhd)
           }
@@ -158,7 +158,7 @@ shinyServer(
     
     # for subsetting to only the given neighborhood
     summary_data <- reactive({
-      if (input$neighborhoods=="No neighborhood selected") {
+      if (input$neighborhoods=="All neighborhoods") {
         return(nbhd_program_summary[which(nbhd_program_summary[, "nbhd_name"] == input$neighborhoods),])
       }
       else {
@@ -432,8 +432,12 @@ shinyServer(
 
         }
         
-        if (input$neighborhoods_other != "No neighborhood selected") {
-          open_resource_map <- open_resource_map %>% add_neighborhood_outline(input$neighborhoods_other)
+        # Outline selected neighborhoods
+        if ( !is.null(input$neighborhoods_other) ){
+          for (nbhd in input$neighborhoods_other){
+            if (nbhd != "All neighborhoods")
+              open_resource_map <- open_resource_map %>% add_neighborhood_outline(nbhd)
+          }
         }
 
         other_mapdata$dat <- open_resource_map
@@ -795,7 +799,7 @@ shinyServer(
                                   vals=index(), legend_title="Access Index") %>%
           add_circle_markers(neighborhood_data_access, "program", myyellow, program_popup_text_access)
       }
-      if (input$neighborhoods_access!="No neighborhood selected") {
+      if (input$neighborhoods_access!="All neighborhoods") {
         curr_map <- curr_map %>%
           add_neighborhood_outline(input$neighborhoods_access)
       }
