@@ -267,8 +267,6 @@ shinyUI(
                               ),  # end sidebarPanel for access index
                               
                               mainPanel(
-                                
-                                textOutput("test"),
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
                                                      leafletOutput("mymap_access", height = 520))
