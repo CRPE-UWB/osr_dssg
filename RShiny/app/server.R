@@ -7,6 +7,7 @@ library(shiny)
 library(DT)
 library(leaflet)
 library(sp)
+library(mapview)
 
 shinyServer(
   function(input, output) {
@@ -18,7 +19,7 @@ shinyServer(
     ####### RESCHOOL PROGRAMS SUBSETTING BY COST AND TYPE #######
     
     program_category_data <- reactive({
-      return(subset_for_category(reschool_summer_program, as.numeric(input$program)))
+      return(subset_for_category(reschool_summer_program, input$program))
     })
     
     program_cost_data <- reactive({
@@ -61,62 +62,86 @@ shinyServer(
     
     ####### RESCHOOL PROGRAMS MAP #######
     
+    reschool_mapdata <- reactiveValues(dat = 0)
+    
     output$mymap <- renderLeaflet({
       
       # Subset to data for only this neighborhood
       neighborhood_data1 <- neighborhood_data()
-    
+      
       # Construct pop-ups for when you click on a program marker
-      marker_popup_text <- sprintf(
-        "<b>%s</b><br/> 
-         %s <br/> 
-         <i>%s</i><br/>
-         $%i per session<br/>
-         Starts: %s, Ends: %s <br/>  
-         Special needs = %s,  
-         Scholarships = %s <br/>",
-        wrap_text(paste("Program: ",neighborhood_data1$session_name)), 
-        wrap_text(paste("Organization: ",neighborhood_data1$camp_name)), 
-        wrap_text(paste("Description: ",neighborhood_data1$session_short_description)),
-        neighborhood_data1$session_cost,
-        neighborhood_data1$session_date_start, 
-        neighborhood_data1$session_date_end,
-        neighborhood_data1$has_special_needs_offerings, 
-        neighborhood_data1$has_scholarships
-        ) %>% lapply(htmltools::HTML)
+      program_popup_text <- make_program_popups(neighborhood_data1)
       
       ##### ACTUALLY DRAW THE RESCHOOL MAP #####
-      if(is.null(input$demographics)){
-        make_reschool_map(neighborhood_data1, marker_popup_text, palette = NULL, col_name = NULL)
+      if(input$demographics == "None selected"){
+        curr_map <- make_demographic_map(NULL, NULL)
       }
       else if(input$demographics == "Median household income ($)" ) {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal_income, "MED_HH_")
+        curr_map <- make_demographic_map(pal_income, "MED_HH_", labFormat = labelFormat(prefix = "$ "))
       }
-      else if(input$demographics == "High school degree or equivalent (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal_edu,"PCT_HS_")
+      else if(input$demographics == "Less than high school degree (%)") {
+        curr_map <- make_demographic_map(pal_edu, col_name="PCT_LES", labFormat = labelFormat(suffix = " %")) 
+      }
+      else if(input$demographics == "College graduates (%)") {
+        curr_map <- make_demographic_map(pal_edu2, col_name="PCT_COL", labFormat = labelFormat(suffix = " %")) 
       }
       else if(input$demographics == "Hispanic population (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal_hispanic, "PCT_HIS") 
+        curr_map <- make_demographic_map(pal_hispanic, col_name="PCT_HIS", labFormat = labelFormat(suffix = " %")) 
       }
       else if(input$demographics == "Black population (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal_black, "PCT_BLA")
+        curr_map <- make_demographic_map(pal_black, col_name="PCT_BLA", labFormat = labelFormat(suffix = " %")) 
       }
       else if(input$demographics == "White population (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal_white, "PCT_WHI")
+        curr_map <- make_demographic_map(pal_white, col_name="PCT_WHI", labFormat = labelFormat(suffix = " %")) 
       }
       else if(input$demographics == "Non-English speakers (%)") {
-        make_reschool_map(neighborhood_data1, marker_popup_text, pal_language, "PCT_NON")
+        curr_map <- make_demographic_map(pal_language, col_name="PCT_NON", labFormat = labelFormat(suffix = " %")) 
+      }
+      else if(input$demographics == "Number of 5-17 year olds") {
+        curr_map <- make_demographic_map(pal_age, col_name="AGE_5_T", 
+                                         # make labels say the values instead of probabilities
+                                         labFormat = function(type, cuts, p) {
+                                           n = length(cuts)
+                                           paste0(round(cuts[-n]), " &ndash; ", round(cuts[-1]))
+                                         }
+                                           ) 
       }
       else if(input$demographics == "All races") {
         labels_race_breakdown <- shape_census@data$racial_dist_html
-        
-        make_base_map() %>%
-          add_colored_polygon_map(shape_census, legend_titles_demographic, pal_all_races, ~labels_race_breakdown, 
-                                  "majority_race") %>%
-          add_circle_markers(neighborhood_data1, "program", myyellow, marker_popup_text)
+        curr_map <- make_base_map() %>%
+          add_colored_polygon_map(shape_census, pal_all_races, ~labels_race_breakdown, 
+                                  "majority_race", legend_titles_demographic)
       }
       
+      curr_map <- curr_map %>% add_circle_markers(neighborhood_data1, "program", myyellow, program_popup_text)
+      
+      if (input$neighborhoods != "No neighborhood selected") {
+        curr_map <- curr_map %>% add_neighborhood_outline(input$neighborhoods)
+      }
+      
+      reschool_mapdata$dat <- curr_map
+      return(curr_map)
     })
+    
+    ####### MAKE THE DOWNLOAD FEATURE FOR THE RESCHOOL PROGRAMS MAP #######
+    output$reschool_map_down <- downloadHandler(
+      filename = 'reschool_programs_map.jpeg',
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        # set the zoom and pan based on current status of map
+        reschool_mapdata$dat <-setView(reschool_mapdata$dat,
+                              lat = input$mymap_center$lat,
+                              lng = input$mymap_center$lng,
+                              zoom = input$mymap_zoom
+                              )
+        
+        mapshot(reschool_mapdata$dat, file = file, cliprect = "viewport")
+      }
+    )
     
     ####### MAKE THE RESCHOOL PROGRAMS SUMMARY ANALYSIS #######
     
@@ -217,11 +242,6 @@ shinyServer(
   
     #### Other out of school resources tab ####
     
-    # this doesn't seem to get used at all anymore:
-    # colm_other <- reactive({
-    #   input$program_other
-    # })
-    
     #############################
     # Other Resources Tab
     #############################
@@ -235,6 +255,8 @@ shinyServer(
     fields_data <- reactive({subset_for_neighborhoods(fields, input$neighborhoods_other)})
     
     # Create the map
+    other_mapdata <- reactiveValues(dat = 0)
+    
     output$mymap_other = renderLeaflet({
         
         # Get the data
@@ -246,37 +268,43 @@ shinyServer(
         fields_data1 <- fields_data()
         
         ##### ACTUALLY DRAW THE OTHER RESOURCES MAP #####
-        if(is.null(input$demographics_other) == TRUE){
-          open_resource_map <- make_base_map() %>%
-            add_blank_map()
+        if(input$demographics_other == "None selected"){
+          open_resource_map <- make_base_map() %>% add_blank_map()
         }
         else if(input$demographics_other == "Median household income ($)" ) {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_income,nbhd_labels, "MED_HH_", legend_titles_demographic)
+          open_resource_map <- make_demographic_map(pal_income, "MED_HH_", labFormat = labelFormat(prefix = "$ "))
         }
-        else if(input$demographics_other == "High school degree or equivalent (%)") {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_edu,nbhd_labels,"PCT_HS_", legend_titles_demographic)
+        else if(input$demographics_other == "Less than high school degree (%)") {
+          open_resource_map <- make_demographic_map(pal_edu, "PCT_LES", labFormat = labelFormat(suffix = " %"))
+        }
+        else if(input$demographics_other == "College graduates (%)") {
+          open_resource_map <- make_demographic_map(pal_edu2, "PCT_COL", labFormat = labelFormat(suffix = " %"))
         }
         else if(input$demographics_other == "Hispanic population (%)") {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_hispanic, nbhd_labels, "PCT_HIS", legend_titles_demographic)
+          open_resource_map <- make_demographic_map(pal_hispanic, "PCT_HIS", labFormat = labelFormat(suffix = " %"))
         }
         else if(input$demographics_other == "Black population (%)") {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_black, nbhd_labels, "PCT_BLA", legend_titles_demographic)
+          open_resource_map <- make_demographic_map(pal_black, "PCT_BLA", labFormat = labelFormat(suffix = " %"))
         }
         else if(input$demographics_other == "White population (%)") {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_white, nbhd_labels, "PCT_WHI", legend_titles_demographic)
+          open_resource_map <- make_demographic_map(pal_white, "PCT_WHI", labFormat = labelFormat(suffix = " %"))
         }
         else if(input$demographics_other == "Non-English speakers (%)") {
-          open_resource_map <- make_base_map() %>% 
-            add_colored_polygon_map(shape_census, pal_language, nbhd_labels, "PCT_NON", legend_titles_demographic)
+          open_resource_map <- make_demographic_map(pal_language, "PCT_NON", labFormat = labelFormat(suffix = " %"))
+        }
+        else if(input$demographics_other == "Number of 5-17 year olds") {
+          open_resource_map <- make_demographic_map(pal_age, "AGE_5_T",
+                                                    # make labels say the values instead of probabilities
+                                                    labFormat = function(type, cuts, p) {
+                                                      n = length(cuts)
+                                                      paste0(round(cuts[-n]), " &ndash; ", round(cuts[-1]))
+                                                    }
+                                                    )
         }
         else if(input$demographics_other == "All races") {
           open_resource_map <- make_base_map() %>%
-            add_colored_polygon_map(shape_census, pal_all_races, ~shape_census@data$racial_dist_html, "majority_race", legend_titles_demographic)
+            add_colored_polygon_map(shape_census, pal_all_races, ~shape_census@data$racial_dist_html, 
+                                    "majority_race", legend_titles_demographic)
         }
         
         # Loop over selected resources types, plotting the locations of each
@@ -382,9 +410,33 @@ shinyServer(
 
         }
         
-        return(open_resource_map)
+        if (input$neighborhoods_other != "No neighborhood selected") {
+          open_resource_map <- open_resource_map %>% add_neighborhood_outline(input$neighborhoods_other)
+        }
 
+        other_mapdata$dat <- open_resource_map
+        return(open_resource_map)
       })
+    
+    # Make the download button for the other resources map
+    output$other_map_down <- downloadHandler(
+      filename = 'other_resources_map.jpeg',
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        # set the zoom and pan based on current status of map
+        other_mapdata$dat <-setView(other_mapdata$dat,
+                                       lat = input$mymap_other_center$lat,
+                                       lng = input$mymap_other_center$lng,
+                                       zoom = input$mymap_other_zoom
+        )
+        
+        mapshot(other_mapdata$dat, file = file, cliprect = "viewport")
+      }
+    )
     
     # Make the data tables for the Other Resources Data Tab
     output$dt <- renderUI({
@@ -502,35 +554,64 @@ shinyServer(
     
     subset_search_data = reactive({
       
-      
-      
-      if(input$minprice_search != "No min price selected"){
-        mincost_search_data = subset(google_analytics, google_analytics$mincost  >= input$minprice_search)
+      print(input$minprice_search)
+      if(input$minprice_search != ""){
+        mincost_search_data = google_analytics[which(google_analytics$mincost  >= as.numeric(input$minprice_search)),]
+        
       }else{
         mincost_search_data = google_analytics
       }
       
-      
-      
-      if(input$maxprice_search != "No max price selected"){
-        maxcost_search_data = subset(mincost_search_data, mincost_search_data$maxcost  <= input$maxprice_search)
+
+      if(input$maxprice_search != ""){
+        maxcost_search_data = mincost_search_data[which(mincost_search_data$maxcost  <= as.numeric(input$maxprice_search)),]
+        
       }else{
         maxcost_search_data = mincost_search_data
       }
       
       
       
+      
+      
+      if(input$minage_search != ""){
+        minage_search_data = maxcost_search_data[which(maxcost_search_data$minage  >= as.numeric(input$minage_search)),]
+        
+      }else{
+        minage_search_data = maxcost_search_data
+      }
+      
+      
+      if(input$maxage_search != ""){
+        maxage_search_data = minage_search_data[which(minage_search_data$maxage  <= as.numeric(input$maxage_search)),]
+        
+      }else{
+        maxage_search_data = minage_search_data
+      }
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
       if(input$zipcode_searchprog != "No zipcode selected" ) {
-        zipcode_search_data <- subset(maxcost_search_data, 
-                                      maxcost_search_data$location == input$zipcode_searchprog)
+        zipcode_search_data <- subset(maxage_search_data, 
+                                      maxage_search_data$location == input$zipcode_searchprog)
       }
       else {
-        zipcode_search_data <- maxcost_search_data
+        zipcode_search_data <- maxage_search_data
         
       }
       
       
-      if(input$sessiontimes_searchprog != "No session time selected selected" ) {
+      if(input$sessiontimes_searchprog != "No session time selected" ) {
         sessiontime_search_data <- subset(zipcode_search_data, 
                                           zipcode_search_data$sessiontimes == input$sessiontimes_searchprog)
       }
@@ -539,53 +620,76 @@ shinyServer(
         
       }
       
-      if(length(colm_search()) > 0){
+      
+      if(length(colm_search()) != 0){
         
         data_list = list()
         
         for(i in 1:length(colm_search())){
-          
           data_list[[i]] = sessiontime_search_data[which(sessiontime_search_data$category == colm_search()[i]),]
         }
         
-        final_search_data = as.data.frame(data.table::rbindlist(data_list))
-        
+        category_search_data = as.data.frame(data.table::rbindlist(data_list))
+       
         
       }
       
       else {
         
-        final_search_data = sessiontime_search_data
+        category_search_data = sessiontime_search_data
       }
       
+      
+      if(input$specialneeds_search == "Special needs students" ) {
+        final_search_data <- subset(category_search_data, 
+                                    category_search_data$specialneeds  == "specialNeedsStudent")
+      }
+      
+      else if(input$specialneeds_search == "Scholarships Available" ) {
+        final_search_data <- subset(category_search_data, 
+                                    category_search_data$scholarships  == "scholarshipsAvailable")
+      }
+      
+      else {
+        final_search_data <- category_search_data
+        
+      }
       
       return(final_search_data) 
       
       
     })
     
+
     
-    
+
     #Display the total number of searches made with this combination selected in the side bar panel
-    output$Totalsearches <- renderText({ 
-      subsetted_data = subset_search_data()
-      return(sum(subsetted_data$users))
+    output$totalsearches <- renderText({
       
+      sprintf(
+        
+        "<b><i> Number of searches made in this combination </i><br/><font size=\"+3\"> %s </b>",
+        sum(subset_search_data()[,"users"])
+      ) 
     })
-    
+  
     #Display the total percentage of searches made with this combination selected in the side bar panel
-    output$Percentsearches <- renderText({ 
-      subsetted_data = subset_search_data()
-      return((sum(subsetted_data$users)*100)/sum(google_analytics$users))
+    output$percentagesearches <- renderText({
       
+      sprintf(
+         "<b><i> Percentage searches </i><br/><font size=\"+3\"> %s%% </b>",
+         round(((sum(subset_search_data()[,"users"])*100)/sum(google_analytics$users)), 2)
+      ) 
     })
+  
     
     
     # Output the relevant data in the data tab based on the search data tab
     output$datatable_search <- DT::renderDataTable({
       data_table1 <- subset_search_data()
       DT::datatable(data_table1, 
-                    options = list(pageLength = 10, 
+                    options = list(pageLength = 7, 
+                                   scrollX = TRUE,
                                    initComplete = JS(
                                      "function(settings, json) {",
                                      "$(this.api().table().header()).css(
@@ -608,12 +712,6 @@ shinyServer(
     })
     
     
-    
-    
-    
-    
-    
-    
     #############################
     # Access Index Tab
     #############################
@@ -627,16 +725,81 @@ shinyServer(
     
     # Create labels and stuff
     access_label <- reactive({sprintf(
-      "<b>Access index: %f</b><br/><b>Block Group: %f</b>",
-      index(), as.numeric(as.character(shape_census_block@data$Id2))
+      "<b>Access index: %.2f</b><br/>",
+      index()
       ) %>% lapply(htmltools::HTML)
     })
     
-    # map it up
-    output$mymap_access <- renderLeaflet({
-      map <- make_base_map() %>%
-        add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
-                                vals=index(), legend_title="Access Index")
-      return(map)
+    ####### RESCHOOL PROGRAMS SUBSETTING BY COST AND TYPE #######
+    
+    program_list <- list("academic"=c("has_academic","has_stem"),
+                         "sports"=c("has_sports"),
+                         "art"=c("has_cooking","has_dance","has_drama","has_music","has_arts"),
+                         "nature"=c("has_nature"))
+
+    program_category_data_access <- reactive({
+      return(subset_for_category(reschool_summer_program,
+                                 unlist(program_list[input$type_access], use.names=F)))
     })
+
+    program_cost_data_access <- reactive({
+      cost_mapping <- list("free"=0, "low"=50, "any"=max(reschool_summer_program$session_cost))
+      return(subset_for_cost(program_category_data_access(),0,cost_mapping[input$cost_access]))
+    })
+
+    neighborhood_data_access <- reactive({
+      return(subset_for_neighborhoods(program_cost_data_access(),input$neighborhoods_access))
+    })
+    
+    # map it up
+    access_mapdata <- reactiveValues(dat = 0)
+    
+    output$mymap_access <- renderLeaflet({
+      if (length(input$type_access)==0) {
+        curr_map <- make_base_map() %>% 
+          add_blank_map()
+      }
+      else {
+        # Subset to data for only this neighborhood
+        neighborhood_data_access <- neighborhood_data_access()
+        #neighborhood_data_access <- program_cost_data_access()
+        
+        # Construct pop-ups for when you click on a program marker
+        program_popup_text_access <- make_program_popups(neighborhood_data_access)
+        
+        curr_map <- make_base_map() %>%
+          add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
+                                  vals=index(), legend_title="Access Index") %>%
+          add_circle_markers(neighborhood_data_access, "program", myyellow, program_popup_text_access)
+      }
+      if (input$neighborhoods_access!="No neighborhood selected") {
+        curr_map <- curr_map %>%
+          add_neighborhood_outline(input$neighborhoods_access)
+      }
+      
+      access_mapdata$dat <- curr_map
+      return(curr_map)
+    })
+    
+    ####### MAKE THE DOWNLOAD FEATURE FOR THE ACCESS INDEX MAP #######
+    output$access_map_down <- downloadHandler(
+      filename = 'access_index_map.jpeg',
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        # set the zoom and pan based on current status of map
+        access_mapdata$dat <-setView(access_mapdata$dat,
+                                       lat = input$mymap_access_center$lat,
+                                       lng = input$mymap_access_center$lng,
+                                       zoom = input$mymap_access_zoom
+        )
+        
+        mapshot(access_mapdata$dat, file = file, cliprect = "viewport")
+      }
+    )
+    
   })  
+

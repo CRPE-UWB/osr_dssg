@@ -5,6 +5,26 @@ wrap_text <- function(s, offset) {
   gsub('(.{1,50})(\\s|$)', '\\1<br/>',s)
 }
 
+make_program_popups <- function(program_data) {
+  sprintf(
+    "<b>%s</b><br/> 
+    %s <br/> 
+    <i>%s</i><br/>
+    $%i per session<br/>
+    Starts: %s, Ends: %s <br/>  
+    Special needs = %s,  
+    Scholarships = %s <br/>",
+    wrap_text(paste("Program: ",program_data$session_name)), 
+    wrap_text(paste("Organization: ",program_data$camp_name)), 
+    wrap_text(paste("Description: ",program_data$session_short_description)),
+    program_data$session_cost,
+    program_data$session_date_start, 
+    program_data$session_date_end,
+    program_data$has_special_needs_offerings, 
+    program_data$has_scholarships
+  ) %>% lapply(htmltools::HTML)
+}
+
 calculate_aggregated_index <- function(transport_mode, types, cost) {
   if (transport_mode=="drive") {
     df <- driving_index
@@ -42,7 +62,7 @@ add_blank_map <- function(map) {
               smoothFactor = 0.5,
               opacity = 1.0,
               fillColor = "#999",
-              fillOpacity = 0.7,
+              fillOpacity = 0.3,
               label = nbhd_labels,
               labelOptions = labelOptions(
                 style = list("font-weight" = "normal", 
@@ -62,7 +82,7 @@ add_blank_map <- function(map) {
 # Function to add demographic info to a map
 add_colored_polygon_map <- function(map, spdf, pal_type, label_type, 
                                     column_name=NULL, legend_titles=NULL, legend_title=NULL, 
-                                    vals=NULL){
+                                    vals=NULL, labFormat = labelFormat()){
   if (is.null(vals)) {vals <- spdf@data[,column_name]}
   if (is.null(legend_title)) {legend_title <- legend_titles[column_name]}
   addPolygons(map, data = spdf,
@@ -87,8 +107,9 @@ add_colored_polygon_map <- function(map, spdf, pal_type, label_type,
   ) %>% 
     addLegend(pal = pal_type,
               values = vals,
-              opacity = 0.7,
+              opacity = 0.5,
               title = as.character(legend_title),
+              labFormat = labFormat,
               position = "bottomright"
     )
 }
@@ -101,8 +122,8 @@ add_circle_markers <- function(map, data, legend_title, color_code, popup_text, 
                      lat = jitter(data$lat, factor = 1, amount = 0.0005), 
                      radius = 4,
                      stroke = TRUE,
-                     weight = 0.5,
-                     color = 'gray',
+                     weight = 0.7,
+                     color = "black",
                      fillColor = color_code,
                      fillOpacity = opacity,
                      label = popup_text,
@@ -125,8 +146,15 @@ add_circle_markers <- function(map, data, legend_title, color_code, popup_text, 
   }
 }
 
+# Function to draw an outline of a neighborhood:
+add_neighborhood_outline <- function(map, neighborhood_name) {
+  addPolygons(map, data = subset(shape_census, nbhd_name==neighborhood_name),
+              fill = FALSE, weight=5, color = 'black')
+}
+
 # Function to draw the base map + demographics + program markers
-make_reschool_map <- function(df, popup_text, palette, col_name = NULL) {
+### DEPRECATED ###
+make_reschool_map <- function(df, popup_text, pal, col_name) {
   if (is.null(col_name)) {
     make_base_map() %>%
       add_blank_map() %>%
@@ -134,8 +162,21 @@ make_reschool_map <- function(df, popup_text, palette, col_name = NULL) {
   }
   else{
     make_base_map() %>%
-      add_colored_polygon_map(shape_census, palette, popup_text, col_name, legend_titles_demographic) %>%
-      add_circle_markers(df, "program", myyellow, popup_text)
+      make_demographic_map(pal, col_name)
+      #add_colored_polygon_map(shape_census, pal, popup_text, col_name, legend_titles_demographic) %>%
+      #add_circle_markers(df, "program", myyellow, popup_text)
+  }
+}
+
+# Function to draw the base OTHER RESOURCES map + demographics
+make_demographic_map <- function(pal, col_name, labFormat) {
+  if (is.null(col_name)) {
+    make_base_map() %>% add_blank_map()
+  }
+  else{
+    make_base_map() %>%
+      add_colored_polygon_map(shape_census, pal, nbhd_labels, col_name, 
+                              legend_titles_demographic, labFormat = labFormat)
   }
 }
 
