@@ -86,7 +86,9 @@ shinyUI(
                                   selectInput("neighborhoods", "Outline neighborhood:", 
                                               choices = c("No neighborhood selected", 
                                                           neighborhoods_list
-                                                          )
+                                                          ),
+                                              multiple = TRUE,
+                                              selected = "No neighborhood selected"
                                               ),
                                   width = 4
                                   ),
@@ -144,7 +146,9 @@ shinyUI(
                                             "Restrict to one neighborhood:", 
                                             choices = c("No neighborhood selected", 
                                                         sort(neighborhoods_other)
-                                                        )
+                                                        ),
+                                            multiple = TRUE,
+                                            selected = "No neighborhood selected"
                                 ),
                                 br()
                               ),
@@ -274,7 +278,9 @@ shinyUI(
                                 br(),
                                 selectInput("neighborhoods_access", "Restrict to one neighborhood:", 
                                             choices = c("No neighborhood selected", 
-                                                        neighborhoods_list)
+                                                        neighborhoods_list),
+                                            multiple = TRUE,
+                                            selected = "No neighborhood selected"
                                 ),
                                 br()
                               ),  # end sidebarPanel for access index

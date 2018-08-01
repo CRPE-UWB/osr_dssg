@@ -74,7 +74,10 @@ shinyServer(
       program_popup_text <- make_program_popups(neighborhood_data1)
       
       ##### ACTUALLY DRAW THE RESCHOOL MAP #####
-      if(input$demographics == "None selected"){
+      if(is.null(input$demographics)){
+        curr_map <- make_demographic_map(NULL, NULL)
+      }
+      else if(input$demographics == "None selected"){
         curr_map <- make_demographic_map(NULL, NULL)
       }
       else if(input$demographics == "Median household income ($)" ) {
@@ -117,8 +120,14 @@ shinyServer(
       curr_map <- curr_map %>% add_circle_markers(neighborhood_data1, "program", myyellow, 
                                                   program_popup_text, weight = 0.7, opacity = 0.8)
       
-      if (input$neighborhoods != "No neighborhood selected") {
-        curr_map <- curr_map %>% add_neighborhood_outline(input$neighborhoods)
+      # Outline the selected neighborhoods!
+      if ( !is.null(input$neighborhoods) ) {
+        for (nbhd in input$neighborhoods){
+          if (nbhd != "No neighborhood selected"){
+            print(nbhd)
+            curr_map <- curr_map %>% add_neighborhood_outline(nbhd)
+          }
+        }
       }
       
       reschool_mapdata$dat <- curr_map
