@@ -118,7 +118,7 @@ shinyServer(
                                                   program_popup_text, weight = 0.7, opacity = 0.8)
       
       if (input$neighborhoods != "No neighborhood selected") {
-        curr_map <- curr_map %>% add_neighborhood_outline(input$neighborhoods)
+        curr_map <- (curr_map %>% add_neighborhood_outline(input$neighborhoods))
       }
       
       reschool_mapdata$dat <- curr_map

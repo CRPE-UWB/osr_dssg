@@ -148,9 +148,8 @@ add_circle_markers <- function(map, data, legend_title, color_code, popup_text, 
 
 # Function to draw an outline of a neighborhood:
 add_neighborhood_outline <- function(map, neighborhood_name) {
-
-  addPolygons(map, data = subset(shape_census, nbhd_name==neighborhood_name),
-              fill = FALSE, weight=1, color = "#777", opacity = 1)
+  addPolygons(map, data = subset(shape_census, NBHD_NA==neighborhood_name),
+              fill = FALSE, weight=5, color = "#777", opacity = 1)
 }
 
 # Function to draw the base OTHER RESOURCES map + demographics
@@ -170,7 +169,7 @@ make_demographic_map <- function(pal, col_name, labFormat) {
 # Function to subset all the resource datasets based on the neighborhood selected
 subset_for_neighborhoods <- function(df, neighborhoods_list){
     if(neighborhoods_list != "No neighborhood selected" ) {
-      a <- df[which(df[, "nbhd_name"] == neighborhoods_list),]
+      a <- df[which(df[, "nbhd_name"] %in% neighborhoods_list),]
     }
     else {
       a <- df
