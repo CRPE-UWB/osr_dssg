@@ -40,7 +40,7 @@ drv <- dbDriver("PostgreSQL")
 
 # load credentials for the connection: dbname, host, port, user, password
 # looks for cred.txt in parent dir to cloned github repo
-source('../../cred.txt')
+source('cred.txt')
 
 # create a connection to the postgres database
 # note that "con" will be used later in each connection to the database
@@ -146,15 +146,12 @@ mygreen3 <- brewer.pal(3, "Greens")[3]
 myblue3 <- brewer.pal(3, "Blues")[3]
 mypurple3 <- brewer.pal(3, "Purples")[3]
 
-other_resources_colors <- brewer.pal(6, "Blues")
 parks_color <- mygreen
 libraries_color <- myblue
 rec_centers_color <- myblue3
 playgrounds_color <- mypurple
 museums_color <- mypurple3
 fields_color <- mygreen3
-
-
 
 # Creating majority race variables for each neighborhood
 # (could probably do this ahead of time)
@@ -218,13 +215,14 @@ shape_census@data$racial_dist_html <- mapply(
 )
 
 # Legend titles for demographic maps
-legend_titles_demographic <- list(MED_HH_ = "Median HH Income ($)",
-                                  PCT_LES = "Less Than <br> HS Degree (%)",
-                                  PCT_COL = "College <br> Graduates (%)",
+legend_titles_demographic <- list(MED_HH_ = "Median HH Income",
+                                  PCT_LES = "Less Than <br> HS Degree",
+                                  PCT_COL = "College <br> Graduates",
                                   PCT_HIS = "% Hispanic",
                                   PCT_BLA = "% Black",
                                   PCT_WHI = "% White",
-                                  PCT_NON = "Lang. Besides <br>English (%)",
+                                  PCT_NON = "Lang. Besides <br>English",
+                                  AGE_5_T = "5-17 Year Olds (#)",
                                   majority_race = "Most Common<br>Race/Ethnicity"
 )
 
@@ -252,7 +250,8 @@ pal_income <- colorBin("Greys", domain = shape_census@data$MED_HH_, bins = bins_
 pal_edu <- colorBin("Greys", domain = shape_census@data$PCT_LES, bins = 5)
 pal_edu2 <- colorBin("Greys", domain = shape_census@data$PCT_COL, bins = 5)
 # bins_language <- c(0, 15, 30, 45, 60, 75)
-pal_language <- colorBin("Greys", domain = shape_census@data$PCT_NON, bins = 5)
+pal_language <- colorBin("Greys", domain = shape_census@data$PCT_NON, bins = 4)
+pal_age <- colorQuantile("Greys", domain = shape_census@data$AGE_5_T, n = 5)
 
 # colorful ones for racial demographics
 pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS, bins = 5)

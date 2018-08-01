@@ -7,6 +7,7 @@ library(shiny)
 library(DT)
 library(leaflet)
 library(sp)
+library(mapview)
 
 shinyServer(
   function(input, output) {
@@ -61,6 +62,8 @@ shinyServer(
     
     ####### RESCHOOL PROGRAMS MAP #######
     
+    reschool_mapdata <- reactiveValues(dat = 0)
+    
     output$mymap <- renderLeaflet({
       
       # Subset to data for only this neighborhood
@@ -74,25 +77,34 @@ shinyServer(
         curr_map <- make_demographic_map(NULL, NULL)
       }
       else if(input$demographics == "Median household income ($)" ) {
-        curr_map <- make_demographic_map(pal_income, "MED_HH_")
+        curr_map <- make_demographic_map(pal_income, "MED_HH_", labFormat = labelFormat(prefix = "$ "))
       }
       else if(input$demographics == "Less than high school degree (%)") {
-        curr_map <- make_demographic_map(pal_edu, col_name="PCT_LES") 
+        curr_map <- make_demographic_map(pal_edu, col_name="PCT_LES", labFormat = labelFormat(suffix = " %")) 
       }
       else if(input$demographics == "College graduates (%)") {
-        curr_map <- make_demographic_map(pal_edu2, col_name="PCT_COL") 
+        curr_map <- make_demographic_map(pal_edu2, col_name="PCT_COL", labFormat = labelFormat(suffix = " %")) 
       }
       else if(input$demographics == "Hispanic population (%)") {
-        curr_map <- make_demographic_map(pal_hispanic, col_name="PCT_HIS") 
+        curr_map <- make_demographic_map(pal_hispanic, col_name="PCT_HIS", labFormat = labelFormat(suffix = " %")) 
       }
       else if(input$demographics == "Black population (%)") {
-        curr_map <- make_demographic_map(pal_black, col_name="PCT_BLA") 
+        curr_map <- make_demographic_map(pal_black, col_name="PCT_BLA", labFormat = labelFormat(suffix = " %")) 
       }
       else if(input$demographics == "White population (%)") {
-        curr_map <- make_demographic_map(pal_white, col_name="PCT_WHI") 
+        curr_map <- make_demographic_map(pal_white, col_name="PCT_WHI", labFormat = labelFormat(suffix = " %")) 
       }
       else if(input$demographics == "Non-English speakers (%)") {
-        curr_map <- make_demographic_map(pal_language, col_name="PCT_NON") 
+        curr_map <- make_demographic_map(pal_language, col_name="PCT_NON", labFormat = labelFormat(suffix = " %")) 
+      }
+      else if(input$demographics == "Number of 5-17 year olds") {
+        curr_map <- make_demographic_map(pal_age, col_name="AGE_5_T", 
+                                         # make labels say the values instead of probabilities
+                                         labFormat = function(type, cuts, p) {
+                                           n = length(cuts)
+                                           paste0(round(cuts[-n]), " &ndash; ", round(cuts[-1]))
+                                         }
+                                           ) 
       }
       else if(input$demographics == "All races") {
         labels_race_breakdown <- shape_census@data$racial_dist_html
@@ -107,8 +119,29 @@ shinyServer(
         curr_map <- curr_map %>% add_neighborhood_outline(input$neighborhoods)
       }
       
+      reschool_mapdata$dat <- curr_map
       return(curr_map)
     })
+    
+    ####### MAKE THE DOWNLOAD FEATURE FOR THE RESCHOOL PROGRAMS MAP #######
+    output$reschool_map_down <- downloadHandler(
+      filename = 'reschool_programs_map.jpeg',
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        # set the zoom and pan based on current status of map
+        reschool_mapdata$dat <-setView(reschool_mapdata$dat,
+                              lat = input$mymap_center$lat,
+                              lng = input$mymap_center$lng,
+                              zoom = input$mymap_zoom
+                              )
+        
+        mapshot(reschool_mapdata$dat, file = file, cliprect = "viewport")
+      }
+    )
     
     ####### MAKE THE RESCHOOL PROGRAMS SUMMARY ANALYSIS #######
     
@@ -222,6 +255,8 @@ shinyServer(
     fields_data <- reactive({subset_for_neighborhoods(fields, input$neighborhoods_other)})
     
     # Create the map
+    other_mapdata <- reactiveValues(dat = 0)
+    
     output$mymap_other = renderLeaflet({
         
         # Get the data
@@ -237,25 +272,34 @@ shinyServer(
           open_resource_map <- make_base_map() %>% add_blank_map()
         }
         else if(input$demographics_other == "Median household income ($)" ) {
-          open_resource_map <- make_demographic_map(pal_income, "MED_HH_")
+          open_resource_map <- make_demographic_map(pal_income, "MED_HH_", labFormat = labelFormat(prefix = "$ "))
         }
         else if(input$demographics_other == "Less than high school degree (%)") {
-          open_resource_map <- make_demographic_map(pal_edu, "PCT_LES")
+          open_resource_map <- make_demographic_map(pal_edu, "PCT_LES", labFormat = labelFormat(suffix = " %"))
         }
         else if(input$demographics_other == "College graduates (%)") {
-          open_resource_map <- make_demographic_map(pal_edu2, "PCT_COL")
+          open_resource_map <- make_demographic_map(pal_edu2, "PCT_COL", labFormat = labelFormat(suffix = " %"))
         }
         else if(input$demographics_other == "Hispanic population (%)") {
-          open_resource_map <- make_demographic_map(pal_hispanic, "PCT_HIS")
+          open_resource_map <- make_demographic_map(pal_hispanic, "PCT_HIS", labFormat = labelFormat(suffix = " %"))
         }
         else if(input$demographics_other == "Black population (%)") {
-          open_resource_map <- make_demographic_map(pal_black, "PCT_BLA")
+          open_resource_map <- make_demographic_map(pal_black, "PCT_BLA", labFormat = labelFormat(suffix = " %"))
         }
         else if(input$demographics_other == "White population (%)") {
-          open_resource_map <- make_demographic_map(pal_white, "PCT_WHI")
+          open_resource_map <- make_demographic_map(pal_white, "PCT_WHI", labFormat = labelFormat(suffix = " %"))
         }
         else if(input$demographics_other == "Non-English speakers (%)") {
-          open_resource_map <- make_demographic_map(pal_language, "PCT_NON")
+          open_resource_map <- make_demographic_map(pal_language, "PCT_NON", labFormat = labelFormat(suffix = " %"))
+        }
+        else if(input$demographics_other == "Number of 5-17 year olds") {
+          open_resource_map <- make_demographic_map(pal_age, "AGE_5_T",
+                                                    # make labels say the values instead of probabilities
+                                                    labFormat = function(type, cuts, p) {
+                                                      n = length(cuts)
+                                                      paste0(round(cuts[-n]), " &ndash; ", round(cuts[-1]))
+                                                    }
+                                                    )
         }
         else if(input$demographics_other == "All races") {
           open_resource_map <- make_base_map() %>%
@@ -369,9 +413,30 @@ shinyServer(
         if (input$neighborhoods_other != "No neighborhood selected") {
           open_resource_map <- open_resource_map %>% add_neighborhood_outline(input$neighborhoods_other)
         }
-        
+
+        other_mapdata$dat <- open_resource_map
         return(open_resource_map)
       })
+    
+    # Make the download button for the other resources map
+    output$other_map_down <- downloadHandler(
+      filename = 'other_resources_map.jpeg',
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        # set the zoom and pan based on current status of map
+        other_mapdata$dat <-setView(other_mapdata$dat,
+                                       lat = input$mymap_other_center$lat,
+                                       lng = input$mymap_other_center$lng,
+                                       zoom = input$mymap_other_zoom
+        )
+        
+        mapshot(other_mapdata$dat, file = file, cliprect = "viewport")
+      }
+    )
     
     # Make the data tables for the Other Resources Data Tab
     output$dt <- renderUI({
@@ -647,12 +712,6 @@ shinyServer(
     })
     
     
-    
-    
-    
-    
-    
-    
     #############################
     # Access Index Tab
     #############################
@@ -692,9 +751,9 @@ shinyServer(
       return(subset_for_neighborhoods(program_cost_data_access(),input$neighborhoods_access))
     })
     
-    
-    
     # map it up
+    access_mapdata <- reactiveValues(dat = 0)
+    
     output$mymap_access <- renderLeaflet({
       if (length(input$type_access)==0) {
         curr_map <- make_base_map() %>% 
@@ -717,6 +776,30 @@ shinyServer(
         curr_map <- curr_map %>%
           add_neighborhood_outline(input$neighborhoods_access)
       }
+      
+      access_mapdata$dat <- curr_map
       return(curr_map)
     })
+    
+    ####### MAKE THE DOWNLOAD FEATURE FOR THE ACCESS INDEX MAP #######
+    output$access_map_down <- downloadHandler(
+      filename = 'access_index_map.jpeg',
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        # set the zoom and pan based on current status of map
+        access_mapdata$dat <-setView(access_mapdata$dat,
+                                       lat = input$mymap_access_center$lat,
+                                       lng = input$mymap_access_center$lng,
+                                       zoom = input$mymap_access_zoom
+        )
+        
+        mapshot(access_mapdata$dat, file = file, cliprect = "viewport")
+      }
+    )
+    
   })  
+
