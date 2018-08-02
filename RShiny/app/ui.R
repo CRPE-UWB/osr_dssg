@@ -2,8 +2,8 @@
 
 library(shiny)
 library(leaflet)
-
 # Source needed data and functions for ui and server
+source('color.R')
 source('../source_file.R', chdir = TRUE)  # temp changes working dir to same as source_file.R
 source('helpers.R')
 
@@ -20,7 +20,7 @@ demog_names <- list("None selected",
                     "Hispanic population (%)", 
                     "Black population (%)",
                     "White population (%)",
-                    "Majority + breakdown"
+                    "Most common + breakdown"
                     )
 
 # internal values for options for filtering by demographics
@@ -52,66 +52,72 @@ shinyUI(
                               
                               sidebarLayout(
                               
-                              # Sidebar panel for making selections about reschool programs
-                              sidebarPanel(
-                                checkboxGroupInput("program", "Select one or more program types:", 
-                                                   choiceNames = c("Academic", "Arts", 
-                                                               "Cooking", "Dance", 
-                                                               "Drama", "Music", 
-                                                               "Nature", "Sports", 
-                                                               "STEM"), 
-                                                   choiceValues = c("has_academic", "has_arts", 
-                                                                    "has_cooking", "has_dance", 
-                                                                    "has_drama","has_music",
-                                                                    "has_nature", "has_sports",
-                                                                    "has_stem"),
-                                                   selected = "has_academic",
-                                                   inline = TRUE
-                                                   ),
-                                sliderInput("slider", "Select a range for program cost:", 
-                                            min = minprice_reschoolprograms, 
-                                            max = maxprice_reschoolprograms , 
-                                            value = c(minprice_reschoolprograms, 
-                                                      maxprice_reschoolprograms),
-                                            pre = "$"
-                                            ),
-                                radioButtons("demographics", 
-                                             "Select a demographics variable to visualize:", 
-                                             choiceNames = demog_names,
-                                             choiceValues = demog_values,
-                                             selected = "None selected"
-                                             ),
-                                br(),
-                                selectInput("neighborhoods", "Restrict to one neighborhood:", 
-                                            choices = c("No neighborhood selected", 
-                                                        sort(neighborhoods_reshoolprograms)
-                                                        )
-                                            ),
-                                width = 4
-                                ),
-                              
-                              # Main panel for reschool programs: map tab + data tab + analysis tab
-                              mainPanel(
-                                tabsetPanel(type = "tab",
-                                            tabPanel("Map",
-                                                     leafletOutput("mymap", height = 520),
-                                                     downloadButton('reschool_map_down', label = "Download Map")
+                                # Sidebar panel for making selections about reschool programs
+                                sidebarPanel(
+                                  checkboxGroupInput("program", "Select one or more program types:", 
+                                                     choiceNames = c("Academic", "Arts", 
+                                                                 "Cooking", "Dance", 
+                                                                 "Drama", "Music", 
+                                                                 "Nature", "Sports", 
+                                                                 "STEM"), 
+                                                     choiceValues = c("has_academic", "has_arts", 
+                                                                      "has_cooking", "has_dance", 
+                                                                      "has_drama","has_music",
+                                                                      "has_nature", "has_sports",
+                                                                      "has_stem"),
+                                                     selected = "has_academic",
+                                                     inline = TRUE
                                                      ),
-                                            tabPanel("Data",
-                                                     DT::dataTableOutput("datatable")
-                                                     ),
-                                            tabPanel("Summary analysis",
-                                                     uiOutput("summary_title"),
-                                                     fluidRow(
-                                                       column(6, plotOutput("program_type_summary")),
-                                                       column(6, plotOutput("program_cost_summary"))
-                                                     ),
-                                                     uiOutput("program_special_cats"),
-                                                     DT::dataTableOutput("nbhd_summary")
-                                                     )
-                                            )
-                                ) 
-                              )) # end sidebar layout and fluidPage
+                                  sliderInput("slider", "Select a range for program cost:", 
+                                              min = minprice_reschoolprograms, 
+                                              max = maxprice_reschoolprograms , 
+                                              value = c(minprice_reschoolprograms, 
+                                                        maxprice_reschoolprograms),
+                                              pre = "$"
+                                              ),
+                                  radioButtons("demographics", 
+                                               "Select a demographics variable to visualize:", 
+                                               choiceNames = demog_names,
+                                               choiceValues = demog_values,
+                                               selected = "None selected"
+                                               ),
+                                  br(),
+                                  selectInput("neighborhoods", "Focus on neighborhoods:", 
+                                              choices = c("All neighborhoods", 
+                                                          neighborhoods_list
+                                                          ),
+                                              multiple = TRUE,
+                                              selected = "All neighborhoods"
+                                              ),
+                                  width = 4
+                                  ),
+                                
+                                # Main panel for reschool programs: map tab + data tab + analysis tab
+                                mainPanel(
+                                  tabsetPanel(type = "tab",
+                                              tabPanel("Map",
+                                                       leafletOutput("mymap", height = 520),
+                                                       downloadButton('reschool_map_down', label = "Download Map")
+                                                       ),
+                                              tabPanel("Data",
+                                                       DT::dataTableOutput("datatable")
+                                                       ),
+                                              tabPanel(
+                                                "Summary analysis",
+                                                 uiOutput("summary_title"),
+                                                 fluidRow(
+                                                   column(6, plotOutput("program_type_summary", height = "250px")),
+                                                   column(6, plotOutput("program_cost_summary", height = "250px"))
+                                                 ),
+                                                br(),
+                                                 uiOutput("program_special_cats"),
+                                                 DT::dataTableOutput("nbhd_summary")
+                                              )
+                                              
+                                    )
+                                  ) 
+                                )
+                              ) # end sidebar layout and fluidPage
                             ),  # end B4S programs tab
                    
                    
@@ -137,10 +143,12 @@ shinyUI(
                                 ),
                                 br(),
                                 selectInput("neighborhoods_other", 
-                                            "Restrict to one neighborhood:", 
-                                            choices = c("No neighborhood selected", 
-                                                        sort(neighborhoods_other)
-                                                        )
+                                            "Focus on neighborhoods:", 
+                                            choices = c("All neighborhoods", 
+                                                            neighborhoods_list
+                                                        ),
+                                            multiple = TRUE,
+                                            selected = "All neighborhoods"
                                 ),
                                 br()
                               ),
@@ -166,28 +174,16 @@ shinyUI(
                       
                       fluidPage(sidebarLayout(
                         
-                        sidebarPanel(fluidRow(
-                          # column(6,selectInput("minprice_search", "Select Min Price:", 
-                          #             choices = c("No min price selected", 
-                          #                         sort(unique(google_analytics$mincost)))
-                          # )),
-                          # column(6,selectInput("maxprice_search", "Select Max Price:", 
-                          #             choices = c("No max price selected", 
-                          #                         sort(unique(google_analytics$maxcost)))
-                          # )),
-                          # br(),
+                      
+                        
+                        sidebarPanel(
                           
+                          conditionalPanel(condition = "input.conditionedPanels == 'Summary'",
+                          
+                          fluidRow(
+                        
                           column(6, textInput("minprice_search", "Enter Min Cost:","")),
                           column(6, textInput("maxprice_search", "Enter Max Cost:","")),
-                          
-                          # column(6,selectInput("minage_search", "Select Min Age:", 
-                          #                      choices = c("No min age selected", 
-                          #                                  sort(unique(google_analytics$minage)))
-                          # )),
-                          # column(6,selectInput("maxage_search", "Select Max Age:", 
-                          #                      choices = c("No max age selected", 
-                          #                                  sort(unique(google_analytics$maxage)))
-                          # )),
                           br(),
                           column(6, textInput("minage_search", "Enter Min Age:","")),
                           column(6, textInput("maxage_search", "Enter Max Age:","")),
@@ -209,14 +205,20 @@ shinyUI(
                                              choices = sort(unique(google_analytics$category)), 
                                              selected = character(0), 
                                              inline = TRUE
-                                             )
-                          ),
+                                             ),br(),
                           radioButtons("specialneeds_search", 
                                        "Other selections", 
                                        choices = c("Special needs students", "Scholarships Available", "None Selected"),
                                        selected = "None Selected"
                                      
-                          )),
+
+                          ))),
+                          
+                          conditionalPanel(condition = "input.conditionedPanels == 'Visualization'",
+                                           selectInput("specific_search_questions", "Select a question:", 
+                                                       choices = c("What is the most preferred choice during a search")))
+                          ),
+
                         
                         mainPanel(
                           tabsetPanel(type = "tab",
@@ -235,10 +237,14 @@ shinyUI(
                                                  DT::dataTableOutput("datatable_search")
                                                )
                                       ),
-                                      tabPanel("Visualization")
-                          ))  # end main panel of reschool search data tab
+
+                                      tabPanel("Visualization"), id = "conditionedPanels"
+                          ) 
+                        )#end of main panel
+
+                          ))  
                         
-                      ))
+
                       ),  # end reschool search data tab
                    
                    ## ACCESS INDEX TAB
@@ -270,14 +276,14 @@ shinyUI(
                                 br(),
                                 selectInput("neighborhoods_access", "Restrict to one neighborhood:", 
                                             choices = c("No neighborhood selected", 
-                                                        sort(neighborhoods_reshoolprograms))
+                                                        neighborhoods_list),
+                                            multiple = TRUE,
+                                            selected = "No neighborhood selected"
                                 ),
                                 br()
                               ),  # end sidebarPanel for access index
                               
                               mainPanel(
-                                
-                                textOutput("test"),
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
                                                      leafletOutput("mymap_access", height = 520),
@@ -294,4 +300,5 @@ shinyUI(
              
              )  # end navbarPage 
   
-  ))  # end fluidPage for whole UI, and shinyUI
+  )
+)  # end fluidPage for whole UI, and shinyUI

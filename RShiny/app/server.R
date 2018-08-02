@@ -27,7 +27,8 @@ shinyServer(
     })
     
     neighborhood_data <- reactive({
-      return(subset_for_neighborhoods(program_cost_data(),input$neighborhoods))
+      return(program_cost_data())
+      #return(subset_for_neighborhoods(program_cost_data(),input$neighborhoods))
     })
     
     ####### RESCHOOL PROGRAMS DATA TAB #######
@@ -73,7 +74,10 @@ shinyServer(
       program_popup_text <- make_program_popups(neighborhood_data1)
       
       ##### ACTUALLY DRAW THE RESCHOOL MAP #####
-      if(input$demographics == "None selected"){
+      if(is.null(input$demographics)){
+        curr_map <- make_demographic_map(NULL, NULL)
+      }
+      else if(input$demographics == "None selected"){
         curr_map <- make_demographic_map(NULL, NULL)
       }
       else if(input$demographics == "Median household income ($)" ) {
@@ -104,7 +108,7 @@ shinyServer(
                                            n = length(cuts)
                                            paste0(round(cuts[-n]), " &ndash; ", round(cuts[-1]))
                                          }
-                                           ) 
+                                        ) 
       }
       else if(input$demographics == "All races") {
         labels_race_breakdown <- shape_census@data$racial_dist_html
@@ -113,10 +117,17 @@ shinyServer(
                                   "majority_race", legend_titles_demographic)
       }
       
-      curr_map <- curr_map %>% add_circle_markers(neighborhood_data1, "program", myyellow, program_popup_text)
+      curr_map <- curr_map %>% add_circle_markers(neighborhood_data1, "program", myyellow, 
+                                                  program_popup_text, weight = 0.7, opacity = 0.8)
       
-      if (input$neighborhoods != "No neighborhood selected") {
-        curr_map <- curr_map %>% add_neighborhood_outline(input$neighborhoods)
+      # Outline the selected neighborhoods!
+      if ( !is.null(input$neighborhoods) ) {
+        for (nbhd in input$neighborhoods){
+          if (nbhd != "All neighborhoods"){
+            print(nbhd)
+            curr_map <- curr_map %>% add_neighborhood_outline(nbhd)
+          }
+        }
       }
       
       reschool_mapdata$dat <- curr_map
@@ -145,72 +156,80 @@ shinyServer(
     
     ####### MAKE THE RESCHOOL PROGRAMS SUMMARY ANALYSIS #######
     
-    # subset to only this neighborhood
-    # CAN PROBABLY REMOVE THIS FUNCTION AND REPLACE WITH THE ONE JOE WROTE
-    subset_reschool_for_neighborhoods <- function(df){
-      b <- reactive({
-        a <- df[which(df[, "nbhd_name"] == input$neighborhoods), ]
-        return(a) 
-      })
-      return(b)
-    }
+    # for subsetting to only the given neighborhood
+    summary_data <- reactive({
+      return(subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods))
+    })
     
     output$summary_title <- renderUI({
-      summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
-      sprintf('<h3> "%s" Summary </h3>',
-              summary_data[, "nbhd_name"]
-      ) %>% lapply(htmltools::HTML)
+      summary_nbhds <- summary_data()[, "nbhd_name"]
+      if ("No neighborhood selected" %in% summary_nbhds){
+        summary_nbhds <- "All Neighborhoods"
+      }
       
+      sprintf('<h3>Summary for %s</h3>',
+              toString(summary_nbhds)
+      ) %>% lapply(htmltools::HTML)
     })
     
     output$program_type_summary <- renderPlot(
       {
-        summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
-      
-        data <- unlist(summary_data[,c(3:9, 12:13)])
-        names(data) <- c("academic", "arts", "cooking", "dance", "drama",
-                         "music", "nature", "sports", "stem")
+        data_names <- c("academic", "arts", "cooking", "dance", "drama",
+                        "music", "nature", "sports", "stem")
+        relevant_colnames <- c("total_academic", "total_arts", "total_cooking", "total_dance", "total_drama",
+                               "total_music", "total_nature", "total_sports", "total_stem")
         
-        par(mar = c(3.1, 5.1, 2.1, 2.1))  # make left margin larger to fit names(data)
-        barplot(rev(data),  # reverse so that reads top - bottom alphabetically
+        if (nrow(summary_data())==0) {
+          dat <- rep(0,9)
+        } else {
+          dat <- colSums(summary_data()[,relevant_colnames])
+          dat <- unlist(dat)
+        }
+        
+        names(dat) <- data_names
+        
+        par(mar = c(5.1, 5.1, 2.1, 2.1))  # make left margin larger to fit names(data)
+        barplot(rev(dat),  # reverse so that reads top - bottom alphabetically
                 main = "Program Types",
                 col = c(mygreen2, mypurple3, myblue2, 
-                        mygreen, myblue3, mygreen3,
-                        mypurple2, myblue, mypurple),
+                        mygreen, myblue, mygreen3,
+                        mypurple2, myblue3, mypurple),
                 horiz = TRUE,
+                xlab = "# programs",
                 las = 1
                 )
-      },
-      width = "auto",
-      height = 250
+      }
     )
     
     output$program_special_cats <- renderUI({
-      summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
-      
-      sprintf("Programs with Scholarships: %i <br/> Special Needs Programs: %i <br/><br/>",
-              summary_data[, "total_scholarships"],
-              summary_data[, "total_special_needs"]
-      ) %>% lapply(htmltools::HTML)
+      if (nrow(summary_data())==0) {
+        sprintf("No programs in this neighborhood.") %>% lapply(htmltools::HTML)
+      } else {
+        sprintf("Programs with Scholarships: %i <br/> 
+                Programs Accommodating Special Needs: %i <br/><br/>",
+                sum(summary_data()[, "total_scholarships"]),
+                sum(summary_data()[, "total_special_needs"])
+        ) %>% lapply(htmltools::HTML)
+      }
     })
     
-    output$program_cost_summary <- renderPlot(
-      {
-        summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
-        # dummy plot just to check
-        par(mar = c(3.1, 2.1, 2.1, 2.1))  # make margins same as other plot
-        barplot(1,
-                main = "Program Costs")
-      },
-      width = "auto",
-      height = 250
-    )
+    output$program_cost_summary <- renderPlot({
+      nbhd_cost_data <- subset_for_neighborhoods(reschool_summer_program, input$neighborhoods)
+      nbhd_cost_data <- nbhd_cost_data[,"session_cost"]
+      
+        par(mar = c(5.1, 5.1, 2.1, 2.1))  # set margins
+        hist(nbhd_cost_data,
+             main = "Program Costs",
+             breaks = seq(from=0, to=1400, by=10),
+             xlim = c(0, max(10, max(nbhd_cost_data))),
+             xlab = "cost ($)",
+             ylab = "# programs"
+             )
+    })
     
     output$nbhd_summary <- renderDataTable({
-      summary_data <- subset_reschool_for_neighborhoods(nbhd_program_summary)()
-      
-      datatable(summary_data, 
-                    options = list(pageLength = 1, 
+      datatable(summary_data(), 
+                    options = list(pageLength = 3, 
                                    scrollX = TRUE,
                                    searching = FALSE,
                                    paging = FALSE,
@@ -410,8 +429,12 @@ shinyServer(
 
         }
         
-        if (input$neighborhoods_other != "No neighborhood selected") {
-          open_resource_map <- open_resource_map %>% add_neighborhood_outline(input$neighborhoods_other)
+        # Outline selected neighborhoods
+        if ( !is.null(input$neighborhoods_other) ){
+          for (nbhd in input$neighborhoods_other){
+            if (nbhd != "All neighborhoods")
+              open_resource_map <- open_resource_map %>% add_neighborhood_outline(nbhd)
+          }
         }
 
         other_mapdata$dat <- open_resource_map
@@ -551,7 +574,7 @@ shinyServer(
       
     })
     
-    
+    #Subsetting the data depending on the various selections made in the sidebar panel 
     subset_search_data = reactive({
       
       print(input$minprice_search)
@@ -570,9 +593,7 @@ shinyServer(
         maxcost_search_data = mincost_search_data
       }
       
-      
-      
-      
+
       
       if(input$minage_search != ""){
         minage_search_data = maxcost_search_data[which(maxcost_search_data$minage  >= as.numeric(input$minage_search)),]
@@ -589,17 +610,7 @@ shinyServer(
         maxage_search_data = minage_search_data
       }
       
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
+
       
       if(input$zipcode_searchprog != "No zipcode selected" ) {
         zipcode_search_data <- subset(maxage_search_data, 
@@ -711,7 +722,11 @@ shinyServer(
       
     })
     
+
+    #Rendering 
     
+    
+
     #############################
     # Access Index Tab
     #############################
@@ -748,7 +763,8 @@ shinyServer(
     })
 
     neighborhood_data_access <- reactive({
-      return(subset_for_neighborhoods(program_cost_data_access(),input$neighborhoods_access))
+      return(program_cost_data_access())
+      #return(subset_for_neighborhoods(program_cost_data_access(),input$neighborhoods_access))
     })
     
     # map it up
@@ -769,10 +785,10 @@ shinyServer(
         
         curr_map <- make_base_map() %>%
           add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
-                                  vals=index(), legend_title="Access Index") %>%
+                                  vals=index(), legend_title="Access Index", my_weight=.4) %>%
           add_circle_markers(neighborhood_data_access, "program", myyellow, program_popup_text_access)
       }
-      if (input$neighborhoods_access!="No neighborhood selected") {
+      if (input$neighborhoods_access!="All neighborhoods") {
         curr_map <- curr_map %>%
           add_neighborhood_outline(input$neighborhoods_access)
       }

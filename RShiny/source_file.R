@@ -9,30 +9,6 @@ library(RPostgreSQL)
 library(RColorBrewer)
 library(leaflet)
 
-####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
-
-# Color settings
-myyellow <- "#FFFF66"
-mygreen <- brewer.pal(3, "Greens")[2]
-myblue <- brewer.pal(3, "Blues")[2]
-mypurple <- brewer.pal(3, "Purples")[2]
-
-mygreen2 <- brewer.pal(3, "Greens")[1]
-myblue2 <- brewer.pal(3, "Blues")[1]
-mypurple2 <- brewer.pal(3, "Purples")[1]
-
-mygreen3 <- brewer.pal(3, "Greens")[3]
-myblue3 <- brewer.pal(3, "Blues")[3]
-mypurple3 <- brewer.pal(3, "Purples")[3]
-
-other_resources_colors <- brewer.pal(6, "Blues")
-parks_color <- mygreen
-libraries_color <- myblue
-rec_centers_color <- myblue3
-playgrounds_color <- mypurple
-museums_color <- mypurple3
-fields_color <- mygreen3
-
 ################## Getting data from the database e#############################################
 
 # load the PostgreSQL driver
@@ -78,8 +54,6 @@ dbUnloadDriver(drv)
 shape_census_block <- readOGR(dsn = "../data/census_block_groups", layer = "shape_census")
 shape_census_block@data$Id2 <- as.numeric(as.character(shape_census_block@data$Id2))
 shape_census_block <- shape_census_block[order(shape_census_block@data$Id2),]
-# access_driving <- geo_join(shape_census_block,driving_index, "Id2", "Id2", how="inner")
-# access_transit <- geo_join(shape_census_block,transit_index, "Id2", "Id2", how="inner")
 
 ########################
 # Neighborhood stuff
@@ -98,18 +72,20 @@ shape_census <- geo_join(shape_census, aggregate_dps_student_nbhds,
 
 # Creating filter variables: distinct zipcode, minimum cost, maximum cost, program type
 # (for the ReSchool tab sidebar panel)
-neighborhoods_reshoolprograms = unique(reschool_summer_program$nbhd_name)
+neighborhoods_list <- sort(unique(as.character(shape_census$NBHD_NA)))
+#neighborhoods_reshoolprograms = unique(reschool_summer_program$nbhd_name)
 minprice_reschoolprograms = min(reschool_summer_program$session_cost)
 maxprice_reschoolprograms = max(reschool_summer_program$session_cost)
 
 #Defining the variables to be used in the program search tab sidebar panel
-#Convert the cost column  to numeric
+#Convert the necessary columns  to numeric
 google_analytics$mincost = as.numeric(google_analytics$mincost)
 google_analytics$maxcost = as.numeric(google_analytics$maxcost)
 
-#Convert the age column  to numeric
+#Convert columns  to numeric
 google_analytics$minage = as.numeric(google_analytics$minage)
 google_analytics$maxage = as.numeric(google_analytics$maxage)
+google_analytics$distance = as.numeric(google_analytics$distance)
 
 
 #Creating unique zipcodes for the third tab search data
@@ -128,30 +104,14 @@ neighborhoods_other = unique(all_neighbourhoods$nbhd_name)
 # Defining variables for choosing demographic information
 demographic_filters = c("Median Income", "Percent below poverty level")
 
+#Creating necessary summary tables to be used in the visualization tab in the search data tab
+search_sort_summary = google_analytics %>% select(sort, users) %>% filter(sort != '') %>% 
+  group_by(sort) %>% summarize(total_searches = sum(users))
+
+search_distance_summary = google_analytics %>% select(distance, users) %>% filter(distance != '') %>% 
+  group_by(distance) %>% summarize(total_searches = sum(users)) %>% arrange(distance) %>% filter(distance <= 100)
+
 ############################## Racial distributions variables ####################################
-
-####### STUFF TO CREATE THE BASIC MAPS W/ DEMOGRAPHICS  #######
-
-# Color settings
-myyellow <- "#FFFF66"
-mygreen <- brewer.pal(3, "Greens")[2]
-myblue <- brewer.pal(3, "Blues")[2]
-mypurple <- brewer.pal(3, "Purples")[2]
-
-mygreen2 <- brewer.pal(3, "Greens")[1]
-myblue2 <- brewer.pal(3, "Blues")[1]
-mypurple2 <- brewer.pal(3, "Purples")[1]
-
-mygreen3 <- brewer.pal(3, "Greens")[3]
-myblue3 <- brewer.pal(3, "Blues")[3]
-mypurple3 <- brewer.pal(3, "Purples")[3]
-
-parks_color <- mygreen
-libraries_color <- myblue
-rec_centers_color <- myblue3
-playgrounds_color <- mypurple
-museums_color <- mypurple3
-fields_color <- mygreen3
 
 # Creating majority race variables for each neighborhood
 # (could probably do this ahead of time)
@@ -173,9 +133,9 @@ shape_census@data$racial_dist_html <- mapply(
   # color palette generated from brewer.pal()
   function(nbhd, pct_hisp, pct_white, pct_black, pct_native, pct_asian){
     
-    black_color <- myblue
-    hispanic_color <- mygreen
-    white_color <- mypurple
+    black_color <- colors_all_races[1]
+    hispanic_color <- colors_all_races[2]
+    white_color <- colors_all_races[3]
     other_color <- "gray"
     
     sprintf(
@@ -258,5 +218,5 @@ pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS, bins = 5)
 pal_black <- colorBin("Blues", domain = shape_census@data$PCT_BLA, bins = 5)
 pal_white <- colorBin("Purples", domain = shape_census@data$PCT_WHI, bins = 5)
 
-pal_all_races <- colorFactor(c(myblue, mygreen, mypurple), 
+pal_all_races <- colorFactor(colors_all_races, 
                              domain = shape_census@data$majority_race)

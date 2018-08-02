@@ -1,0 +1,195 @@
+---
+title: "Analysis_correlation"
+author: "Haowen Zheng"
+date: "8/1/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library(tidyverse)
+library(rgdal)
+library(rgeos)
+library(leaflet)
+library(ggplot2)
+library(tigris)
+```
+
+## Get connected to RDS
+```{r}
+# install.packages("RPostgreSQL")
+
+require("RPostgreSQL")
+
+# loads the PostgreSQL driver
+drv <- dbDriver("PostgreSQL")
+source('/Users/luna/Desktop/DSSG/ors/other/keyforRDS')
+# creates a connection to the postgres database
+# note that "con" will be used later in each connection to the database
+con <- dbConnect(drv, dbname = "dssg2018uw",
+                 host = "localhost", port = 9000,
+                 user = user, password = password)
+```
+
+## Get the data for analysis
+```{r}
+# get the indices
+driving_index <- dbGetQuery(con, "select * from clean.driving_index")
+transit_index <- dbGetQuery(con, "select * from clean.transit_index")
+
+# get acs_demographics flat file
+acs_demographics <- dbGetQuery(con, "select * from clean.acs_demographics")
+# get acs_shapefile 
+acs_shape <- readOGR(dsn="/Users/luna/Desktop/DSSG/ors/data/clean data/shape_census", layer="shape_census")
+
+# get student data
+students = dbGetQuery(con, "select * from clean.dps_students")
+student_new <- students %>% filter(!is.na(block)) %>% left_join(student_location) #keep the students who have address info
+student_bg <- student_new %>% group_by(block_group) %>% summarise(student_n = n()) #the number of students in each block group
+
+# get neighborhood shapefile data
+nbhd_shape <- readOGR(dsn="/Users/luna/dssg2018/osr_dssg2018/data/nbhd_dem_shapes", layer="nbhd_dem_shapes")
+colnames(nbhd_shape@data)[1] <- "nbhd_name"
+```
+
+## Analysis
+### How equal/unequal is access to out-of-school resources in Denver? Is access to osr proportional to the number of students? 
+
+```{r}
+#compare numbers of census student-age population with DPS student 
+# merge the acs_demographics and student_bg together
+colnames(acs_demographics)[2] <- "Id2"
+analysis1 <- merge(acs_demographics, student_bg, by = "Id2")
+analysis1$student_age_n <- analysis1$age_less_18 - analysis1$age_less_5
+
+head(analysis1)
+
+cor.test(analysis1$student_age_n, analysis1$student_n)
+hist(analysis1$student_age_n)
+hist(analysis1$student_n)
+
+# dtk how to deal with the extreme values, see how it performs if we aggregate thing to the neighborhood level
+
+# get relationship file
+bg_nbhd <- dbGetQuery(con, "select * from clean.blockgroup_nbhds")
+
+acs_subset <- analysis1 %>% select(Id2, student_n, student_age_n)
+colnames(bg_nbhd)[3] <- "Id2"
+analysis_subset <- merge(acs_subset, bg_nbhd, by = "Id2")
+ # aggregate by nbhd
+analysis_subset_aggregated1 <- analysis_subset %>% group_by(nbhd_name) %>% summarise(student_n_a = sum(student_n))
+analysis_subset_aggregated2 <- analysis_subset %>% group_by(nbhd_name) %>% summarise(student_age_a = sum(student_age_n))
+
+
+head(analysis_subset_aggregated1)
+summary(nbhd_shape@data$AGE_5_T) #2015estimate, acs Year5-17
+summary(analysis_subset_aggregated1$student_n_a) #DPS choice students
+summary(analysis_subset_aggregated2$student_age_a) #2016estimate, acs Year5-18
+
+# how does the access index look like if we aggregate it on neighborhood level? 
+driving_index_subset <- driving_index %>% select(Id2, AI_overall)
+driving_index_subset <- merge(bg_nbhd, driving_index_subset, by = "Id2")
+ # aggregate by nbhd 
+driving_index_a <- driving_index_subset %>% group_by(nbhd_name) %>% summarise(AI_score = mean(AI_overall))
+
+head(nbhd_merged_AI@data)
+hist(driving_index_a$AI_score)
+ # merge and plot on the map
+nbhd_merged_AI <- geo_join(nbhd_shape, driving_index_a, by = "nbhd_name")
+nbhd_merged_AI2 <- geo_join(nbhd_merged_AI, analysis_subset_aggregated2, by = "nbhd_name")
+
+pal <- colorQuantile(
+  palette = "Blues",
+  domain = nbhd_merged_AI@data$AI_score, n = 10)
+pop <- paste("Nbhd:", nbhd_merged_AI@data$nbhd_name,"<br/>",
+             "AI:", nbhd_merged_AI@data$AI_score)
+
+leaflet(nbhd_merged_AI) %>%
+  addTiles() %>%
+  addPolygons(stroke = FALSE, weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5, 
+    color = ~pal(nbhd_merged_AI@data$AI_score), popup = pop) %>%
+  setView(lat=39.7,lng=-104.9,zoom=10)
+
+# let's drop the two zeros and see if Gini coefficient makes sense! 
+nbhd_merged_AI_sn <- merge(driving_index_a, analysis_subset_aggregated2, by = "nbhd_name")  %>% 
+  filter(student_age_a != 0)
+nbhd_merged_AI_sn$AI_weighted <- nbhd_merged_AI_sn$AI_score/nbhd_merged_AI_sn$student_age_a
+hist(nbhd_merged_AI_sn$AI_weighted)
+
+library(ineq)
+# Lorenz curve
+plot(Lc(nbhd_merged_AI_sn$AI_weighted, nbhd_merged_AI_sn$student_age_a),col="darkred",lwd=2) 
+ineq(nbhd_merged_AI_sn$AI_weighted,type="Gini")  0.59
+
+# change it to student level analysis
+plot(Lc(nbhd_merged_AI_sn$AI_weighted),col="darkred",lwd=2) 
+
+# to examine the data closer, let's rank the three variables
+nbhd_merged_AI_sn <- nbhd_merged_AI_sn %>% 
+  arrange(-AI_score) %>% 
+  mutate(rank_AI = row_number()) %>% 
+  arrange(student_age_a) %>% 
+  mutate(rank_student_n = row_number()) %>%
+  arrange(-AI_weighted) %>% 
+  mutate(rank_AI_weighted = row_number())
+
+
+leaflet(nbhd_merged_AI2) %>%
+  addTiles() %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+   opacity = 1.0, fillOpacity = 0.5, 
+   fillColor = ~colorQuantile("YlOrRd", nbhd_merged_AI2@data$student_age_a)(nbhd_merged_AI2@data$student_age_a)) %>%
+  setView(lat=39.7,lng=-104.9,zoom=10)
+
+```
+
+Let's make a scatter plot showing the number of programs and access scores. 
+```{r}
+ggplot(nbhd_merged_AI_sn, aes(student_age_a, AI_score)) +
+  geom_point()
+```
+
+### spatial autocorrelation - Local Moran's I 
+```{r}
+library(spdep)
+w <- poly2nb(nbhd_merged_AI, row.names=nbhd_merged_AI@data$nbhd_name) #find adjacent polygons
+summary(w)
+ # convert it to a spatial weights matrix
+ww <-  nb2listw(w, style='B')
+
+nbhd_merged_AI@data <- nbhd_merged_AI@data %>% mutate(Id = row_number())
+oid <- order(nbhd_merged_AI$Id)
+resI <- localmoran(nbhd_merged_AI$AI_score, ww)
+results <- printCoefmat(data.frame(resI[oid,],row.names=nbhd_merged_AI$Id[oid]),check.names=false)
+results$Id <- rownames(results)
+
+head(results)
+
+nbhd_merged_MI <- merge(nbhd_merged_AI, results, by = "Id")
+
+head(nbhd_merged_MI@data)
+
+#color by Ii (local Moran's I) if p < 0.05 (Pr.z...0.)
+nbhd_merged_MI@data <- nbhd_merged_MI@data %>%
+  mutate(Moran = ifelse(Pr.z...0. < 0.05, Ii, NA))
+
+# plot the significant values (Moran's I) on the map
+conpal <- colorNumeric(palette = "Blues", domain = nbhd_merged_MI@data$Moran, na.color = "grey")
+leaflet(nbhd_merged_MI) %>%
+  addTiles() %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+   opacity = 1.0, fillOpacity = 0.5, 
+   fillColor = ~conpal( nbhd_merged_MI@data$Moran)) %>%
+  setView(lat=39.7,lng=-104.9,zoom=10)
+```
+
+
+## Close the link when you are done.
+```{r}
+dbDisconnect(con) 
+dbUnloadDriver(drv)
+```
