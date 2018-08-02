@@ -8,6 +8,10 @@ library(rgeos)
 library(RPostgreSQL)
 library(RColorBrewer)
 library(leaflet)
+library(packcircles)
+library(ggplot2)
+library(viridis)
+library(ggiraph)
 
 ################## Getting data from the database e#############################################
 
@@ -105,11 +109,21 @@ neighborhoods_other = unique(all_neighbourhoods$nbhd_name)
 demographic_filters = c("Median Income", "Percent below poverty level")
 
 #Creating necessary summary tables to be used in the visualization tab in the search data tab
+#'sort by' variable graph
 search_sort_summary = google_analytics %>% select(sort, users) %>% filter(sort != '') %>% 
   group_by(sort) %>% summarize(total_searches = sum(users))
 
+#distance searched graph
 search_distance_summary = google_analytics %>% select(distance, users) %>% filter(distance != '') %>% 
-  group_by(distance) %>% summarize(total_searches = sum(users)) %>% arrange(distance) %>% filter(distance <= 100)
+  group_by(distance) %>% summarize(total_searches = sum(users)) %>% arrange(total_searches, distance) %>% filter(distance <= 100) %>% 
+  filter(distance != 20) %>% filter(total_searches > 20)
+search_distance_summary$distance = paste(search_distance_summary$distance, " mi")
+search_distance_summary$text=paste("distance: ",search_distance_summary$distance, "\n", 
+                                   "Number of searches:", search_distance_summary$total_searches)
+
+packing <- circleProgressiveLayout(search_distance_summary$total_searches, sizetype='area')
+search_distance_summary = cbind(search_distance_summary, packing)
+search_distance_summary.gg <- circleLayoutVertices(packing, npoints=50)
 
 ############################## Racial distributions variables ####################################
 

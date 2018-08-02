@@ -8,6 +8,8 @@ library(DT)
 library(leaflet)
 library(sp)
 library(mapview)
+library(plotly)
+
 
 shinyServer(
   function(input, output, session) {
@@ -736,8 +738,36 @@ shinyServer(
     })
     
 
-    #Rendering 
+    #Rendering plots for visualization tab in the search data tab
+    #'Sort by' variable graph
+    output$search_sort_plot <- renderPlotly({
+      validate(need(input$specific_search_questions=="What is the most sorted by variable during a search", message=FALSE))
+      search_sort_summary %>%
+        plot_ly(labels = ~sort, values = ~total_searches) %>%
+        add_pie(hole = 0.6) %>%
+        layout(title = "Most 'sorted by' in the searches",  showlegend = T,
+               xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE),
+               yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE))
+      
+    })
     
+    #Distance graph
+    output$search_distance_plot <- renderggiraph({
+      validate(need(input$specific_search_questions=="Analysing the distance searched", message=FALSE))
+      
+      q = ggplot() + 
+        geom_polygon_interactive(data = search_distance_summary.gg, aes(x, y, group = id, fill=id, 
+                                                                        tooltip = search_distance_summary$text[id], 
+                                                                        data_id = id), colour = "black", alpha = 0.6) +
+        scale_fill_viridis() +
+        geom_text(data = search_distance_summary, aes(x, y, label = distance), size=3, color="black",  fontface = "bold" ) +
+        theme_void() + 
+        theme(legend.position="none", plot.title = element_text(hjust = 0.5, size = 20)) + 
+        coord_equal() + ggtitle("Most entered 'Distance' in the searches ")
+      
+      ggiraph(ggobj = q, width_svg = 7, height_svg = 7)
+      
+    })
     
 
     #############################
