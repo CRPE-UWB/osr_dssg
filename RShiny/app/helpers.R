@@ -146,14 +146,28 @@ add_circle_markers <- function(map, data, legend_title, color_code, popup_text, 
   }
 }
 
-# Function to draw an outline of a SINGLE neighborhood:
-add_neighborhood_outline <- function(map, neighborhood_name=NULL) {
-  if (is.null(neighborhood_name)) {
-    dat = shape_census
+# Function to draw an outline of a group of neighborhoods:
+add_neighborhoods_outline <- function(map, nbhd_list) {
+  if ( !is.null(nbhd_list) ) {
+    if ("All neighborhoods" %in% nbhd_list) {
+      return(map %>% add_outline())
+    } else {
+      return(map %>% add_outline(nbhd_list))
+    }
   } else {
-    dat = subset(shape_census, NBHD_NA==neighborhood_name) 
+    return(map)
   }
-  addPolygons(map, data = dat,
+}
+
+# helper function for add_neighborhoods_outline
+add_outline <- function(map, nbhd_list=NULL) {
+  if (is.null(nbhd_list)) {
+    relevant_nbhds <- shape_census
+  }
+  else {
+    relevant_nbhds <- subset(shape_census, NBHD_NA %in% nbhd_list)
+  }
+  addPolygons(map, data = unionSpatialPolygons(relevant_nbhds, IDs=rep(0,nrow(relevant_nbhds))),
               fill = FALSE, weight=5, color = "#777", opacity = 1)
 }
 
@@ -173,13 +187,13 @@ make_demographic_map <- function(pal, col_name, labFormat) {
 
 # Function to subset all the resource datasets based on the neighborhood selected
 subset_for_neighborhoods <- function(df, neighborhoods_list){
-    if( ! ("All neighborhoods" %in% neighborhoods_list| is.null(neighborhoods_list)) ) {
-      a <- df[which(df[, "nbhd_name"] %in% neighborhoods_list),]
-    }
-    else {
-      a <- df
-    }
-    return(a) 
+  if ("All neighborhoods" %in% neighborhoods_list) {
+    a <- df
+  }
+  else {
+    a <- df[which(df[, "nbhd_name"] %in% neighborhoods_list),]
+  }
+  return(a) 
 }
 
 # Subsetting the data for cost

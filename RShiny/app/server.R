@@ -22,13 +22,12 @@ shinyServer(
       return(subset_for_category(reschool_summer_program, input$program))
     })
     
-    program_cost_data <- reactive({
+    program_cost_and_type_data <- reactive({
       return(subset_for_cost(program_category_data(),input$slider[1],input$slider[2]))
     })
     
     neighborhood_data <- reactive({
-      return(program_cost_data())
-      #return(subset_for_neighborhoods(program_cost_data(),input$neighborhoods))
+        return(subset_for_neighborhoods(program_cost_and_type_data(),input$neighborhoods))
     })
     
     ####### RESCHOOL PROGRAMS DATA TAB #######
@@ -68,7 +67,7 @@ shinyServer(
     output$mymap <- renderLeaflet({
       
       # Subset to data for only this neighborhood
-      neighborhood_data1 <- neighborhood_data()
+      neighborhood_data1 <- program_cost_and_type_data()
       
       # Construct pop-ups for when you click on a program marker
       program_popup_text <- make_program_popups(neighborhood_data1)
@@ -121,15 +120,7 @@ shinyServer(
                                                   program_popup_text, weight = 0.7, opacity = 0.8)
       
       # Outline the selected neighborhoods!
-      if ( !is.null(input$neighborhoods) ) {
-        if ("All neighborhoods" %in% input$neighborhoods) {
-          curr_map <- curr_map %>% add_neighborhood_outline()
-        } else {
-          for (nbhd in input$neighborhoods){
-            curr_map <- curr_map %>% add_neighborhood_outline(nbhd)
-          }
-        }
-      }
+      curr_map <- add_neighborhoods_outline(curr_map, input$neighborhoods)
       
       reschool_mapdata$dat <- curr_map
       return(curr_map)
@@ -159,16 +150,10 @@ shinyServer(
     
     # for subsetting to only the given neighborhood
     summary_data <- reactive({
-      if (input$neighborhoods=="All neighborhoods") {
-        return(nbhd_program_summary[which(nbhd_program_summary[, "nbhd_name"] == input$neighborhoods),])
-      }
-      else {
-        return(subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods))
-      }
+      subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods)
     })
     
     output$summary_title <- renderUI({
-      #summary_data <- subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods)
       sprintf('<h3> "%s" Summary </h3>',
               summary_data()[, "nbhd_name"]
       ) %>% lapply(htmltools::HTML)
@@ -176,7 +161,6 @@ shinyServer(
     
     output$program_type_summary <- renderPlot(
       {
-
         data_names <- c("academic", "arts", "cooking", "dance", "drama",
                         "music", "nature", "sports", "stem")
         relevant_colnames <- c("total_academic", "total_arts", "total_cooking", "total_dance", "total_drama",
@@ -429,12 +413,7 @@ shinyServer(
         }
         
         # Outline selected neighborhoods
-        if ( !is.null(input$neighborhoods_other) ){
-          for (nbhd in input$neighborhoods_other){
-            if (nbhd != "All neighborhoods")
-              open_resource_map <- open_resource_map %>% add_neighborhood_outline(nbhd)
-          }
-        }
+        open_resource_map <- add_neighborhoods_outline(open_resource_map, input$neighborhoods_other)
 
         other_mapdata$dat <- open_resource_map
         return(open_resource_map)
@@ -786,10 +765,10 @@ shinyServer(
                                   vals=index(), legend_title="Access Index", my_weight=.4) %>%
           add_circle_markers(neighborhood_data_access, "program", myyellow, program_popup_text_access)
       }
-      if (input$neighborhoods_access!="All neighborhoods") {
-        curr_map <- curr_map %>%
-          add_neighborhood_outline(input$neighborhoods_access)
-      }
+      # if (input$neighborhoods_access!="All neighborhoods") {
+      #   curr_map <- curr_map %>%
+      #     add_neighborhood_outline(input$neighborhoods_access)
+      # }
       
       access_mapdata$dat <- curr_map
       return(curr_map)
