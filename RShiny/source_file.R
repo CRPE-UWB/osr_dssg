@@ -115,11 +115,15 @@ search_sort_summary = google_analytics %>% select(sort, users) %>% filter(sort !
 
 #distance searched graph
 search_distance_summary = google_analytics %>% select(distance, users) %>% filter(distance != '') %>% 
-  group_by(distance) %>% summarize(total_searches = sum(users)) %>% arrange(distance) %>% filter(distance <= 100) %>% filter(distance != 20)
-
+  group_by(distance) %>% summarize(total_searches = sum(users)) %>% arrange(total_searches, distance) %>% filter(distance <= 100) %>% 
+  filter(distance != 20) %>% filter(total_searches > 20)
 search_distance_summary$distance = paste(search_distance_summary$distance, " mi")
 search_distance_summary$text=paste("distance: ",search_distance_summary$distance, "\n", 
                                    "Number of searches:", search_distance_summary$total_searches)
+
+packing <- circleProgressiveLayout(search_distance_summary$total_searches, sizetype='area')
+search_distance_summary = cbind(search_distance_summary, packing)
+search_distance_summary.gg <- circleLayoutVertices(packing, npoints=50)
 
 ############################## Racial distributions variables ####################################
 
