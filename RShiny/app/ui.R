@@ -9,6 +9,7 @@ library(packcircles)
 library(ggplot2)
 library(viridis)
 library(ggiraph)
+library(plotly)
 
 # Source needed data and functions for ui and server - impt. to do in this order!!
 # (note that all paths should be relative to the location of this ui.R file)
