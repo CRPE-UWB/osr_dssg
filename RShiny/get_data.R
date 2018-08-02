@@ -44,75 +44,75 @@ transit_index = dbGetQuery(con, "SELECT * from clean.transit_index")
 dbDisconnect(con) 
 dbUnloadDriver(drv)
 
-####################### Getting the shape files to plot the bock groups on the map ##############################
+##################### Getting shape files to plot block groups, nbhds on the map ##########################
 
-########################
-# Block group (access index) stuff
-########################
+# Get block group shape file (for access index stuff)
 shape_census_block <- readOGR(dsn = "../data/census_block_groups", layer = "shape_census")
 shape_census_block@data$Id2 <- as.numeric(as.character(shape_census_block@data$Id2))
 shape_census_block <- shape_census_block[order(shape_census_block@data$Id2),]
 
-########################
-# Neighborhood stuff
-########################
+# Get neighborhood shape file (for everything else)
 shape_census <- readOGR(dsn = file.path("..", "data", "nbhd_dem_shapes"), layer = "nbhd_dem_shapes")
 
-# Joining the 'number of sessions' information with the census shape file
+# Join the 'number of sessions' information with the census shape file
 shape_census <- geo_join(shape_census, aggregate_session_nbhds, 
                          "NBHD_NA", "nbhd_name", how = "left")
 
-# Joining the aggregate dps students information to the census shape file
+# Join the aggregate dps students information to the census shape file
 shape_census <- geo_join(shape_census, aggregate_dps_student_nbhds, 
                          "NBHD_NA", "nbhd_name", how = "left")
 
-###################### Creating filter variables for the sidebar panels #########################
+######################## Creating filter variables for the sidebar panels ############################
 
-# Creating filter variables: distinct zipcode, minimum cost, maximum cost, program type
-# (for the ReSchool tab sidebar panel)
+# Filter variables for 'B4S programs' tab
 neighborhoods_list <- sort(unique(as.character(shape_census$NBHD_NA)))
 #neighborhoods_reshoolprograms = unique(reschool_summer_program$nbhd_name)
 minprice_reschoolprograms = min(reschool_summer_program$session_cost)
 maxprice_reschoolprograms = max(reschool_summer_program$session_cost)
 
-#Defining the variables to be used in the program search tab sidebar panel
-#Convert the necessary columns  to numeric
+# Filter variables for 'other resources' tab
+neighborhoods_other = unique(all_neighbourhoods$nbhd_name)
+
+demographic_filters = c("Median Income", "Percent below poverty level")
+
+######## Filter variables for the B4S Search Data tab (Google Analytics) ########
+
+# Convert the necessary columns to numeric
 google_analytics$mincost = as.numeric(google_analytics$mincost)
 google_analytics$maxcost = as.numeric(google_analytics$maxcost)
-
-#Convert columns  to numeric
 google_analytics$minage = as.numeric(google_analytics$minage)
 google_analytics$maxage = as.numeric(google_analytics$maxage)
 google_analytics$distance = as.numeric(google_analytics$distance)
 
-
-#Creating unique zipcodes for the third tab search data
-#We take only the locations which have zipcodes which make sense
+# Create unique zipcodes (ignore locations that aren't sensible zipcodes)
 google_analytics[-grep("80\\d{3}",google_analytics$location),"location"] <- NA 
 google_analytics[grep("80\\d{3}",google_analytics$location),"location"] <- 
-  gsub(".*(80\\d{3}).*","\\1",google_analytics[grep("80\\d{3}",google_analytics$location),"location"])
+                gsub(".*(80\\d{3}).*","\\1", 
+                     google_analytics[grep("80\\d{3}",google_analytics$location),"location"]
+                     )
 zipcode_searchdata = unique(google_analytics$location)
 
-#Replacing empty category values with 'None'
+# Replacing empty category values with NAs
 google_analytics$category[google_analytics$category == ''] <- NA
 
-# Creating variables for the second tab 'other out-of-school resources'
-neighborhoods_other = unique(all_neighbourhoods$nbhd_name)
+# Creating necessary summary tables to be used in the visualization tab in the search data tab
+search_sort_summary = google_analytics %>% 
+                              select(sort, users) %>% 
+                              filter(sort != '') %>% 
+                              group_by(sort) %>% 
+                              summarize(total_searches = sum(users))
 
-# Defining variables for choosing demographic information
-demographic_filters = c("Median Income", "Percent below poverty level")
+search_distance_summary = google_analytics %>% 
+                              select(distance, users) %>% 
+                              filter(distance != '') %>% 
+                              group_by(distance) %>% 
+                              summarize(total_searches = sum(users)) %>% 
+                              arrange(distance) %>% 
+                              filter(distance <= 100)
 
-#Creating necessary summary tables to be used in the visualization tab in the search data tab
-search_sort_summary = google_analytics %>% select(sort, users) %>% filter(sort != '') %>% 
-  group_by(sort) %>% summarize(total_searches = sum(users))
+############################ Creating racial distributions variables ##################################
 
-search_distance_summary = google_analytics %>% select(distance, users) %>% filter(distance != '') %>% 
-  group_by(distance) %>% summarize(total_searches = sum(users)) %>% arrange(distance) %>% filter(distance <= 100)
-
-############################## Racial distributions variables ####################################
-
-# Creating majority race variables for each neighborhood
-# (could probably do this ahead of time)
+# Creating majority (really most common) race variables for each neighborhood
 shape_census@data$majority_race <- max.col(as.matrix(
           shape_census@data[ ,c("PCT_HIS", "PCT_WHI", "PCT_BLA","PCT_NAT","PCT_ASI")]
                      ))
