@@ -10,7 +10,8 @@ library(maptools)
 source(file.path('..', 'get_data.R'), chdir = TRUE)
 source(file.path('..', 'color.R'))
 source(file.path('..', 'labels.R'))
-source(file.path('..', 'helpers.R'))
+source(file.path('..', 'mapping_helpers.R'))
+source(file.path('..', 'other_helpers.R'))
 
 # Options to show in the UI for filtering by demographics
 # (feel free to change these for better appearances)
