@@ -55,8 +55,10 @@ make_base_map <- function() {
     addProviderTiles(providers$CartoDB.Positron)
 }
 
-add_blank_map <- function(map) {
-  addPolygons(map, data = shape_census,
+add_blank_map <- function(map, spdf=shape_census, id_col_name=NULL) {
+  layer_id=NULL
+  if (!is.null(id_col_name)) {layer_id <- as.character(spdf@data[,id_col_name])}
+  addPolygons(map, data = spdf,
               color = "#777",
               weight = 1, 
               smoothFactor = 0.5,
@@ -75,16 +77,19 @@ add_blank_map <- function(map) {
                 bringToFront = FALSE,
                 weight = 5,
                 color = "#666"
-              )
+              ),
+              layerId = layer_id
   )
 }
 
 # Function to add demographic info to a map
 add_colored_polygon_map <- function(map, spdf, pal_type, label_type, 
                                     column_name=NULL, legend_titles=NULL, legend_title=NULL, 
-                                    vals=NULL, labFormat = labelFormat(), my_weight=1){
+                                    vals=NULL, labFormat = labelFormat(), my_weight=1, id_col_name=NULL){
   if (is.null(vals)) {vals <- spdf@data[,column_name]}
   if (is.null(legend_title)) {legend_title <- legend_titles[column_name]}
+  layer_id=NULL
+  if (!is.null(id_col_name)) {layer_id <- as.character(spdf@data[,id_col_name])}
   addPolygons(map, data = spdf,
               fillColor = ~pal_type(vals),
               weight = my_weight,
@@ -103,7 +108,8 @@ add_colored_polygon_map <- function(map, spdf, pal_type, label_type,
                 textsize = "12px",
                 direction = "right",
                 offset = c(35,0)
-              )
+              ),
+              layerId = layer_id
   ) %>% 
     addLegend(pal = pal_type,
               values = vals,
@@ -172,14 +178,14 @@ add_outline <- function(map, nbhd_list=NULL) {
 }
 
 # Function to draw the base OTHER RESOURCES map + demographics
-make_demographic_map <- function(pal, col_name, labFormat) {
+make_demographic_map <- function(pal, col_name, labFormat=NULL) {
   if (is.null(col_name)) {
-    make_base_map() %>% add_blank_map()
+    make_base_map() %>% add_blank_map(id_col_name="NBHD_NA")
   }
   else{
     make_base_map() %>%
       add_colored_polygon_map(shape_census, pal, nbhd_labels, col_name, 
-                              legend_titles_demographic, labFormat = labFormat)
+                              legend_titles_demographic, labFormat = labFormat, id_col_name = "NBHD_NA")
   }
 }
 
