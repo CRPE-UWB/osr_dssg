@@ -58,6 +58,7 @@ for (i in 1:length(categories)){
 #Create an overall average by category with no cost
 
 driving_index$AI_overall <- rowMeans(driving_index[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
+driving_index$AI_overall_free <- rowMeans(driving_index[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
 ```
 
 ###Transit Dataframe
@@ -111,6 +112,7 @@ for (i in 1:length(categories)){
 #Create an overall average by category with no cost
 
 transit_index$AI_overall <- rowMeans(transit_index[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
+transit_index$AI_overall_free <- rowMeans(driving_index[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
 ```
 
 ###Push to RDS
