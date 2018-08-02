@@ -1,7 +1,7 @@
 # Make labels for tooltips / popups for RShiny app
 #  ***** Requires running both get_data.R and color.R first!******
 
-# Adding a custom html tooltip/popup for the racial distributions selection
+############ Adding a custom html tooltip/popup for the racial distributions selection ############
 shape_census@data$racial_dist_html <- mapply(
   
   # Inputs: 
@@ -51,7 +51,8 @@ shape_census@data$racial_dist_html <- mapply(
   
 )
 
-# Construct tooltip/popup text for hovering over neighborhoods
+###################### Construct tooltip/popup text for hovering over neighborhoods ######################
+
 nbhd_labels <- sprintf(
   "<b>%s</b><br/>
   No. program sessions = %i <br/>
@@ -69,7 +70,8 @@ nbhd_labels <- sprintf(
   shape_census@data$perc_disable_students
 ) %>% lapply(htmltools::HTML)
 
-# Specify legend titles for different demographic maps
+######################### Specify legend titles for different demographic maps ########################
+
 legend_titles_demographic <- list(MED_HH_ = "Median HH Income",
                                   PCT_LES = "Less Than <br> HS Degree",
                                   PCT_COL = "College <br> Graduates",
