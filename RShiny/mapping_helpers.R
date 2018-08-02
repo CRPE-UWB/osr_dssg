@@ -1,52 +1,11 @@
-#############################
-# Simple helpers 
-#############################
-wrap_text <- function(s, offset) {
-  gsub('(.{1,50})(\\s|$)', '\\1<br/>',s)
-}
+#
+# Helper functions for MAPPING in the Shiny App
+# (see other_helpers.R for non-mapping functions)
+#
 
-make_program_popups <- function(program_data) {
-  sprintf(
-    "<b>%s</b><br/> 
-    %s <br/> 
-    <i>%s</i><br/>
-    $%i per session<br/>
-    Starts: %s, Ends: %s <br/>  
-    Special needs = %s,  
-    Scholarships = %s <br/>",
-    wrap_text(paste("Program: ",program_data$session_name)), 
-    wrap_text(paste("Organization: ",program_data$camp_name)), 
-    wrap_text(paste("Description: ",program_data$session_short_description)),
-    program_data$session_cost,
-    program_data$session_date_start, 
-    program_data$session_date_end,
-    program_data$has_special_needs_offerings, 
-    program_data$has_scholarships
-  ) %>% lapply(htmltools::HTML)
-}
-
-calculate_aggregated_index <- function(transport_mode, types, cost) {
-  if (transport_mode=="drive") {
-    df <- driving_index
-  } else {
-    df <- transit_index
-  }
-  # look for the intersection of indices containing the words in the string-vector "types"
-  # and the string "cost"
-  shared_indices <- stack(sapply(FUN=grep,X=c(types,cost),x=colnames(df)))$values
-  shared_indices <- shared_indices[duplicated(shared_indices)]
-
-  if (length(shared_indices)>1) {
-    val <- rowMeans(df[,shared_indices])
-  } else {
-    val <- df[,shared_indices]
-  }
-  return(val)
-}
-
-#############################
-# Mapping helpers 
-#############################
+############################################################################################
+# Making Basic Maps
+############################################################################################
 
 # Function to make a base map
 make_base_map <- function() {
@@ -55,8 +14,11 @@ make_base_map <- function() {
     addProviderTiles(providers$CartoDB.Positron)
 }
 
+# Function to add a "blank" map, with no demographic information but still showing the nbhds
 add_blank_map <- function(map, spdf=shape_census, id_col_name=NULL) {
+  
   layer_id=NULL
+  
   if (!is.null(id_col_name)) {layer_id <- as.character(spdf@data[,id_col_name])}
   addPolygons(map, data = spdf,
               color = "#777",
@@ -82,14 +44,22 @@ add_blank_map <- function(map, spdf=shape_census, id_col_name=NULL) {
   )
 }
 
-# Function to add demographic info to a map
+# Function to add colored polygons to the map - used for visualizing demographics
 add_colored_polygon_map <- function(map, spdf, pal_type, label_type, 
                                     column_name=NULL, legend_titles=NULL, legend_title=NULL, 
                                     vals=NULL, labFormat = labelFormat(), my_weight=1, id_col_name=NULL){
-  if (is.null(vals)) {vals <- spdf@data[,column_name]}
-  if (is.null(legend_title)) {legend_title <- legend_titles[column_name]}
+  if (is.null(vals)) {
+    vals <- spdf@data[,column_name]
+    }
+  if (is.null(legend_title)) {
+    legend_title <- legend_titles[column_name]
+    }
   layer_id=NULL
-  if (!is.null(id_col_name)) {layer_id <- as.character(spdf@data[,id_col_name])}
+  if (!is.null(id_col_name)) {
+    layer_id <- as.character(spdf@data[,id_col_name])
+  }
+  
+  # actually draw the polygons
   addPolygons(map, data = spdf,
               fillColor = ~pal_type(vals),
               weight = my_weight,
@@ -120,7 +90,19 @@ add_colored_polygon_map <- function(map, spdf, pal_type, label_type,
     )
 }
 
-# Function to add circle markers to the map
+# Function to draw the WHOLE DEMOGRAPHICS MAP - no circle markers, though
+make_demographic_map <- function(pal, col_name, labFormat=NULL) {
+  if (is.null(col_name)) {
+    make_base_map() %>% add_blank_map(id_col_name="NBHD_NA")
+  }
+  else{
+    make_base_map() %>%
+      add_colored_polygon_map(shape_census, pal, nbhd_labels, col_name, 
+                              legend_titles_demographic, labFormat = labFormat, id_col_name = "NBHD_NA")
+  }
+}
+
+# Function to add circle markers to the map, with a legend
 add_circle_markers <- function(map, data, legend_title, color_code, popup_text, opacity = 0.5, weight = 1.0){
   if (nrow(data)>0){
     addCircleMarkers(map, 
@@ -152,6 +134,10 @@ add_circle_markers <- function(map, data, legend_title, color_code, popup_text, 
   }
 }
 
+############################################################################################
+# Outlining neighborhoods on the map
+############################################################################################
+
 # Function to draw an outline of a group of neighborhoods:
 add_neighborhoods_outline <- function(map, nbhd_list) {
   if ( !is.null(nbhd_list) ) {
@@ -165,7 +151,7 @@ add_neighborhoods_outline <- function(map, nbhd_list) {
   }
 }
 
-# helper function for add_neighborhoods_outline
+# Helper function for add_neighborhoods_outline
 add_outline <- function(map, nbhd_list=NULL) {
   if (is.null(nbhd_list)) {
     relevant_nbhds <- shape_census
@@ -175,40 +161,4 @@ add_outline <- function(map, nbhd_list=NULL) {
   }
   addPolygons(map, data = unionSpatialPolygons(relevant_nbhds, IDs=rep(0,nrow(relevant_nbhds))),
               fill = FALSE, weight=5, color = "#777", opacity = 1)
-}
-
-# Function to draw the base OTHER RESOURCES map + demographics
-make_demographic_map <- function(pal, col_name, labFormat=NULL) {
-  if (is.null(col_name)) {
-    make_base_map() %>% add_blank_map(id_col_name="NBHD_NA")
-  }
-  else{
-    make_base_map() %>%
-      add_colored_polygon_map(shape_census, pal, nbhd_labels, col_name, 
-                              legend_titles_demographic, labFormat = labFormat, id_col_name = "NBHD_NA")
-  }
-}
-
-####### SUBSETTING FUNCTIONS  #######
-
-# Function to subset all the resource datasets based on the neighborhood selected
-subset_for_neighborhoods <- function(df, neighborhoods_list){
-  if ("All neighborhoods" %in% neighborhoods_list) {
-    a <- df
-  }
-  else {
-    a <- df[which(df[, "nbhd_name"] %in% neighborhoods_list),]
-  }
-  return(a) 
-}
-
-# Subsetting the data for cost
-subset_for_cost <- function(df, min_cost, max_cost) {
-  return(df[df$session_cost >= min_cost & 
-              df$session_cost  <= max_cost,])
-}
-
-# Subsetting the data for the type of the program selected
-subset_for_category <- function(df, col) {
-  return(df[apply(as.data.frame(df[,col])==1,1,any),])
 }

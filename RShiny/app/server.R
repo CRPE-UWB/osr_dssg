@@ -8,8 +8,6 @@ library(DT)
 library(leaflet)
 library(sp)
 library(mapview)
-library(plotly)
-
 
 shinyServer(
   function(input, output, session) {
