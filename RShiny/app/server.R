@@ -150,12 +150,17 @@ shinyServer(
     
     # for subsetting to only the given neighborhood
     summary_data <- reactive({
-      subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods)
+      return(subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods))
     })
-    
+
     output$summary_title <- renderUI({
-      sprintf('<h3> "%s" Summary </h3>',
-              summary_data()[, "nbhd_name"]
+      summary_nbhds <- summary_data()[, "nbhd_name"]
+      if ("No neighborhood selected" %in% summary_nbhds){
+        summary_nbhds <- "All Neighborhoods"
+      }
+
+      sprintf('<h3>Summary for %s</h3>',
+              toString(summary_nbhds)
       ) %>% lapply(htmltools::HTML)
     })
     
@@ -169,50 +174,54 @@ shinyServer(
         if (nrow(summary_data())==0) {
           dat <- rep(0,9)
         } else {
-          dat <- unlist(summary_data()[,relevant_colnames])
+          dat <- colSums(summary_data()[,relevant_colnames])
+          dat <- unlist(dat)
         }
         
         names(dat) <- data_names
         
-        par(mar = c(3.1, 5.1, 2.1, 2.1))  # make left margin larger to fit names(data)
+        par(mar = c(5.1, 5.1, 2.1, 2.1))  # make left margin larger to fit names(data)
         barplot(rev(dat),  # reverse so that reads top - bottom alphabetically
                 main = "Program Types",
                 col = c(mygreen2, mypurple3, myblue2, 
                         mygreen, myblue, mygreen3,
                         mypurple2, myblue3, mypurple),
                 horiz = TRUE,
+                xlab = "# programs",
                 las = 1
                 )
-      },
-      width = "auto",
-      height = 250
+      }
     )
     
     output$program_special_cats <- renderUI({
       if (nrow(summary_data())==0) {
         sprintf("No programs in this neighborhood.") %>% lapply(htmltools::HTML)
       } else {
-        sprintf("Programs with Scholarships: %i <br/> Special Needs Programs: %i <br/><br/>",
-                summary_data()[, "total_scholarships"],
-                summary_data()[, "total_special_needs"]
+        sprintf("Programs with Scholarships: %i <br/> 
+                Programs Accommodating Special Needs: %i <br/><br/>",
+                sum(summary_data()[, "total_scholarships"]),
+                sum(summary_data()[, "total_special_needs"])
         ) %>% lapply(htmltools::HTML)
       }
     })
     
-    output$program_cost_summary <- renderPlot(
-      {
-        # dummy plot just to check
-        par(mar = c(3.1, 2.1, 2.1, 2.1))  # make margins same as other plot
-        barplot(1,
-                main = "Program Costs")
-      },
-      width = "auto",
-      height = 250
-    )
+    output$program_cost_summary <- renderPlot({
+      nbhd_cost_data <- subset_for_neighborhoods(reschool_summer_program, input$neighborhoods)
+      nbhd_cost_data <- nbhd_cost_data[,"session_cost"]
+      
+        par(mar = c(5.1, 5.1, 2.1, 2.1))  # set margins
+        hist(nbhd_cost_data,
+             main = "Program Costs",
+             breaks = seq(from=0, to=1400, by=10),
+             xlim = c(0, max(10, max(nbhd_cost_data))),
+             xlab = "cost ($)",
+             ylab = "# programs"
+             )
+    })
     
     output$nbhd_summary <- renderDataTable({
       datatable(summary_data(), 
-                    options = list(pageLength = 1, 
+                    options = list(pageLength = 3, 
                                    scrollX = TRUE,
                                    searching = FALSE,
                                    paging = FALSE,
