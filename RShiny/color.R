@@ -2,7 +2,8 @@
 
 library(RColorBrewer)
 
-# Basic colors used all over
+########################## Basic colors used all over ##########################
+
 myyellow <- "#FFFF66"
 mygreen <- brewer.pal(3, "Greens")[2]
 myblue <- brewer.pal(3, "Blues")[2]
@@ -16,7 +17,8 @@ mygreen3 <- brewer.pal(3, "Greens")[3]
 myblue3 <- brewer.pal(3, "Blues")[3]
 mypurple3 <- brewer.pal(3, "Purples")[3]
 
-# Colors used for the dots in the other resources tab
+########################## Colors for dots in 'other resources' tab ##########################
+
 other_resources_colors <- brewer.pal(6, "Dark2")
 parks_color <- other_resources_colors[1]
 libraries_color <- other_resources_colors[2]
@@ -25,9 +27,9 @@ playgrounds_color <- other_resources_colors[4]
 museums_color <- other_resources_colors[5]
 fields_color <- other_resources_colors[6]
 
-# Bins and color palettes for demographic variables in leaflet map
+###################### Color palettes for sidebar selections on demographics ########################
 
-# for non-racial demographics (grey)
+# Palettes for non-racial demographics (grey)
 bins_income <- c(0, 25000, 50000, 75000, 100000, Inf)
 pal_income <- colorBin("Greys", domain = shape_census@data$MED_HH_, bins = bins_income)
 pal_edu <- colorBin("Greys", domain = shape_census@data$PCT_LES, bins = 5)
@@ -36,12 +38,12 @@ pal_edu2 <- colorBin("Greys", domain = shape_census@data$PCT_COL, bins = 5)
 pal_language <- colorBin("Greys", domain = shape_census@data$PCT_NON, bins = 4)
 pal_age <- colorQuantile("Greys", domain = shape_census@data$AGE_5_T, n = 5)
 
-# for racial demographics (colored)
+# Palettes for racial demographics (colored)
 pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS, bins = 5)
 pal_black <- colorBin("Blues", domain = shape_census@data$PCT_BLA, bins = 5)
 pal_white <- colorBin("Purples", domain = shape_census@data$PCT_WHI, bins = 5)
 
-# for racial distribution selection (three colors)
+# Palette for racial distribution selection (three colors)
 colors_all_races <- brewer.pal(3, "Paired")[c(1,3,2)]
 pal_all_races <- colorFactor(colors_all_races, 
                              domain = shape_census@data$majority_race)
