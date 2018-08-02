@@ -12,7 +12,7 @@ library(plotly)
 
 
 shinyServer(
-  function(input, output) {
+  function(input, output, session) {
     
     #############################
     # Reschool Programs Tab
@@ -127,6 +127,22 @@ shinyServer(
       reschool_mapdata$dat <- curr_map
       return(curr_map)
     })
+    
+    observeEvent(input$mymap_shape_click, {
+      if (!is.null(input$mymap_shape_click$id)) {
+        if (input$mymap_shape_click$id %in% input$neighborhoods) {
+          new_choices <- input$neighborhoods[!input$neighborhoods==input$mymap_shape_click$id]
+        } else {
+          new_choices <- c(input$neighborhoods, input$mymap_shape_click$id)
+        }
+        updateSelectInput(session, "neighborhoods", selected = new_choices)
+      }
+    })
+    
+    # observeEvent(input$mymap_shape_click, {
+    #   new_choices <- c(input$neighborhoods, input$mymap_shape_click$id)
+    #   updateSelectInput(session, "neighborhoods", selected = new_choices)
+    # })
     
     ####### MAKE THE DOWNLOAD FEATURE FOR THE RESCHOOL PROGRAMS MAP #######
     output$reschool_map_down <- downloadHandler(
@@ -282,7 +298,7 @@ shinyServer(
         
         ##### ACTUALLY DRAW THE OTHER RESOURCES MAP #####
         if(input$demographics_other == "None selected"){
-          open_resource_map <- make_base_map() %>% add_blank_map()
+          open_resource_map <- make_base_map() %>% add_blank_map(id_col_name="NBHD_NA")
         }
         else if(input$demographics_other == "Median household income ($)" ) {
           open_resource_map <- make_demographic_map(pal_income, "MED_HH_", labFormat = labelFormat(prefix = "$ "))
@@ -429,6 +445,17 @@ shinyServer(
         other_mapdata$dat <- open_resource_map
         return(open_resource_map)
       })
+    
+    observeEvent(input$mymap_other_shape_click, {
+      if (!is.null(input$mymap_other_shape_click$id)) {
+        if (input$mymap_other_shape_click$id %in% input$neighborhoods_other) {
+          new_choices <- input$neighborhoods_other[!input$neighborhoods_other==input$mymap_other_shape_click$id]
+        } else {
+          new_choices <- c(input$neighborhoods_other, input$mymap_other_shape_click$id)
+        }
+        updateSelectInput(session, "neighborhoods_other", selected = new_choices)
+      }
+    })
     
     # Make the download button for the other resources map
     output$other_map_down <- downloadHandler(
