@@ -43,7 +43,7 @@ demog_values <- list("None selected",
                      "All races"
                      )
 
-# Start the Shiny UI
+########################## Start the Shiny UI ####################################################
 
 shinyUI(
   
@@ -53,7 +53,8 @@ shinyUI(
   
   navbarPage("Denver Out-of-School Resources",
                    
-                   ## RESCHOOL PROGRAMS TAB
+########################## Blueprint4Summer Programs Tab ###########################################
+
                    tabPanel("B4S Programs",
                             fluidPage(
                               
@@ -137,7 +138,8 @@ shinyUI(
                             ),  # end B4S programs tab
                    
                    
-                   ## OPEN DATA TAB - Parks, Libraries, etc.
+####################### Other Resources / Open Data Tab - Parks, Libraries, etc. #######################
+
                    tabPanel("Other Resources",
                             fluidPage(sidebarLayout(
                               
@@ -185,12 +187,11 @@ shinyUI(
                             
                    ),  # end open data tab
 
-                   ## RESCHOOL SEARCH DATA TAB
+########################## Blueprint4Summer Search Data Tab ###########################################
+
                    tabPanel("ReSchool Program Searches",
                       
                       fluidPage(sidebarLayout(
-                        
-                      
                         
                         sidebarPanel(
                           
@@ -263,7 +264,8 @@ shinyUI(
 
                       ),  # end reschool search data tab
                    
-                   ## ACCESS INDEX TAB
+################################### Access Index Tab #################################################
+
                    tabPanel("Access Index",
                             fluidPage(sidebarLayout(
                               
@@ -311,10 +313,11 @@ shinyUI(
                                 )
                               )  # end main panel for access index
                               
-                            ))  # end sidebar layrout and access index fluidPage
+                            ))  # end sidebar layout and access index fluidPage
                   )  # end access index tab
-             
+
+########################## Ending the Shiny UI ###########################################
+
              )  # end navbarPage 
-  
   )
 )  # end fluidPage for whole UI, and shinyUI
