@@ -1,13 +1,11 @@
 # Source file to generate data for plotting in RShiny app.
 # Note: all file paths are relative to LOCATION OF THIS FILE
 
+library(RPostgreSQL)
 library(dplyr)
 library(rgdal)
-library(tigris)
 library(rgeos)
-library(RPostgreSQL)
-library(RColorBrewer)
-library(leaflet)
+library(tigris)
 
 ################## Getting data from the database e#############################################
 

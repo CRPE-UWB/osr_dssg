@@ -1,6 +1,7 @@
 # Make labels for tooltips / popups for RShiny app
+#  ***** Requires running both get_data.R and color.R first!******
 
-# Adding a custom html label for the racial distributions
+# Adding a custom html tooltip/popup for the racial distributions selection
 shape_census@data$racial_dist_html <- mapply(
   
   # Inputs: 
@@ -50,3 +51,32 @@ shape_census@data$racial_dist_html <- mapply(
   
 )
 
+# Construct tooltip/popup text for hovering over neighborhoods
+nbhd_labels <- sprintf(
+  "<b>%s</b><br/>
+  No. program sessions = %i <br/>
+  No. children 5-17 yrs old = %i <br/> 
+  %% Hispanic students = %g%% <br/> 
+  %% English student learners = %g%% <br/> 
+  %% Students who use transportation = %g%% <br/> 
+  %% Students with disability = %g%% ",
+  shape_census@data$NBHD_NA,
+  replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
+  shape_census@data$AGE_5_T, 
+  shape_census@data$perc_hispanic_students, 
+  shape_census@data$perc_nonenglish_students,
+  shape_census@data$perc_with_transport_students, 
+  shape_census@data$perc_disable_students
+) %>% lapply(htmltools::HTML)
+
+# Specify legend titles for different demographic maps
+legend_titles_demographic <- list(MED_HH_ = "Median HH Income",
+                                  PCT_LES = "Less Than <br> HS Degree",
+                                  PCT_COL = "College <br> Graduates",
+                                  PCT_HIS = "% Hispanic",
+                                  PCT_BLA = "% Black",
+                                  PCT_WHI = "% White",
+                                  PCT_NON = "Lang. Besides <br>English",
+                                  AGE_5_T = "5-17 Year Olds (#)",
+                                  majority_race = "Most Common<br>Race/Ethnicity"
+)

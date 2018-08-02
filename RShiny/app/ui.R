@@ -1,17 +1,19 @@
 # User Interface for OSR Shiny App!
 
-# Load necessary libraries
+# Load libraries needed for the UI
 library(shiny)
 library(leaflet)
 library(maptools)
 
-# Source needed data and functions for ui and server
-source('get_data.R')  # temp changes working dir to same as source_file.R
-source('color.R')
-source('labels.R')
-source('helpers.R')
+# Source needed data and functions for ui and server - impt. to do in this order!!
+# (note that all paths should be relative to the location of this ui.R file)
+source(file.path('..', 'get_data.R'), chdir = TRUE)
+source(file.path('..', 'color.R'))
+source(file.path('..', 'labels.R'))
+source(file.path('..', 'helpers.R'))
 
 # Options to show in the UI for filtering by demographics
+# (feel free to change these for better appearances)
 demog_names <- list("None selected",
                     "Number of 5-17 year olds",
                     "Median household income ($)", 
@@ -28,6 +30,7 @@ demog_names <- list("None selected",
                     )
 
 # Internal values for demographic filtering options (correspond to demog_names above)
+# (don't change these, it will make your life difficult)
 demog_values <- list("None selected", 
                      "Number of 5-17 year olds",
                      "Median household income ($)", 
