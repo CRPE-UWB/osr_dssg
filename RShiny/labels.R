@@ -96,6 +96,23 @@ nbhd_labels <- sprintf(
   shape_census@data$perc_disable_students
 ) %>% lapply(htmltools::HTML)
 
+nbhd_labels_student <- sprintf(
+  "<b>%s</b><br/>
+  ONION = %i <br/>
+  No. children 5-17 yrs old = %i <br/> 
+  %% Hispanic students = %g%% <br/> 
+  %% English student learners = %g%% <br/> 
+  %% Students who use transportation = %g%% <br/> 
+  %% Students with disability = %g%% ",
+  shape_census@data$NBHD_NA,
+  replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
+  shape_census@data$AGE_5_T, 
+  shape_census@data$perc_hispanic_students, 
+  shape_census@data$perc_nonenglish_students,
+  shape_census@data$perc_with_transport_students, 
+  shape_census@data$perc_disable_students
+) %>% lapply(htmltools::HTML)
+
 ######################### Specify legend titles for different demographic maps ########################
 
 legend_titles_demographic <- list(MED_HH_ = "Median HH Income",
@@ -106,5 +123,81 @@ legend_titles_demographic <- list(MED_HH_ = "Median HH Income",
                                   PCT_WHI = "% White",
                                   PCT_NON = "Lang. Besides <br>English",
                                   AGE_5_T = "5-17 Year Olds (#)",
-                                  majority_race = "Most Common<br>Race/Ethnicity"
+                                  majority_race = "Most Common<br>Race/Ethnicity",
+                                  "perc_disable_students" = "Disabled",
+                                  "perc_hispanic_students" = "Hispanic Students (%)",
+                                  "perc_nonenglish_students" = "EL"
 )
+
+#### TESTING - UPDATE THIS TEXT (JOE)
+
+# Options to show in the UI for filtering by demographics
+# (feel free to change these for better appearances)
+demog_names <- list("None selected",
+                    "Number of 5-17 year olds",
+                    "Median household income ($)", 
+                    "Less than high school degree (% over 25 years)",
+                    "College graduates (% over 25 years)",
+                    "Language other than English spoken (%)",
+                    # HTML("Language other than English spoken (%)
+                    #      <br><br>
+                    #      <i>Race/Ethnicity Variables</i>"
+                    #      ),
+                    "Hispanic population (%)", 
+                    "Black population (%)",
+                    "White population (%)",
+                    "Most common + breakdown"
+)
+
+demog_student_names <- list("None selected",
+                            "Disabled student population (%)",
+                            "Hispanic student population (%)",
+                            "EL student population (%)")
+
+# Internal values for demographic filtering options (correspond to demog_names above)
+# (don't change these, it will make your life difficult)
+demog_values <- list("none", 
+                     "AGE_5_T",
+                     "MED_HH_", 
+                     "PCT_LES",
+                     "PCT_COL",
+                     "PCT_NON",
+                     "PCT_HIS", 
+                     "PCT_BLA",
+                     "PCT_WHI",
+                     "majority_race"
+)
+
+demog_student_values <- list("none",
+                             "perc_disable_students",
+                             "perc_hispanic_students",
+                             "perc_nonenglish_students")
+
+labFormatAge = function(type, cuts, p) {
+  n = length(cuts)
+  paste0(round(cuts[-n]), " &ndash; ", round(cuts[-1]))
+}
+
+lab_format_list <- list(labFormatAge,
+                        labelFormat(prefix = "$ "),
+                        labFormat = labelFormat(suffix = " %"),
+                        labFormat = labelFormat(suffix = " %"),
+                        labFormat = labelFormat(suffix = " %"),
+                        labFormat = labelFormat(suffix = " %"),
+                        labFormat = labelFormat(suffix = " %"),
+                        labFormat = labelFormat(suffix = " %"),
+                        NULL)
+
+pal_list <- list(pal_age,
+                 pal_income,
+                 pal_edu,
+                 pal_edu2,
+                 pal_language,
+                 pal_hispanic,
+                 pal_black,
+                 pal_white,
+                 pal_all_races
+)
+names(pal_list) <- demog_values[demog_values!="none"]
+names(lab_format_list) <- demog_values[demog_values!="none"]
+
