@@ -15,7 +15,7 @@ make_base_map <- function() {
 }
 
 # Function to add a "blank" map, with no demographic information but still showing the nbhds
-add_blank_map <- function(map, spdf=shape_census, id_col_name=NULL) {
+add_blank_map <- function(map, spdf=shape_census, id_col_name=NULL, my_labels=nbhd_labels) {
   
   layer_id=NULL
   
@@ -27,7 +27,7 @@ add_blank_map <- function(map, spdf=shape_census, id_col_name=NULL) {
               opacity = 1.0,
               fillColor = "#999",
               fillOpacity = 0.3,
-              label = nbhd_labels,
+              label = my_labels,
               labelOptions = labelOptions(
                 style = list("font-weight" = "normal", 
                              padding = "3px 8px"),
@@ -91,14 +91,41 @@ add_colored_polygon_map <- function(map, spdf, pal_type, label_type,
 }
 
 # Function to draw the WHOLE DEMOGRAPHICS MAP - no circle markers, though
-make_demographic_map <- function(pal, col_name, labFormat=NULL) {
+make_demographic_map <- function(pal, col_name, labFormat=NULL, my_labels=nbhd_labels) {
   if (is.null(col_name)) {
     make_base_map() %>% add_blank_map(id_col_name="NBHD_NA")
   }
   else{
     make_base_map() %>%
-      add_colored_polygon_map(shape_census, pal, nbhd_labels, col_name, 
+      add_colored_polygon_map(shape_census, pal, my_labels, col_name, 
                               legend_titles_demographic, labFormat = labFormat, id_col_name = "NBHD_NA")
+  }
+}
+
+create_demographic_map <- function(school_or_census, demographics, student_demographics) {
+  if(school_or_census=="census_dems") {
+    if(demographics=="none"){
+      return(make_demographic_map(NULL, NULL))
+    }
+    else if(demographics == "majority_race") {
+      labels_race_breakdown <- shape_census@data$racial_dist_html
+      return(make_base_map() %>%
+               add_colored_polygon_map(shape_census, pal_list[[demographics]], ~labels_race_breakdown,
+                                       demographics, legend_titles_demographic)
+      )
+    }
+    else {
+      return(make_demographic_map(pal_list[[demographics]], demographics, labFormat = lab_format_list[[demographics]],
+                                  my_labels=nbhd_labels_student))
+    }
+  }
+  
+  else if(school_or_census=="student_dems") {
+    if(student_demographics == "none"){
+      curr_map <- make_demographic_map(NULL,NULL)
+    } else {
+      curr_map <- make_demographic_map(pal_black, student_demographics, labFormat = labelFormat(suffix = " %"))
+    }
   }
 }
 

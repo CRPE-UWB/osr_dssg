@@ -98,7 +98,7 @@ nbhd_labels <- sprintf(
 
 nbhd_labels_student <- sprintf(
   "<b>%s</b><br/>
-  No. program sessions = %i <br/>
+  ONION = %i <br/>
   No. children 5-17 yrs old = %i <br/> 
   %% Hispanic students = %g%% <br/> 
   %% English student learners = %g%% <br/> 

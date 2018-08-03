@@ -1,7 +1,6 @@
 # Server logic for our Shiny web app.
 
-# First run the source_file.R,
-# then run the app by clicking 'Run App' above.
+# Run the app by clicking 'Run App' above.
 
 library(shiny)
 library(DT)
@@ -78,29 +77,7 @@ shinyServer(
       }
       
       ##### ACTUALLY DRAW THE RESCHOOL MAP #####
-      if(input$school_or_census=="census_dems") {
-        if(input$demographics=="none"){
-          curr_map <- make_demographic_map(NULL, NULL)
-        }
-        else if(input$demographics == "majority_race") {
-          labels_race_breakdown <- shape_census@data$racial_dist_html
-          curr_map <- make_base_map() %>%
-            add_colored_polygon_map(shape_census, pal_list[[input$demographics]], ~labels_race_breakdown,
-                                    input$demographics, legend_titles_demographic)
-        }
-        else {
-          curr_map <- make_demographic_map(pal_list[[input$demographics]], input$demographics, labFormat = lab_format_list[[input$demographics]])
-        }
-      }
-      
-      else if(input$school_or_census=="student_dems") {
-        if(input$student_demographics == "none"){
-          curr_map <- make_demographic_map(NULL,NULL)
-        } else {
-          curr_map <- make_demographic_map(pal_black, input$student_demographics, labFormat = labelFormat(suffix = " %"))
-        }
-      }
-      
+      curr_map <- create_demographic_map(input$school_or_census, input$demographics, input$student_demographics)
       curr_map <- curr_map %>% add_circle_markers(neighborhood_data1, "program", myyellow, 
                                                   program_popup_text, weight = 0.7, opacity = 0.8)
       
@@ -276,51 +253,10 @@ shinyServer(
         
         ##### ACTUALLY DRAW THE OTHER RESOURCES MAP #####
         
-        
-        
-        
-          if(input$demographics_other == "None selected"){
-            open_resource_map <- make_base_map() %>% add_blank_map(id_col_name="NBHD_NA")
-          }
-          else if(input$demographics_other == "Median household income ($)" ) {
-            open_resource_map <- make_demographic_map(pal_income, "MED_HH_", labFormat = labelFormat(prefix = "$ "))
-          }
-          else if(input$demographics_other == "Less than high school degree (%)") {
-            open_resource_map <- make_demographic_map(pal_edu, "PCT_LES", labFormat = labelFormat(suffix = " %"))
-          }
-          else if(input$demographics_other == "College graduates (%)") {
-            open_resource_map <- make_demographic_map(pal_edu2, "PCT_COL", labFormat = labelFormat(suffix = " %"))
-          }
-          else if(input$demographics_other == "Hispanic population (%)") {
-            open_resource_map <- make_demographic_map(pal_hispanic, "PCT_HIS", labFormat = labelFormat(suffix = " %"))
-          }
-          else if(input$demographics_other == "Black population (%)") {
-            open_resource_map <- make_demographic_map(pal_black, "PCT_BLA", labFormat = labelFormat(suffix = " %"))
-          }
-          else if(input$demographics_other == "White population (%)") {
-            open_resource_map <- make_demographic_map(pal_white, "PCT_WHI", labFormat = labelFormat(suffix = " %"))
-          }
-          else if(input$demographics_other == "Non-English speakers (%)") {
-            open_resource_map <- make_demographic_map(pal_language, "PCT_NON", labFormat = labelFormat(suffix = " %"))
-          }
-          else if(input$demographics_other == "Number of 5-17 year olds") {
-            open_resource_map <- make_demographic_map(pal_age, "AGE_5_T",
-                                                      # make labels say the values instead of probabilities
-                                                      labFormat = function(type, cuts, p) {
-                                                        n = length(cuts)
-                                                        paste0(round(cuts[-n]), " &ndash; ", round(cuts[-1]))
-                                                      }
-                                                      )
-          }
-          else if(input$demographics_other == "All races") {
-            open_resource_map <- make_base_map() %>%
-              add_colored_polygon_map(shape_census, pal_all_races, ~shape_census@data$racial_dist_html, 
-                                      "majority_race", legend_titles_demographic)
-          }
+        open_resource_map <- create_demographic_map(input$school_or_census_other, input$demographics_other, input$student_demographics_other)
         
         # Loop over selected resources types, plotting the locations of each
         for (col in input$program_other){
-          
           add_resource_markers <- function(map, data, color, popup) {
             add_circle_markers(map, data, col, color, popup, opacity = 1.0)
           }
@@ -438,6 +374,8 @@ shinyServer(
         updateSelectInput(session, "neighborhoods_other", selected = new_choices)
       }
     })
+    
+    
     
     # Make the download button for the other resources map
     output$other_map_down <- downloadHandler(
