@@ -155,6 +155,11 @@ programs_sessions$perc_gap = programs_sessions$total_searches_perc - programs_se
 #Renaming the columns to ensure understandable texts
 colnames(programs_sessions)[4:7] = c("Percentage of searches", "Percentage of programs", "Total gap", "Percentage gap")
 
+#Summary data for searches made by session time
+search_sessiontimes_summary = google_analytics %>% select(sessiontimes, users) %>% 
+  filter(sessiontimes != '') %>% group_by(sessiontimes) %>% 
+  summarize(total_searches = sum(users))
+
 
 ############################ Creating racial distributions variables ##################################
 

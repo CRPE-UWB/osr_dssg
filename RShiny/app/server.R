@@ -734,7 +734,7 @@ shinyServer(
     #Rendering plots for visualization tab in the search data tab
     #'Sort by' variable graph
     output$search_sort_plot <- renderPlotly({
-      validate(need(input$specific_search_questions=="What is the most sorted by variable during a search", message=FALSE))
+      validate(need(input$specific_search_questions=="Number of searches made by different variables", message=FALSE))
       search_sort_summary %>%
         plot_ly(labels = ~sort, values = ~total_searches) %>%
         add_pie(hole = 0.6) %>%
@@ -744,9 +744,22 @@ shinyServer(
       
     })
     
+    #sessiontimes variable graph
+    output$search_sessiontimes_plot = renderPlotly({
+      validate(need(input$specific_search_questions=="Number of searches made by different variables", message=FALSE))
+      
+      search_sessiontimes_summary %>%
+        plot_ly(labels = ~sessiontimes, values = ~total_searches) %>%
+        add_pie(hole = 0.6) %>%
+        layout(title = "Searches by Session time",  showlegend = T,
+               xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE),
+               yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE))
+      
+    })
+    
     #Distance graph
     output$search_distance_plot <- renderggiraph({
-      validate(need(input$specific_search_questions=="Analysing the distance searched", message=FALSE))
+      validate(need(input$specific_search_questions=="Number of searches made by different variables", message=FALSE))
       
       q = ggplot() + 
         geom_polygon_interactive(data = search_distance_summary.gg, aes(x, y, group = id, fill=id, 
@@ -755,8 +768,8 @@ shinyServer(
         scale_fill_viridis() +
         geom_text(data = search_distance_summary, aes(x, y, label = distance), size=3, color="black",  fontface = "bold" ) +
         theme_void() + 
-        theme(legend.position="none", plot.title = element_text(hjust = 0.5, size = 20)) + 
-        coord_equal() + ggtitle("Most entered 'Distance' in the searches ")
+        theme(legend.position="none", plot.title = element_text(hjust = 0.5, size = 20)) +
+        ggtitle("Most entered 'Distance' in the searches ")
       
       ggiraph(ggobj = q, width_svg = 7, height_svg = 7)
       
@@ -764,18 +777,33 @@ shinyServer(
     
     #Bubble graph for copmaring programs
     output$search_compare_prog_category = renderPlotly({
-      validate(need(input$specific_search_questions=="Does the % of searches made by category match with the % of programs", message=FALSE))
+      validate(need(input$specific_search_questions=="Insights about the number of searches made by program category", message=FALSE))
       
       p = ggplot(programs_sessions, aes(x= `Percentage of searches`, y= `Percentage of programs`, size= `Percentage gap`, color = category)) + 
         geom_point() + 
         theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-        theme(legend.title=element_blank())
+        theme(legend.title=element_blank()) + ggtitle("Compare % of searches and % of ReSchool programs by category")
       
       #Converting this plot into a ggplotly output
       p <- p + guides(size=FALSE)
-      p <- p + scale_size_continuous(guide=FALSE)
+      p <- p + scale_size_continuous(guide=FALSE) 
       ggplotly(p) 
       
+      
+    })
+    
+    #Number of searches by program category graph
+    output$search_prog_category = renderPlotly({
+      validate(need(input$specific_search_questions=="Insights about the number of searches made by program category", message=FALSE))
+      
+      plot_ly(data = search_programtype_summary,
+              x = ~category,
+              y = ~total_searches,
+              name = "Number of searches by program type",
+              type = "bar" ) %>%
+        layout(xaxis = list(title = "Program categories"), 
+               yaxis = list(title = "Number of searches"), 
+               title = "Number of searches made by program category")
       
     })
     
