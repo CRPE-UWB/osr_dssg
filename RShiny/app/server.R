@@ -67,7 +67,7 @@ shinyServer(
     output$mymap <- renderLeaflet({
       
       # Subset to data for only this neighborhood
-      neighborhood_data1 <- program_cost_and_type_data()
+      neighborhood_data1 <- neighborhood_data()
       
       # Construct pop-ups for when you click on a program marker
       program_popup_text <- make_program_popups(neighborhood_data1)
@@ -136,11 +136,6 @@ shinyServer(
         updateSelectInput(session, "neighborhoods", selected = new_choices)
       }
     })
-    
-    # observeEvent(input$mymap_shape_click, {
-    #   new_choices <- c(input$neighborhoods, input$mymap_shape_click$id)
-    #   updateSelectInput(session, "neighborhoods", selected = new_choices)
-    # })
     
     ####### MAKE THE DOWNLOAD FEATURE FOR THE RESCHOOL PROGRAMS MAP #######
     output$reschool_map_down <- downloadHandler(
@@ -777,8 +772,6 @@ shinyServer(
     # Bins and color palettes for demographic variables in leaflet map
     pal_access <- reactive({colorBin("Blues", domain = index())})
     
-    #output$test <- renderPrint({index()})
-    
     # Create labels and stuff
     access_label <- reactive({sprintf(
       "<b>Access index: %.2f</b><br/>",
@@ -786,7 +779,7 @@ shinyServer(
       ) %>% lapply(htmltools::HTML)
     })
     
-    ####### RESCHOOL PROGRAMS SUBSETTING BY COST AND TYPE #######
+    ####### PROGRAM SUBSETTING BY COST AND TYPE #######
     
     program_list <- list("academic"=c("has_academic","has_stem"),
                          "sports"=c("has_sports"),
@@ -804,8 +797,8 @@ shinyServer(
     })
 
     neighborhood_data_access <- reactive({
-      return(program_cost_data_access())
-      #return(subset_for_neighborhoods(program_cost_data_access(),input$neighborhoods_access))
+      #return(program_cost_data_access())
+      return(subset_for_neighborhoods(program_cost_data_access(),input$neighborhoods_access))
     })
     
     # map it up
@@ -819,20 +812,17 @@ shinyServer(
       else {
         # Subset to data for only this neighborhood
         neighborhood_data_access <- neighborhood_data_access()
-        #neighborhood_data_access <- program_cost_data_access()
         
         # Construct pop-ups for when you click on a program marker
         program_popup_text_access <- make_program_popups(neighborhood_data_access)
         
         curr_map <- make_base_map() %>%
           add_colored_polygon_map(shape_census_block, pal_access(), access_label(), 
-                                  vals=index(), legend_title="Access Index", my_weight=.4) %>%
+                                  vals=index(), legend_title="Access Index", my_weight=.3) %>%
           add_circle_markers(neighborhood_data_access, "program", myyellow, program_popup_text_access)
       }
-      # if (input$neighborhoods_access!="All neighborhoods") {
-      #   curr_map <- curr_map %>%
-      #     add_neighborhood_outline(input$neighborhoods_access)
-      # }
+      
+      curr_map <- add_neighborhoods_outline(curr_map, input$neighborhoods_access)
       
       access_mapdata$dat <- curr_map
       return(curr_map)

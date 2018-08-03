@@ -309,11 +309,11 @@ shinyUI(
                                              selected = "drive"
                                              ),
                                 br(),
-                                selectInput("neighborhoods_access", "Restrict to one neighborhood:", 
-                                            choices = c("No neighborhood selected", 
+                                selectInput("neighborhoods_access", "Focus on neighborhoods:", 
+                                            choices = c("All neighborhoods", 
                                                         neighborhoods_list),
                                             multiple = TRUE,
-                                            selected = "No neighborhood selected"
+                                            selected = "All neighborhoods"
                                 ),
                                 br()
                               ),  # end sidebarPanel for access index
