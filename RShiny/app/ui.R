@@ -13,52 +13,11 @@ library(plotly)
 
 # Source needed data and functions for ui and server - impt. to do in this order!!
 # (note that all paths should be relative to the location of this ui.R file)
-# source(file.path('..', 'get_data.R'), chdir = TRUE)
-# source(file.path('..', 'color.R'))
-# source(file.path('..', 'labels.R'))
-# source(file.path('..', 'mapping_helpers.R'))
-# source(file.path('..', 'other_helpers.R'))
-
-# Options to show in the UI for filtering by demographics
-# (feel free to change these for better appearances)
-demog_names <- list("None selected",
-                    "Number of 5-17 year olds",
-                    "Median household income ($)", 
-                    "Less than high school degree (% over 25 years)",
-                    "College graduates (% over 25 years)",
-                     HTML("Language other than English spoken (%)
-                          <br><br>
-                          <i>Race/Ethnicity Variables</i>"
-                          ),
-                    "Hispanic population (%)", 
-                    "Black population (%)",
-                    "White population (%)",
-                    "Most common + breakdown"
-                    )
-
-# Internal values for demographic filtering options (correspond to demog_names above)
-# (don't change these, it will make your life difficult)
-demog_values <- list("None selected", 
-                     "Number of 5-17 year olds",
-                     "Median household income ($)", 
-                     "Less than high school degree (%)",
-                     "College graduates (%)",
-                     "Non-English speakers (%)",
-                     "Hispanic population (%)", 
-                     "Black population (%)",
-                     "White population (%)",
-                     "All races"
-                     )
-
-demog_student_values <- list("none",
-                             "perc_disable_students",
-                             "perc_hispanic_students",
-                             "perc_nonenglish_students")
-
-demog_student_names <- list("None selected",
-                            "Disabled student population (%)",
-                            "Hispanic student population (%)",
-                            "EL student population (%)")
+source(file.path('..', 'get_data.R'), chdir = TRUE)
+source(file.path('..', 'color.R'))
+source(file.path('..', 'labels.R'))
+source(file.path('..', 'mapping_helpers.R'))
+source(file.path('..', 'other_helpers.R'))
 
 ########################## Start the Shiny UI ####################################################
 
@@ -119,7 +78,7 @@ shinyUI(
                                                  "Select a demographics variable to visualize:", 
                                                  choiceNames = demog_names,
                                                  choiceValues = demog_values,
-                                                 selected = "None selected"
+                                                 selected = "none"
                                                  )
                                     ),
                                   conditionalPanel(condition = "input.program_panel != 'Data' & input.program_panel != 'Summary analysis' & input.school_or_census == 'student_dems'",

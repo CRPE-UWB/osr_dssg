@@ -72,51 +72,27 @@ shinyServer(
       # Construct pop-ups for when you click on a program marker
       program_popup_text <- make_program_popups(neighborhood_data1)
       
+      labFormatAge = function(type, cuts, p) {
+       n = length(cuts)
+       paste0(round(cuts[-n]), " &ndash; ", round(cuts[-1]))
+      }
+      
       ##### ACTUALLY DRAW THE RESCHOOL MAP #####
       if(input$school_or_census=="census_dems") {
-        if(is.null(input$demographics)){
+        if(input$demographics=="none"){
           curr_map <- make_demographic_map(NULL, NULL)
         }
-        else if(input$demographics == "None selected"){
-          curr_map <- make_demographic_map(NULL, NULL)
-        }
-        else if(input$demographics == "Median household income ($)" ) {
-          curr_map <- make_demographic_map(pal_income, "MED_HH_", labFormat = labelFormat(prefix = "$ "))
-        }
-        else if(input$demographics == "Less than high school degree (%)") {
-          curr_map <- make_demographic_map(pal_edu, col_name="PCT_LES", labFormat = labelFormat(suffix = " %")) 
-        }
-        else if(input$demographics == "College graduates (%)") {
-          curr_map <- make_demographic_map(pal_edu2, col_name="PCT_COL", labFormat = labelFormat(suffix = " %")) 
-        }
-        else if(input$demographics == "Hispanic population (%)") {
-          curr_map <- make_demographic_map(pal_hispanic, col_name="PCT_HIS", labFormat = labelFormat(suffix = " %")) 
-        }
-        else if(input$demographics == "Black population (%)") {
-          curr_map <- make_demographic_map(pal_black, col_name="PCT_BLA", labFormat = labelFormat(suffix = " %")) 
-        }
-        else if(input$demographics == "White population (%)") {
-          curr_map <- make_demographic_map(pal_white, col_name="PCT_WHI", labFormat = labelFormat(suffix = " %")) 
-        }
-        else if(input$demographics == "Non-English speakers (%)") {
-          curr_map <- make_demographic_map(pal_language, col_name="PCT_NON", labFormat = labelFormat(suffix = " %")) 
-        }
-        else if(input$demographics == "Number of 5-17 year olds") {
-          curr_map <- make_demographic_map(pal_age, col_name="AGE_5_T", 
-                                           # make labels say the values instead of probabilities
-                                           labFormat = function(type, cuts, p) {
-                                             n = length(cuts)
-                                             paste0(round(cuts[-n]), " &ndash; ", round(cuts[-1]))
-                                           }
-                                          ) 
-        }
-        else if(input$demographics == "All races") {
+        else if(input$demographics == "majority_race") {
           labels_race_breakdown <- shape_census@data$racial_dist_html
           curr_map <- make_base_map() %>%
-            add_colored_polygon_map(shape_census, pal_all_races, ~labels_race_breakdown, 
-                                    "majority_race", legend_titles_demographic)
+            add_colored_polygon_map(shape_census, pal_list[[input$demographics]], ~labels_race_breakdown,
+                                    input$demographics, legend_titles_demographic)
         }
-      } 
+        else {
+          curr_map <- make_demographic_map(pal_list[[input$demographics]], input$demographics, labFormat = lab_format_list[[input$demographics]])
+        }
+      }
+      
       else if(input$school_or_census=="student_dems") {
         if(input$student_demographics == "none"){
           curr_map <- make_demographic_map(NULL,NULL)
