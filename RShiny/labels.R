@@ -108,3 +108,5 @@ legend_titles_demographic <- list(MED_HH_ = "Median HH Income",
                                   AGE_5_T = "5-17 Year Olds (#)",
                                   majority_race = "Most Common<br>Race/Ethnicity"
 )
+
+legend_titles_demographic_student <- 

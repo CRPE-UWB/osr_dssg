@@ -13,11 +13,11 @@ library(plotly)
 
 # Source needed data and functions for ui and server - impt. to do in this order!!
 # (note that all paths should be relative to the location of this ui.R file)
-source(file.path('..', 'get_data.R'), chdir = TRUE)
-source(file.path('..', 'color.R'))
-source(file.path('..', 'labels.R'))
-source(file.path('..', 'mapping_helpers.R'))
-source(file.path('..', 'other_helpers.R'))
+# source(file.path('..', 'get_data.R'), chdir = TRUE)
+# source(file.path('..', 'color.R'))
+# source(file.path('..', 'labels.R'))
+# source(file.path('..', 'mapping_helpers.R'))
+# source(file.path('..', 'other_helpers.R'))
 
 # Options to show in the UI for filtering by demographics
 # (feel free to change these for better appearances)
@@ -49,6 +49,16 @@ demog_values <- list("None selected",
                      "White population (%)",
                      "All races"
                      )
+
+demog_student_values <- list("none",
+                             "perc_disable_students",
+                             "perc_hispanic_students",
+                             "perc_nonenglish_students")
+
+demog_student_names <- list("None selected",
+                            "Disabled student population (%)",
+                            "Hispanic student population (%)",
+                            "EL student population (%)")
 
 ########################## Start the Shiny UI ####################################################
 
@@ -96,7 +106,15 @@ shinyUI(
                                                 pre = "$"
                                                 )
                                     ),
-                                  conditionalPanel(condition = "input.program_panel != 'Data' & input.program_panel != 'Summary analysis'",
+                                  radioButtons("school_or_census", "Select whether you'd like to see demographics 
+                                               for students (from DPS data) or for the general population 
+                                               (from census data)",
+                                               choiceNames = c("Census","Student"),
+                                               choiceValues = c("census_dems", "student_dems"),
+                                               selected = "census_dems"
+                                               
+                                  ),
+                                  conditionalPanel(condition = "input.program_panel != 'Data' & input.program_panel != 'Summary analysis' & input.school_or_census == 'census_dems'",
                                     radioButtons("demographics", 
                                                  "Select a demographics variable to visualize:", 
                                                  choiceNames = demog_names,
@@ -104,6 +122,14 @@ shinyUI(
                                                  selected = "None selected"
                                                  )
                                     ),
+                                  conditionalPanel(condition = "input.program_panel != 'Data' & input.program_panel != 'Summary analysis' & input.school_or_census == 'student_dems'",
+                                                   radioButtons("student_demographics", 
+                                                                "Select a demographics variable to visualize:", 
+                                                                choiceNames = demog_student_names,
+                                                                choiceValues = demog_student_values,
+                                                                selected = "none"
+                                                    )
+                                                   ),
                                   br(),
                                   selectInput("neighborhoods", "Focus on neighborhoods:", 
                                               choices = c("All neighborhoods", 

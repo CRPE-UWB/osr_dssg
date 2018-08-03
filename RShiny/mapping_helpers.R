@@ -91,14 +91,14 @@ add_colored_polygon_map <- function(map, spdf, pal_type, label_type,
 }
 
 # Function to draw the WHOLE DEMOGRAPHICS MAP - no circle markers, though
-make_demographic_map <- function(pal, col_name, labFormat=NULL) {
+make_demographic_map <- function(pal, col_name, labFormat=NULL, legend_titles = legend_titles_demographic) {
   if (is.null(col_name)) {
     make_base_map() %>% add_blank_map(id_col_name="NBHD_NA")
   }
   else{
     make_base_map() %>%
       add_colored_polygon_map(shape_census, pal, nbhd_labels, col_name, 
-                              legend_titles_demographic, labFormat = labFormat, id_col_name = "NBHD_NA")
+                              legend_titles, labFormat = labFormat, id_col_name = "NBHD_NA")
   }
 }
 
