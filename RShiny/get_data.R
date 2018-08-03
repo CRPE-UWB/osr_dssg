@@ -121,6 +121,41 @@ packing <- circleProgressiveLayout(search_distance_summary$total_searches, sizet
 search_distance_summary = cbind(search_distance_summary, packing)
 search_distance_summary.gg <- circleLayoutVertices(packing, npoints=50)
 
+#Creating the number of searches by program category
+search_programtype_summary = google_analytics %>% select(category, users) %>% 
+  filter(category != '') %>% group_by(category) %>% 
+  summarize(total_searches = sum(users)) 
+
+#Now we will be comparing the percentage of searches by category to the percentage of programs existing by category
+#Getting the percentage of programs by category from reschool search data 
+number_of_sessions = numeric()
+j =1
+for(i in 13:21){
+  a = subset(reschool_summer_program, reschool_summer_program[,i] == TRUE )
+  number_of_sessions[j] = nrow(a)
+  j = j+1
+}
+
+category = colnames(reschool_summer_program)[13:21]
+
+session_numberby_category = data.frame(number_of_sessions, category, stringsAsFactors=FALSE)
+
+session_numberby_category$category = substring(session_numberby_category$category, 5)
+
+#Merging the two datasets
+programs_sessions = merge(search_programtype_summary, session_numberby_category, by = "category")
+
+
+#Calculating the relavent metrics
+programs_sessions$total_searches_perc = round((programs_sessions$total_searches * 100)/sum(programs_sessions$total_searches),2)
+programs_sessions$number_of_searches_perc = round((programs_sessions$number_of_sessions * 100)/sum(programs_sessions$number_of_sessions),2)
+programs_sessions$total_gap = programs_sessions$total_searches - programs_sessions$number_of_sessions
+programs_sessions$perc_gap = programs_sessions$total_searches_perc - programs_sessions$number_of_searches_perc   
+
+#Renaming the columns to ensure understandable texts
+colnames(programs_sessions)[4:7] = c("Percentage of searches", "Percentage of programs", "Total gap", "Percentage gap")
+
+
 ############################ Creating racial distributions variables ##################################
 
 # Creating majority (really most common) race variables for each neighborhood

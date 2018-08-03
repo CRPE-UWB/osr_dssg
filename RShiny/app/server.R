@@ -767,7 +767,23 @@ shinyServer(
       
     })
     
-
+    #Bubble graph for copmaring programs
+    output$search_compare_prog_category = renderPlotly({
+      validate(need(input$specific_search_questions=="Does the % of searches made by category match with the % of programs", message=FALSE))
+      
+      p = ggplot(programs_sessions, aes(x= `Percentage of searches`, y= `Percentage of programs`, size= `Percentage gap`, color = category)) + 
+        geom_point() + 
+        theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+        theme(legend.title=element_blank())
+      
+      #Converting this plot into a ggplotly output
+      p <- p + guides(size=FALSE)
+      p <- p + scale_size_continuous(guide=FALSE)
+      ggplotly(p) 
+      
+      
+    })
+    
     #############################
     # Access Index Tab
     #############################

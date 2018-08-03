@@ -240,8 +240,9 @@ shinyUI(
                           
                           conditionalPanel(condition = "input.conditionedPanels == 'Visualization'",
                                            selectInput("specific_search_questions", "Select a question:", 
-                                                       choices = c("What is the most sorted by variable during a search",
-                                                       "Analysing the distance searched")))
+                                                       choices = c("Does the % of searches made by category match with the % of programs",
+                                                                   "What is the most sorted by variable during a search",
+                                                                   "Analysing the distance searched")))
                           ),
 
                         
@@ -270,7 +271,9 @@ shinyUI(
                                                           div(plotlyOutput("search_sort_plot", height = "100%"), 
                                                       align = "center")),
                                               conditionalPanel('input.specific_search_questions=="Analysing the distance searched"',
-                                                               ggiraphOutput("search_distance_plot", height = "650px"))
+                                                               ggiraphOutput("search_distance_plot", height = "650px")),
+                                              conditionalPanel('input.specific_search_questions=="Does the % of searches made by category match with the % of programs"',
+                                                               div(plotlyOutput("search_compare_prog_category", height = "100%")))
                                               ),
                                       id = "conditionedPanels"
                           ) 
