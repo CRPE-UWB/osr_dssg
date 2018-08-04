@@ -111,15 +111,17 @@ search_distance_summary = google_analytics %>%
   arrange(total_searches, distance) %>% 
   filter(distance <= 100) %>% 
   filter(distance != 20) %>% 
-  filter(total_searches > 20)
+  filter(total_searches > 20) %>% arrange(distance)
 
-search_distance_summary$distance = paste(search_distance_summary$distance, " mi")
-search_distance_summary$text = paste("distance: ",search_distance_summary$distance, "\n", 
-                                   "Number of searches:", search_distance_summary$total_searches)
+search_distance_summary$distance = as.character(search_distance_summary$distance)
 
-packing <- circleProgressiveLayout(search_distance_summary$total_searches, sizetype='area')
-search_distance_summary = cbind(search_distance_summary, packing)
-search_distance_summary.gg <- circleLayoutVertices(packing, npoints=50)
+# search_distance_summary$distance = paste(search_distance_summary$distance, " mi")
+# search_distance_summary$text = paste("distance: ",search_distance_summary$distance, "\n", 
+#                                    "Number of searches:", search_distance_summary$total_searches)
+# 
+# packing <- circleProgressiveLayout(search_distance_summary$total_searches, sizetype='area')
+# search_distance_summary = cbind(search_distance_summary, packing)
+# search_distance_summary.gg <- circleLayoutVertices(packing, npoints=50)
 
 #Creating the number of searches by program category
 search_programtype_summary = google_analytics %>% select(category, users) %>% 

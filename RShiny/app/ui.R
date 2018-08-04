@@ -272,8 +272,9 @@ shinyUI(
                                               conditionalPanel('input.specific_search_questions=="Number of searches made by different variables"',
                                                           fluidRow(
                                                           column(6,div(plotlyOutput("search_sort_plot", height = "300px"))),
-                                                          column(6,div(plotlyOutput("search_sessiontimes_plot", height = "300px"))),
-                                                          div(ggiraphOutput("search_distance_plot", height = "450px")))),
+                                                          column(6,div(plotlyOutput("search_sessiontimes_plot", height = "300px")))),
+                                                          div(plotlyOutput("search_distance_plot", height = "400px"))
+                                                          ),
                                               
                                               conditionalPanel('input.specific_search_questions=="Insights about the number of searches made by program category"',
                                                                fluidRow(

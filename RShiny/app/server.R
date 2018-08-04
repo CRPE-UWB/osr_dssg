@@ -683,20 +683,20 @@ shinyServer(
     })
     
     #Distance graph
-    output$search_distance_plot <- renderggiraph({
+    output$search_distance_plot <- renderPlotly({
       validate(need(input$specific_search_questions=="Number of searches made by different variables", message=FALSE))
       
-      q = ggplot() + 
-        geom_polygon_interactive(data = search_distance_summary.gg, aes(x, y, group = id, fill=id, 
-                                                                        tooltip = search_distance_summary$text[id], 
-                                                                        data_id = id), colour = "black", alpha = 0.6) +
-        scale_fill_viridis() +
-        geom_text(data = search_distance_summary, aes(x, y, label = distance), size=3, color="black",  fontface = "bold" ) +
-        theme_void() + 
-        theme(legend.position="none", plot.title = element_text(hjust = 0.5, size = 20)) +
-        ggtitle("Most entered 'Distance' in the searches ")
+      xform <- list(categoryorder = "array",
+                    categoryarray = c(search_distance_summary$distance))
+      plot_ly(data = search_distance_summary,
+              x = ~distance,
+              y = ~total_searches,
+              type = "bar" ) %>%
+        layout(xaxis = list(title = "Distance in miles"), 
+               yaxis = list(title = "Number of searches"), 
+               title = "Number of searches by distance") %>% 
+        layout(xaxis = xform)
       
-      ggiraph(ggobj = q, width_svg = 7, height_svg = 7)
       
     })
     
@@ -707,6 +707,7 @@ shinyServer(
       p = ggplot(programs_sessions, aes(x= `Percentage of searches`, y= `Percentage of programs`, size= `Percentage gap`, color = category)) + 
         geom_point() + 
         theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+        stat_smooth(method="lm", se=FALSE) + 
         theme(legend.title=element_blank()) + ggtitle("Compare % of searches and % of ReSchool programs by category")
       
       #Converting this plot into a ggplotly output
