@@ -242,10 +242,10 @@ shinyUI(
                           ))),
                           
                           conditionalPanel(condition = "input.conditionedPanels == 'Visualization'",
-                                           selectInput("specific_search_questions", "Select a question:", 
-                                                       choices = c("Does the % of searches made by category match with the % of programs",
-                                                                   "What is the most sorted by variable during a search",
-                                                                   "Analysing the distance searched")))
+                                           selectInput("specific_search_questions", "Select:", 
+                                                       choices = c("Insights about the number of searches made by program category",
+                                                                   "Number of searches made by different variables",
+                                                                   "Number of searches made by zipcode")))
                           ),
 
                         
@@ -270,14 +270,26 @@ shinyUI(
                                       tabPanel("Visualization",
                                               
                                                
-                                              conditionalPanel('input.specific_search_questions=="What is the most sorted by variable during a search"',
-                                                          div(plotlyOutput("search_sort_plot", height = "100%"), 
-                                                      align = "center")),
-                                              conditionalPanel('input.specific_search_questions=="Analysing the distance searched"',
-                                                               ggiraphOutput("search_distance_plot", height = "650px")),
-                                              conditionalPanel('input.specific_search_questions=="Does the % of searches made by category match with the % of programs"',
-                                                               div(plotlyOutput("search_compare_prog_category", height = "100%")))
-                                              ),
+                                              conditionalPanel('input.specific_search_questions=="Number of searches made by different variables"',
+                                                          fluidRow(
+                                                          column(6,div(plotlyOutput("search_sort_plot", height = "300px"))),
+                                                          column(6,div(plotlyOutput("search_sessiontimes_plot", height = "300px")))),
+                                                          div(plotlyOutput("search_distance_plot", height = "400px"))
+                                                          ),
+                                              
+                                              conditionalPanel('input.specific_search_questions=="Insights about the number of searches made by program category"',
+                                                               fluidRow(
+                                                                 div(plotlyOutput("search_prog_category", height = "300px")), br(),
+                                                                 div(plotlyOutput("search_compare_prog_category", height = "350px"))
+                                                                 
+                                                               )
+                                                               ) ,
+                                              conditionalPanel('input.specific_search_questions=="Number of searches made by zipcode"',
+                                                               
+                                                                 div(plotlyOutput("search_zipcode_plot", height = "300px"))
+                                                                 
+                                                               
+                                              )),
                                       id = "conditionedPanels"
                           ) 
                         )#end of main panel
