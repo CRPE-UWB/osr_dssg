@@ -50,3 +50,8 @@ subset_for_cost <- function(df, min_cost, max_cost) {
 subset_for_category <- function(df, col) {
   return(df[apply(as.data.frame(df[,col])==1,1,any),])
 }
+
+# Subsetting for programs that allow special needs
+subset_for_special_needs <- function(df) {
+  return(df[df[,"has_special_needs_offerings"],])
+}

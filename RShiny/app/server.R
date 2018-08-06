@@ -18,7 +18,11 @@ shinyServer(
     ####### RESCHOOL PROGRAMS SUBSETTING BY COST AND TYPE #######
     
     program_category_data <- reactive({
-      return(subset_for_category(reschool_summer_program, input$program))
+      cat_dat <- subset_for_category(reschool_summer_program, input$program)
+      if ( !is.null(input$special_needs) ) {
+        cat_dat <- subset_for_special_needs(cat_dat)
+      }
+      return(cat_dat)
     })
     
     program_cost_and_type_data <- reactive({
@@ -715,7 +719,7 @@ shinyServer(
       
     })
     
-    #Zipcode graph
+    #Zipcode searches graph
     output$search_zipcode_plot <- renderPlotly({
       validate(need(input$specific_search_questions=="Number of searches made by zipcode", message=FALSE))
       
@@ -730,6 +734,16 @@ shinyServer(
                title = "Number of searches by zipcode") %>% 
         layout(xaxis = xform)
       
+      
+    })
+    
+    #Zipcode searches and programs graph
+    output$search_programs_zipcode_plot <- renderPlotly({
+      validate(need(input$specific_search_questions=="Number of searches made by zipcode", message=FALSE))
+      
+      plot_ly(final_zipcode_searches_programs, x = ~location, y = ~total_searches, type = 'bar', name = 'Number of searches') %>%
+        add_trace(y = ~total_sessions, name = 'Number of sessions') %>%
+        layout(yaxis = list(title = 'Count'), barmode = 'group', title = 'Number of searches and programs by zipcode' )
       
     })
     

@@ -27,11 +27,6 @@ drv <- dbDriver("PostgreSQL")
 #
 # user: "YOUR_AWS_USERNAME"
 # password: "YOUR_AWS_PASSWORD"
-#
-# in the directory above the osr_dssg2018 folder
-
-source(file.path(dirname(dirname(mypath)),"cred.txt"))
-
 # creates a connection to the postgres database
 # note that "con" will be used later in each connection to the database
 con <- dbConnect(drv, dbname = "dssg2018uw",
@@ -48,6 +43,7 @@ dbUnloadDriver(drv)
 ```
 
 ###Establishing Cost Thresholds and Umbrella Program Types
+The only interesting one here is low cost. Selam specifically recommended 50 dollars, though this was very low n for total session cost. HOWEVER- now that we have cost per day calculations, we can confirm that for non-free programs, the first quantile cost per is 47.5 dollars, and the third quantile is 54.75 dollars, where sessions costing $50 or less per day account for about 41.7% of all sessions. 
 ```{r}
 reschool_programs$academic <- reschool_programs$has_academic==TRUE | reschool_programs$has_stem==TRUE
 
@@ -55,7 +51,7 @@ reschool_programs$art <- reschool_programs$has_arts==TRUE | reschool_programs$ha
 
 #cost thresolds, to be updated w/ time data from selam
 reschool_programs$free <- reschool_programs$session_cost==0
-reschool_programs$lowcost <- reschool_programs$session_cost<=50
+reschool_programs$lowcost <- reschool_programs$cost_per_day<=50
 reschool_programs$anycost <- TRUE
 
 #establishing "1" per row for use in aggergation
@@ -164,8 +160,8 @@ This is the exact script to use to query, for an example type.
 #User specifies query (type)
 #type <- c("art") #"type" can include categories or cost thresholds. Pending cost per day calculations from Selam
 #cost <- c("free")
-type <- c("academic")
-cost <- c("free")
+type <- NULL
+cost <- c("anycost")
 
 #subset dataframe by user selection
 user_set <- Make_Subset(reschool_programs,type,cost)
@@ -189,7 +185,6 @@ summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_a
 
 ###User Script for Transit
 ```{r}
-library(scales)
 #User specifies query (type)
 #type <- c("has_sports","art")
 type <- c("academic")
@@ -229,7 +224,7 @@ For overall, we want a weighted average based on category, not a sum of access t
 ```{r}
 #Academic
 type <- c("academic")
-cost <- NULL
+cost <- c("free")
 user_set <- Make_Subset(reschool_programs,type,cost)
 agg_set <- Aggregate_Subset(user_set)
 merged_set <- Merge_Set(agg_set)
@@ -278,8 +273,8 @@ summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_a
 summary_nature_driving <- summary_index_user
 
 #Weighted Average Index
-overall_driving <- summary_nature_driving
-overall_driving$AccessIndex <-(summary_nature_driving$AccessIndex+summary_sports_driving$AccessIndex+summary_art_driving$AccessIndex+summary_academic_driving$AccessIndex)/4 #note that we can't use sum because that delivers col sums per each dataframe
+driving_index <- summary_nature_driving
+driving_index$AI_overall <-(summary_nature_driving$AccessIndex+summary_sports_driving$AccessIndex+summary_art_driving$AccessIndex+summary_academic_driving$AccessIndex)/4 #note that we can't use sum because that delivers col sums per each dataframe
 
 #Transit Academic
 type <- c("academic")
@@ -463,90 +458,6 @@ Ai_transit <- leaflet(census_blocks) %>%
   setView(lat=39.7,lng=-104.9,zoom=11.5)
 ```
 
-###Plotting Overal Driving & Transit 
-Overall = average of four categories calcualted above. 
-```{r}
-library(leaflet)
-library(RColorBrewer)
-#Ordering
-census_blocks$Id2 <- as.numeric(census_blocks$Id2)
-merged_set$Id2 <- as.numeric(merged_set$Id2)
-overall_driving$Id2 <- as.numeric(overall_driving$Id2)
-
-census_blocks <- census_blocks[order(census_blocks$Id2),]
-merged_set <- merged_set[order(merged_set$Id2),]
-overall_driving <- overall_driving[order(overall_driving$Id2),] 
-
-#specifiying color pallet
-colourCount <- length(unique(agg_set$n))
-getPalette <- colorRampPalette(brewer.pal(9,"Reds"))
-
-range <- range(overall_driving$AccessIndex)
-
-pal <- colorNumeric(palette = "Blues",domain = range)
-
-pal2 <- colorNumeric(
-  palette = rev(getPalette(colourCount)),
-  domain = range(full_agg_set$n))
-
-#indicating one popup info
-info <- paste("n",agg_set$n)
-
-#creating leaflet map
-Ai_driving_overall <- leaflet(census_blocks) %>%
-  addTiles() %>%
-  addPolygons(color = "RdYlBu",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.75,
-              fillColor = ~pal(overall_driving$AccessIndex),
-              popup=paste("AI =",round(overall_driving$AccessIndex,digits=2)),
-              highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
-  addLegend(pal = pal2, values = ~full_agg_set$n, opacity = 1,title = "Sessions") %>%
-  addCircles(data = full_agg_set, 
-             opacity = 1,weight=7, popup=paste("n of sessions =",agg_set$n),
-             color = ~pal2(full_agg_set$n) ) %>%
-  setView(lat=39.7,lng=-104.9,zoom=11.5) %>%
-  addLegend(pal = pal, values = ~overall_driving$AccessIndex, opacity = 1, title = "Access Index")
-
-#Ordering
-census_blocks$Id2 <- as.numeric(census_blocks$Id2)
-merged_set$Id2 <- as.numeric(merged_set$Id2)
-overall_transit$Id2 <- as.numeric(overall_transit$Id2)
-
-census_blocks <- census_blocks[order(census_blocks$Id2),]
-merged_set <- merged_set[order(merged_set$Id2),]
-overall_transit <- overall_transit[order(overall_transit$Id2),] 
-
-#specifiying color pallet
-colourCount <- length(unique(agg_set$n))
-getPalette <- colorRampPalette(brewer.pal(9,"Reds"))
-
-range <- range(overall_transit$AccessIndex)
-
-pal <- colorNumeric(palette = "Greens",domain = range)
-
-pal2 <- colorNumeric(
-  palette = rev(getPalette(colourCount)),
-  domain = range(full_agg_set$n))
-
-#indicating one popup info
-info <- paste("n of sessions =",agg_set$n)
-
-#creating leaflet map
-Ai_transit_overall <- leaflet(census_blocks) %>%
-  addTiles() %>%
-  addPolygons(color = "RdYlBu",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.9,
-              fillColor = ~pal(overall_transit$AccessIndex),
-              popup=paste("AI =",round(overall_transit$AccessIndex,digits=2)),
-              highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
-  addLegend(pal = pal2, values = ~full_agg_set$n, opacity = 1,title = "Sessions") %>%
-  addCircles(data = full_agg_set, 
-             opacity = 1,weight=7, popup=info,
-             color = ~pal2(full_agg_set$n) ) %>%
-  addLegend(pal = pal, values = ~overall_transit$AccessIndex, opacity = 1, title = "Access Index") %>%
-  setView(lat=39.7,lng=-104.9,zoom=11.5)
-
-```
-
-
 ###Plot Driving & Transit Normalized Pallet To Subset
 Use these plots for actual visualiztion, use the above for validation.
 ```{r}
@@ -555,17 +466,16 @@ library(RColorBrewer)
 #Ordering
 census_blocks$Id2 <- as.numeric(census_blocks$Id2)
 merged_set$Id2 <- as.numeric(merged_set$Id2)
-summary_index_user$Id2 <- as.numeric(summary_index_user$Id2)
-
 census_blocks <- census_blocks[order(census_blocks$Id2),]
 merged_set <- merged_set[order(merged_set$Id2),]
-summary_index_user <- summary_index_user[order(summary_index_user$Id2),] 
+driving_index$Id2 <- as.numeric(driving_index$Id2)
+driving_index <- driving_index[order(driving_index$Id2),]
 
 #specifiying color pallet
 colourCount <- length(unique(agg_set$n))
 getPalette <- colorRampPalette(brewer.pal(9,"Reds"))
 
-range <- range(summary_index_user$AccessIndex)
+range <- range(driving_index$AI_overall)
 
 pal <- colorNumeric(palette = "Blues",domain = range)
 
@@ -580,30 +490,30 @@ info <- paste("n",agg_set$n)
 Ai_driving_normal <- leaflet(census_blocks) %>%
   addTiles() %>%
   addPolygons(color = "RdYlBu",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.75,
-              fillColor = ~pal(summary_index_user$AccessIndex),
-              popup=paste("AI =",round(summary_index_user$AccessIndex,digits=2)),
+              fillColor = ~pal(driving_index$AI_overall),
+              popup=paste("AI =",round(driving_index$AI_overall,digits=2)),
               highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
   addLegend(pal = pal2, values = ~agg_set$n, opacity = 1,title = "Sessions") %>%
   addCircles(data = agg_set, 
              opacity = 1,weight=7, popup=paste("n of sessions =",agg_set$n),
              color = ~pal2(agg_set$n) ) %>%
   setView(lat=39.7,lng=-104.9,zoom=11.5) %>%
-  addLegend(pal = pal, values = ~summary_index_user$AccessIndex, opacity = 1, title = "Access Index")
+  addLegend(pal = pal, values = ~driving_index$AI_overall, opacity = 1, title = "Access Index")
 
 #Ordering
 census_blocks$Id2 <- as.numeric(census_blocks$Id2)
 merged_set$Id2 <- as.numeric(merged_set$Id2)
-summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2)
+transit_index$Id2 <- as.numeric(transit_index$Id2)
 
 census_blocks <- census_blocks[order(census_blocks$Id2),]
 merged_set <- merged_set[order(merged_set$Id2),]
-summary_index_user_transit <- summary_index_user_transit[order(summary_index_user_transit$Id2),] 
+transit_index <- transit_index[order(transit_index$Id2),]
 
 #specifiying color pallet
 colourCount <- length(unique(agg_set$n))
 getPalette <- colorRampPalette(brewer.pal(9,"Reds"))
 
-range <- range(summary_index_user_transit$AccessIndex)
+range <- range(transit_index$AI_overall)
 
 pal <- colorNumeric(palette = "Greens",domain = range)
 
@@ -618,14 +528,13 @@ info <- paste("n of sessions =",agg_set$n)
 Ai_transit_normal <- leaflet(census_blocks) %>%
   addTiles() %>%
   addPolygons(color = "RdYlBu",weight =1,smoothFactor = 0.5,opacity = 0.5,fillOpacity = 0.9,
-              fillColor = ~pal(summary_index_user_transit$AccessIndex),
-              popup=paste("AI =",round(summary_index_user_transit$AccessIndex,digits=2)),
+              fillColor = ~pal(transit_index$AI_overall),
+              popup=paste("AI =",round(transit_index$AI_overall,digits=2)),
               highlightOptions = highlightOptions(color = "white", weight = 0.1)) %>%
   addLegend(pal = pal2, values = ~agg_set$n, opacity = 1,title = "Sessions") %>%
   addCircles(data = agg_set, 
              opacity = 1,weight=7, popup=info,
              color = ~pal2(agg_set$n) ) %>%
-  addLegend(pal = pal, values = ~summary_index_user_transit$AccessIndex, opacity = 1, title = "Access Index") %>%
+  addLegend(pal = pal, values = ~transit_index$AI_overall, opacity = 1, title = "Access Index Transit") %>%
   setView(lat=39.7,lng=-104.9,zoom=11.5)
 ```
-

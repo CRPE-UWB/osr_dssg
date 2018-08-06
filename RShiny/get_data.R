@@ -22,7 +22,8 @@ con <- dbConnect(drv, dbname = dbname,
                  host = host, port = port,
                  user = user, password = password)
 
-# get the required tables from the sql database 
+# get the required tables from the sql database
+reschool_summer_program_clean = dbGetQuery(con, "SELECT * from clean.reschool_summer_programs")
 reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
 aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
@@ -116,14 +117,6 @@ search_distance_summary = google_analytics %>%
 
 search_distance_summary$distance = as.character(search_distance_summary$distance)
 
-# search_distance_summary$distance = paste(search_distance_summary$distance, " mi")
-# search_distance_summary$text = paste("distance: ",search_distance_summary$distance, "\n", 
-#                                    "Number of searches:", search_distance_summary$total_searches)
-# 
-# packing <- circleProgressiveLayout(search_distance_summary$total_searches, sizetype='area')
-# search_distance_summary = cbind(search_distance_summary, packing)
-# search_distance_summary.gg <- circleLayoutVertices(packing, npoints=50)
-
 #Creating the number of searches by program category
 search_programtype_summary = google_analytics %>% select(category, users) %>% 
   filter(category != '') %>% group_by(category) %>% 
@@ -172,6 +165,17 @@ search_zipcode_summary = google_analytics %>%
   arrange(total_searches, location)
 
 search_zipcode_summary$location = as.character(search_zipcode_summary$location)
+
+#Summary daat of searches and programs by zipcode
+reschool_summer_program_clean$session_zip = as.character(reschool_summer_program_clean$session_zip)
+zipcode_programs = reschool_summer_program_clean %>% 
+  select(session_zip) %>% 
+  filter(session_zip != '') %>% 
+  group_by(session_zip) %>% 
+  summarize(total_sessions = n()) %>% filter(session_zip %in% c(search_zipcode_summary$location))
+colnames(zipcode_programs) = c("location", "total_sessions")
+
+final_zipcode_searches_programs = merge(search_zipcode_summary, zipcode_programs, by = "location")
 
 
 ############################ Creating racial distributions variables ##################################

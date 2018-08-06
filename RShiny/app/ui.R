@@ -18,6 +18,7 @@ source(file.path('..', 'color.R'))
 source(file.path('..', 'labels.R'))
 source(file.path('..', 'mapping_helpers.R'))
 source(file.path('..', 'other_helpers.R'))
+source(file.path('..', 'manual.R'))
 
 ########################## Start the Shiny UI ####################################################
 
@@ -28,6 +29,7 @@ shinyUI(
   includeCSS("style.css"),
   
   navbarPage("Denver Out-of-School Resources",
+             selected = "About this Tool",
                    
 ########################## Blueprint4Summer Programs Tab ###########################################
 
@@ -56,6 +58,13 @@ shinyUI(
                                                        inline = TRUE
                                                        )
                                   ),
+                                conditionalPanel(condition = "input.program_panel != 'Summary analysis'",
+                                  checkboxGroupInput("special_needs", NULL, 
+                                                     choiceNames = "Only show programs that allow special needs", 
+                                                     choiceValues = TRUE,
+                                                     selected = NULL
+                                  )
+                                ),
                                   conditionalPanel(condition = "input.program_panel != 'Summary analysis'",
                                     sliderInput("slider", "Select a range for program cost:", 
                                                 min = minprice_reschoolprograms, 
@@ -199,7 +208,7 @@ shinyUI(
 
 ########################## Blueprint4Summer Search Data Tab ###########################################
 
-                   tabPanel("ReSchool Program Searches",
+                   tabPanel("B4S Searches",
                       
                       fluidPage(sidebarLayout(
                         
@@ -285,8 +294,9 @@ shinyUI(
                                                                )
                                                                ) ,
                                               conditionalPanel('input.specific_search_questions=="Number of searches made by zipcode"',
-                                                               
-                                                                 div(plotlyOutput("search_zipcode_plot", height = "300px"))
+                                                                 fluidRow(
+                                                                 div(plotlyOutput("search_zipcode_plot", height = "300px")), br(),
+                                                                 div(plotlyOutput("search_programs_zipcode_plot", height = "300px")))
                                                                  
                                                                
                                               )),
@@ -349,7 +359,16 @@ shinyUI(
                               )  # end main panel for access index
                               
                             ))  # end sidebar layout and access index fluidPage
-                  )  # end access index tab
+                  ),  # end access index tab
+
+############################### Manual Tab ################################################
+                  tabPanel("About this Tool",
+                           fluidPage( 
+                             
+                             HTML( manual )
+                             
+                           )
+                  )
 
 ########################## Ending the Shiny UI ###########################################
 
