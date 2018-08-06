@@ -18,3 +18,4 @@ source(file.path(dirname(mypath),"cred.txt"))
 con <- dbConnect(drv, dbname = "dssg2018uw",
                  host = "localhost", port =9000,
                  user = user, password = password)
+

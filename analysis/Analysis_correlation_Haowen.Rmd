@@ -16,6 +16,7 @@ library(rgeos)
 library(leaflet)
 library(ggplot2)
 library(tigris)
+library(ggthemes)
 ```
 
 ## Get connected to RDS
@@ -65,9 +66,7 @@ colnames(acs_demographics)[2] <- "Id2"
 analysis1 <- merge(acs_demographics, student_bg, by = "Id2")
 analysis1$student_age_n <- analysis1$age_less_18 - analysis1$age_less_5
 
-head(analysis1)
-
-cor.test(analysis1$student_age_n, analysis1$student_n)
+cor.test(analysis1$student_age_n, analysis1$student_n) # just checking, great that they are highly correlated
 hist(analysis1$student_age_n)
 hist(analysis1$student_n)
 
@@ -83,11 +82,12 @@ analysis_subset <- merge(acs_subset, bg_nbhd, by = "Id2")
 analysis_subset_aggregated1 <- analysis_subset %>% group_by(nbhd_name) %>% summarise(student_n_a = sum(student_n))
 analysis_subset_aggregated2 <- analysis_subset %>% group_by(nbhd_name) %>% summarise(student_age_a = sum(student_age_n))
 
-
+# It seems like we have three options for the student number!
 head(analysis_subset_aggregated1)
 summary(nbhd_shape@data$AGE_5_T) #2015estimate, acs Year5-17
 summary(analysis_subset_aggregated1$student_n_a) #DPS choice students
 summary(analysis_subset_aggregated2$student_age_a) #2016estimate, acs Year5-18
+# We should probably use the last one as the DPS choice is biased. 
 
 # how does the access index look like if we aggregate it on neighborhood level? 
 driving_index_subset <- driving_index %>% select(Id2, AI_overall)
@@ -107,6 +107,7 @@ pal <- colorQuantile(
 pop <- paste("Nbhd:", nbhd_merged_AI@data$nbhd_name,"<br/>",
              "AI:", nbhd_merged_AI@data$AI_score)
 
+# map for access index on neighborhood level
 leaflet(nbhd_merged_AI) %>%
   addTiles() %>%
   addPolygons(stroke = FALSE, weight = 1, smoothFactor = 0.5,
@@ -122,22 +123,23 @@ hist(nbhd_merged_AI_sn$AI_weighted)
 
 library(ineq)
 # Lorenz curve
-plot(Lc(nbhd_merged_AI_sn$AI_weighted, nbhd_merged_AI_sn$student_age_a),col="darkred",lwd=2) 
-ineq(nbhd_merged_AI_sn$AI_weighted,type="Gini")  0.59
-
-# change it to student level analysis
 plot(Lc(nbhd_merged_AI_sn$AI_weighted),col="darkred",lwd=2) 
+ineq(nbhd_merged_AI_sn$AI_weighted,type="Gini")  #0.59
 
 # to examine the data closer, let's rank the three variables
 nbhd_merged_AI_sn <- nbhd_merged_AI_sn %>% 
   arrange(-AI_score) %>% 
   mutate(rank_AI = row_number()) %>% 
-  arrange(student_age_a) %>% 
+  arrange(-student_age_a) %>% 
   mutate(rank_student_n = row_number()) %>%
   arrange(-AI_weighted) %>% 
   mutate(rank_AI_weighted = row_number())
+# This is potentially problematic because the weighted AI score ended up driven purely by the number of students in the neighborhoods.
 
+# Therefore we change the unit of analysis to student level 
+plot(Lc(nbhd_merged_AI_sn$AI_weighted, nbhd_merged_AI_sn$student_age_a),col="darkred",lwd=2) 
 
+# map for student-age population distribution on neighborhood level
 leaflet(nbhd_merged_AI2) %>%
   addTiles() %>%
   addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
@@ -145,12 +147,80 @@ leaflet(nbhd_merged_AI2) %>%
    fillColor = ~colorQuantile("YlOrRd", nbhd_merged_AI2@data$student_age_a)(nbhd_merged_AI2@data$student_age_a)) %>%
   setView(lat=39.7,lng=-104.9,zoom=10)
 
+head(nbhd_merged_AI_sn)
 ```
 
 Let's make a scatter plot showing the number of programs and access scores. 
 ```{r}
+# driving overall index
 ggplot(nbhd_merged_AI_sn, aes(student_age_a, AI_score)) +
-  geom_point()
+  geom_point(aes(color= rank_AI_weighted>66)) +
+  scale_color_manual(values = c("black", "red")) +
+  geom_text(aes(label=ifelse(rank_AI_weighted>66,as.character(nbhd_name),'')),hjust=0.7,vjust=1, size=3) +
+  xlab("Number of students in each neighborhood") +
+  ylab("Access Index score") +
+  theme_bw() +
+  theme(legend.position="none") +
+  ggtitle("Neighborhoods with low access and high student age population") 
+```
+
+We care about the following indices, AI for overall programs for driving and transit, AI for free programs for driving and transit. Therefore we want to see if there are any interesting patterns for them, too. 
+
+```{r}
+full_index <- merge(driving_index, transit_index, by = "Id2")
+selected_index <- full_index %>% 
+  dplyr::select(Id2, AI_overall.x, AI_overall_free.x, AI_overall.y, AI_overall_free.y) %>% # x driving, y transit 
+head(selected_index)
+
+index_agg <- selected_index %>%
+    group_by(nbhd_name) %>%
+    summarise_at(vars(matches("overall")), funs(mean)) %>%
+    left_join(., analysis_subset_aggregated2, by = c("nbhd_name")) %>%
+    mutate_at(vars(matches("overall")),funs(weighted = . / analysis_subset_aggregated2$student_age_a)) %>%
+    filter(student_age_a != 0) %>%  #drop the two neighborhoods that have 0 values for number of students.
+    mutate_at(vars(matches("weighted")), funs(rank = dense_rank(desc(.))))
+
+# define the function that plots Lorenz curve
+plotLC <- function(x){
+  p <- plot(Lc(x, index_agg$student_age_a),col="darkred",lwd=2)
+  return(p)
+}
+
+index_agg1 <- index_agg %>% dplyr::select("AI_overall.x_weighted", "AI_overall_free.x_weighted", "AI_overall.y_weighted", "AI_overall_free.y_weighted")
+apply(index_agg1, 2, FUN =  plotLC) #plot
+
+# define the scatter plot
+  plotScatter <- function(var1, var2, df) {
+            print(data.frame(df) %>%
+            ggplot( aes(student_age_a, df[,var1])) +
+            geom_point(aes(color= df[,var2]>66)) +
+            scale_color_manual(values = c("black", "red")) +
+            geom_text(aes(label=ifelse(df[,var2]>66,as.character(nbhd_name),'')),hjust=0.7,vjust=1, size=3) +
+            xlab("Number of students in each neighborhood") +
+            ylab("Access Index score") +
+            theme_bw() +
+            theme(legend.position="none") +
+            ggtitle("Neighborhoods with low access and high student age population"))
+  }
+  
+var_list = list(c("AI_overall.x","AI_overall.x_weighted_rank"),c("AI_overall_free.x","AI_overall_free.x_weighted_rank"),
+                c("AI_overall.y","AI_overall.y_weighted_rank"),c("AI_overall_free.y","AI_overall_free.y_weighted_rank"))   
+
+for(i in 1:length(var_list)){
+  plotScatter(var1=var_list[[i]][1],var2=var_list[[i]][2],df=index_agg)
+  }
+```
+
+### Leaflet maps
+```{r}
+nbhd_merged_AI <- geo_join(nbhd_merged_AI, index_agg, by = "nbhd_name", how = "inner")
+
+leaflet(nbhd_merged_AI) %>%
+  addTiles() %>%
+  addPolygons(stroke = FALSE, weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5, 
+    color = ~pal(nbhd_merged_AI@data$AI_score), popup = pop) %>% #replace AI_score with each index
+  setView(lat=39.7,lng=-104.9,zoom=10)
 ```
 
 ### spatial autocorrelation - Local Moran's I 
@@ -185,6 +255,135 @@ leaflet(nbhd_merged_MI) %>%
    opacity = 1.0, fillOpacity = 0.5, 
    fillColor = ~conpal( nbhd_merged_MI@data$Moran)) %>%
   setView(lat=39.7,lng=-104.9,zoom=10)
+```
+
+### How is access correlated with neighborhood characteristics? 
+```{r}
+# merge the index on block level with census block 
+data <- merge(selected_index, acs_demographics, by = "Id2") %>% 
+  mutate(student_age_n = age_less_18 - age_less_5) %>%
+  filter(student_age_n != 0)  # drop if no students are in the block group to keep things consistent (456 bg)
+# look at AI_overall first 
+summary(data$AI_overall.x)
+
+# demographics
+
+demo_calculator <- function(var, data) {
+  mnb1stQ <- mean(data[data$AI_overall.x < 58.57, ]$var, na.rm = TRUE)
+  mnbmedian <- mean(data[data$AI_overall.x < 64.01, ]$var, na.rm = TRUE)
+  mnamedian <- mean(data[data$AI_overall.x > 64.01, ]$var, na.rm = TRUE)
+  mna4stQ <- mean(data[data$AI_overall.x > 68.99, ]$var, na.rm = TRUE)
+  
+  return(c(mnb1stQ, mnbmedian, mnamedian, mna4stQ))
+}
+
+demo_calculator(median_hh_income, data)
+
+# 1. median household income, there are 11 N.A.s so we have to drop those first
+mnb1stQ <- mean(data[data$AI_overall.x < 58.57, ]$median_hh_income, na.rm = TRUE)
+mnbmedian <- mean(data[data$AI_overall.x < 64.01, ]$median_hh_income, na.rm = TRUE)
+mnamedian <- mean(data[data$AI_overall.x > 64.01, ]$median_hh_income, na.rm = TRUE)
+mna4stQ <- mean(data[data$AI_overall.x > 68.99, ]$median_hh_income, na.rm = TRUE)
+# 2. Race
+# PCT_hispanic
+pctH_b1Q <- mean(data[data$AI_overall.x < 58.57, ]$pct_hispanic, na.rm = TRUE)
+pctH_bmedian <- mean(data[data$AI_overall.x < 64.01, ]$pct_hispanic, na.rm = TRUE)
+pctH_amedian <- mean(data[data$AI_overall.x > 64.01, ]$pct_hispanic, na.rm = TRUE)
+pctH_a3Q <- mean(data[data$AI_overall.x > 68.99, ]$pct_hispanic, na.rm = TRUE)
+# Pct_white
+pctW_b1Q <- mean(data[data$AI_overall.x < 58.57, ]$pct_white, na.rm = TRUE)
+pctW_bmedian <- mean(data[data$AI_overall.x < 64.01, ]$pct_white, na.rm = TRUE)
+pctW_amedian <- mean(data[data$AI_overall.x > 64.01, ]$pct_white, na.rm = TRUE)
+pctW_a3Q <- mean(data[data$AI_overall.x > 68.99, ]$pct_white, na.rm = TRUE)
+# Pct_black
+pctB_b1Q <- mean(data[data$AI_overall.x < 58.57, ]$pct_african, na.rm = TRUE)
+pctB_bmedian <- mean(data[data$AI_overall.x < 64.01, ]$pct_african, na.rm = TRUE)
+pctB_amedian <- mean(data[data$AI_overall.x > 64.01, ]$pct_african, na.rm = TRUE)
+pctB_a3Q <- mean(data[data$AI_overall.x > 68.99, ]$pct_african, na.rm = TRUE)
+# Pct_others
+data$pct_raceOthers <- data$pct_americanindian + data$pct_asian + data$pct_pacificislander + data$pct_otherraces + data$pct_two_or_more_races
+
+pctOthers_b1Q <- mean(data[data$AI_overall.x < 58.57, ]$pct_raceOthers)
+pctOthers_bmedian <- mean(data[data$AI_overall.x < 64.01, ]$pct_raceOthers)
+pctOthers_amedian <- mean(data[data$AI_overall.x > 64.01, ]$pct_raceOthers)
+pctOthers_a3Q <- mean(data[data$AI_overall.x > 68.99, ]$pct_raceOthers)
+
+
+# 3. Pct_poverty
+pctPoverty_b1Q <- mean(data[data$AI_overall.x < 58.57, ]$poverty_pct_hh)
+pctPoverty_bmedian <- mean(data[data$AI_overall.x < 64.01, ]$poverty_pct_hh)
+pctPoverty_amedian <- mean(data[data$AI_overall.x > 64.01, ]$poverty_pct_hh, na.rm = TRUE)
+pctPoverty_a3Q <- mean(data[data$AI_overall.x > 68.99, ]$poverty_pct_hh, na.rm = TRUE)
+# 4. Edu
+# Pct_Less than high school degrees
+data$Pct_lhs <- data$less_than_hs_diploma *100/data$ttpop_25plus_edu #percentage Less than High School
+pctlhs_b1Q <- mean(data[data$AI_overall.x < 58.57, ]$Pct_lhs, na.rm = TRUE)
+pctlhs_bmedian <- mean(data[data$AI_overall.x < 64.01, ]$Pct_lhs, na.rm = TRUE)
+pctlhs_amedian <- mean(data[data$AI_overall.x > 64.01, ]$Pct_lhs, na.rm = TRUE)
+pctlhs_a3Q <- mean(data[data$AI_overall.x > 68.99, ]$Pct_lhs, na.rm = TRUE)
+# Pct_at least with a Bechelor's 
+data$Pct_ab <- data$bachelors_or_higher_edu*100/data$ttpop_25plus_edu #percentage Above Bechalor's degree
+pctab_b1Q <- mean(data[data$AI_overall.x < 58.57, ]$Pct_ab, na.rm = TRUE)
+pctab_bmedian <- mean(data[data$AI_overall.x < 64.01, ]$Pct_ab, na.rm = TRUE)
+pctab_amedian <- mean(data[data$AI_overall.x > 64.01, ]$Pct_ab, na.rm = TRUE)
+pctab_a3Q <- mean(data[data$AI_overall.x > 68.99, ]$Pct_ab, na.rm = TRUE)
+# 5. Pct_native 
+
+
+# car ownership
+ 
+
+# living in households in poverty,
+acs_demographics$poverty_pct_hh 
+
+
+sample_comparison <- data.frame(
+  "sample" = c("Below 1st Quantile", "Below Median", "Above Median", "Above 3rd Quantile"), 
+  "Ave_Median_HI" = c(mnb1stQ, mnbmedian, mnamedian, mna4stQ), 
+  "PCT_Hispanic" = c(pctH_b1Q, pctH_bmedian, pctH_amedian, pctH_a3Q), 
+  "PCT_White" = c(pctW_b1Q, pctW_bmedian, pctW_amedian, pctW_a3Q), 
+  "PCT_Black" = c(pctB_b1Q, pctB_bmedian, pctB_amedian, pctB_a3Q),
+  "PCT_Otheraces" = c(pctOthers_b1Q, pctOthers_bmedian, pctOthers_amedian, pctOthers_a3Q),
+  "PCT_Poverty" = c(pctPoverty_b1Q, pctPoverty_bmedian, pctPoverty_amedian, pctPoverty_a3Q), 
+  "PCT_LessThanHighSchool" = c(pctlhs_b1Q, pctlhs_bmedian, pctlhs_amedian, pctlhs_a3Q),
+  "PCT_AboveBechalorDegree" = c(pctab_b1Q, pctab_bmedian, pctab_amedian, pctab_a3Q))     
+
+sample_comparison$sample <- 
+  factor(sample_comparison$sample, 
+         levels = c("Below 1st Quantile", "Below Median", "Above Median", "Above 3rd Quantile"))
+
+# graph for median household income 
+plot_MHI <- ggplot(sample_comparison, aes(sample, Ave_Median_HI)) +
+  geom_bar(stat = "identity")
+
+plot_MHI
+
+# graph for race comparison
+sample_compare_race <- sample_comparison %>%
+  select(sample, PCT_Hispanic, PCT_White, PCT_Black, PCT_Otheraces) %>%
+  gather(race, value, -sample) 
+
+sample_compare_race$race <- 
+  factor(sample_compare_race$race, 
+  levels = c("PCT_White", "PCT_Hispanic", "PCT_Otheraces", "PCT_Black"))
+  
+ggplot(sample_compare_race) +
+  geom_bar(aes(sample, value, fill = race), stat = "identity", position = "dodge") +
+  scale_fill_manual(values=c("#2166ac", "#b2182b", "#fd8d3c", "#78c679")) +
+  xlab("") + 
+  theme_bw()
+
+# graph for ses comparison, percentage of levels of education, and poverty 
+sample_compare_ses <- sample_comparison %>% 
+  select(sample, PCT_LessThanHighSchool, PCT_AboveBechalorDegree, PCT_Poverty) %>%
+  gather(ses, value, -sample) 
+sample_compare_ses$ses <-
+  factor(sample_compare_ses$ses,
+  levels = c("PCT_LessThanHighSchool", "PCT_AboveBechalorDegree", "PCT_Poverty"))
+ggplot(sample_compare_ses) +
+  geom_bar(aes(sample, value, fill = ses), stat = "identity", position = "dodge") +
+  xlab("") +
+  theme_bw()
 ```
 
 
