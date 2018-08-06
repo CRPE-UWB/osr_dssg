@@ -108,6 +108,8 @@ create table shiny.dps_student_aggregate_nbhd as
 (select nbhd_name,
 round(students_disability*100.0/unique_students, 1) as perc_disable_students,
 round(hispanic_students*100.0/unique_students, 1) as perc_hispanic_students,
+round(black_students*100.0/unique_students, 1) as perc_black_students,
+round(white_students*100.0/unique_students, 1) as perc_white_students,
 round(students_with_transportation*100.0/unique_students, 1) as perc_with_transport_students,
 round(non_english_speakers*100.0/unique_students, 1) as perc_nonenglish_students
 from dps_student_aggregate_nbhd);
