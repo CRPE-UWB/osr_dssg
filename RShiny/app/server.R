@@ -68,12 +68,21 @@ shinyServer(
     
     reschool_mapdata <- reactiveValues(dat = 0)
     
-    nbhd_labels_reactive <- reactive({get_nbhd_census_labels(sum(summary_data()[, "total_scholarships"]))})
-    nbhd_labels_student_reactive <- reactive({get_nbhd_student_labels(sum(summary_data()[, "total_special_needs"]))})
+    programs_per_nbhd <- reactive({
+      if (nrow(program_cost_and_type_data())==0) {return(rep(0, nrow(shape_census)))}
+      program_frequencies <- table(program_cost_and_type_data()[,"nbhd_name"])
+      tmp <- data.frame("nbhd_name"=names(program_frequencies), "freq"=as.vector(program_frequencies))
+      tmp <- merge(tmp, data.frame("nbhd_name"=shape_census@data[,"NBHD_NA"]), by="nbhd_name", all.y=TRUE)
+      tmp <- tmp[order(as.character(tmp$nbhd_name)),]
+      tmp$freq[is.na(tmp$freq)] <- 0
+      return(tmp$freq)
+    })
+    
+    nbhd_labels_reactive <- reactive({get_nbhd_census_labels(programs_per_nbhd())})
+    nbhd_labels_student_reactive <- reactive({get_nbhd_student_labels(programs_per_nbhd())})
     
     output$mymap <- renderLeaflet({
-      nbhd_labels <- nbhd_labels_reactive() #aggregate(program_cost_and_type_data(),nbhd_name~)
-      #nbhd_labels <- nbhd_labels_reactive()
+      nbhd_labels <- nbhd_labels_reactive() 
       nbhd_labels_student <- nbhd_labels_student_reactive()
       # Subset to data for only this neighborhood
       neighborhood_data1 <- neighborhood_data()
