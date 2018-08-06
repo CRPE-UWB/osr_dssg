@@ -788,7 +788,10 @@ shinyServer(
     # first calculate the aggregated access index based on user input
     index <- reactive({calculate_aggregated_index(input$drive_or_transit,input$type_access,input$cost_access)})
     # Bins and color palettes for demographic variables in leaflet map
-    pal_access <- reactive({colorBin("Blues", domain = index())})
+    pal_access <- reactive({
+      if (input$drive_or_transit=="drive") {return(colorBin("Blues", domain = index()))}
+      else {return(colorBin("Greens", domain = index()))}
+      })
     
     # Create labels and stuff
     access_label <- reactive({sprintf(
