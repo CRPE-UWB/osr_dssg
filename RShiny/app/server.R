@@ -700,6 +700,25 @@ shinyServer(
       
     })
     
+    #Zipcode graph
+    output$search_zipcode_plot <- renderPlotly({
+      validate(need(input$specific_search_questions=="Number of searches made by zipcode", message=FALSE))
+      
+      xform <- list(categoryorder = "array",
+                    categoryarray = c(search_zipcode_summary$location))
+      plot_ly(data = search_zipcode_summary,
+              x = ~location,
+              y = ~total_searches,
+              type = "bar" ) %>%
+        layout(xaxis = list(title = "zipcode"), 
+               yaxis = list(title = "Number of searches"), 
+               title = "Number of searches by zipcode") %>% 
+        layout(xaxis = xform)
+      
+      
+    })
+    
+    
     #Bubble graph for copmaring programs
     output$search_compare_prog_category = renderPlotly({
       validate(need(input$specific_search_questions=="Insights about the number of searches made by program category", message=FALSE))

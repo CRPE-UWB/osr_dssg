@@ -244,7 +244,8 @@ shinyUI(
                           conditionalPanel(condition = "input.conditionedPanels == 'Visualization'",
                                            selectInput("specific_search_questions", "Select:", 
                                                        choices = c("Insights about the number of searches made by program category",
-                                                                   "Number of searches made by different variables")))
+                                                                   "Number of searches made by different variables",
+                                                                   "Number of searches made by zipcode")))
                           ),
 
                         
@@ -282,7 +283,13 @@ shinyUI(
                                                                  div(plotlyOutput("search_compare_prog_category", height = "350px"))
                                                                  
                                                                )
-                                                               )                                            ),
+                                                               ) ,
+                                              conditionalPanel('input.specific_search_questions=="Number of searches made by zipcode"',
+                                                               
+                                                                 div(plotlyOutput("search_zipcode_plot", height = "300px"))
+                                                                 
+                                                               
+                                              )),
                                       id = "conditionedPanels"
                           ) 
                         )#end of main panel

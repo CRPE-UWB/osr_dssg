@@ -162,6 +162,16 @@ search_sessiontimes_summary = google_analytics %>% select(sessiontimes, users) %
   filter(sessiontimes != '') %>% group_by(sessiontimes) %>% 
   summarize(total_searches = sum(users))
 
+#Summary data of searches made by zipcode
+search_zipcode_summary = google_analytics %>% 
+  select(location, users) %>% 
+  filter(location != '') %>% 
+  group_by(location) %>% 
+  summarize(total_searches = sum(users)) %>% 
+  arrange(total_searches, location)
+
+search_zipcode_summary$location = as.character(search_zipcode_summary$location)
+
 
 ############################ Creating racial distributions variables ##################################
 
