@@ -13,7 +13,7 @@ library(plotly)
 
 # Source needed data and functions for ui and server - impt. to do in this order!!
 # (note that all paths should be relative to the location of this ui.R file)
-source(file.path('..', 'get_data.R'), chdir = TRUE)
+# source(file.path('..', 'get_data.R'), chdir = TRUE)
 source(file.path('..', 'color.R'))
 source(file.path('..', 'labels.R'))
 source(file.path('..', 'mapping_helpers.R'))
@@ -74,14 +74,15 @@ shinyUI(
                                                 pre = "$"
                                                 )
                                     ),
-                                  radioButtons("school_or_census", "Select whether you'd like to see demographics 
+                                  conditionalPanel(condition = "input.program_panel == 'Map'",
+                                    radioButtons("school_or_census", "Select whether you'd like to see demographics 
                                                for students (from DPS data) or for the general population 
                                                (from census data)",
                                                choiceNames = c("Census","Student"),
                                                choiceValues = c("census_dems", "student_dems"),
-                                               selected = "census_dems"
+                                               selected = "census_dems")
+                                    ),
                                                
-                                  ),
                                   conditionalPanel(condition = "input.program_panel != 'Data' & input.program_panel != 'Summary analysis' & input.school_or_census == 'census_dems'",
                                     radioButtons("demographics", 
                                                  "Select a demographics variable to visualize:", 
@@ -154,13 +155,14 @@ shinyUI(
                                                    inline = TRUE
                                                    ),
                                 br(),
-                                radioButtons("school_or_census_other", "Select whether you'd like to see demographics 
-                                               for students (from DPS data) or for the general population 
-                                             (from census data)",
-                                             choiceNames = c("Census","Student"),
-                                             choiceValues = c("census_dems", "student_dems"),
-                                             selected = "census_dems"
-                                             
+                                conditionalPanel(condition = "input.program_other_panel == 'Map'",
+                                                radioButtons("school_or_census_other", "Select whether you'd like to see demographics 
+                                                             for students (from DPS data) or for the general population 
+                                                             (from census data)",
+                                                             choiceNames = c("Census","Student"),
+                                                             choiceValues = c("census_dems", "student_dems"),
+                                                             selected = "census_dems"
+                                                )
                                 ),
                                 conditionalPanel(condition = "input.program_other_panel != 'Data' & input.program_other_panel != 'Summary analysis' & input.school_or_census_other == 'census_dems'",
                                                  radioButtons("demographics_other", 
