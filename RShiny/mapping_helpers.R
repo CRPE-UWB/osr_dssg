@@ -187,5 +187,5 @@ add_outline <- function(map, nbhd_list=NULL) {
     relevant_nbhds <- subset(shape_census, NBHD_NA %in% nbhd_list)
   }
   addPolygons(map, data = unionSpatialPolygons(relevant_nbhds, IDs=rep(0,nrow(relevant_nbhds))),
-              fill = FALSE, weight=5, color = "#777", opacity = 1)
+              fill = FALSE, weight=4, color = "#777", opacity = 1)
 }

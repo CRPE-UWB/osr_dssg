@@ -13,11 +13,12 @@ library(plotly)
 
 # Source needed data and functions for ui and server - impt. to do in this order!!
 # (note that all paths should be relative to the location of this ui.R file)
-source(file.path('..', 'get_data.R'), chdir = TRUE)
+# source(file.path('..', 'get_data.R'), chdir = TRUE)
 source(file.path('..', 'color.R'))
 source(file.path('..', 'labels.R'))
 source(file.path('..', 'mapping_helpers.R'))
 source(file.path('..', 'other_helpers.R'))
+source(file.path('..', 'manual.R'))
 
 ########################## Start the Shiny UI ####################################################
 
@@ -28,6 +29,7 @@ shinyUI(
   includeCSS("style.css"),
   
   navbarPage("Denver Out-of-School Resources",
+             selected = "About this Tool",
                    
 ########################## Blueprint4Summer Programs Tab ###########################################
 
@@ -206,7 +208,7 @@ shinyUI(
 
 ########################## Blueprint4Summer Search Data Tab ###########################################
 
-                   tabPanel("ReSchool Program Searches",
+                   tabPanel("B4S Searches",
                       
                       fluidPage(sidebarLayout(
                         
@@ -356,7 +358,16 @@ shinyUI(
                               )  # end main panel for access index
                               
                             ))  # end sidebar layout and access index fluidPage
-                  )  # end access index tab
+                  ),  # end access index tab
+
+############################### Manual Tab ################################################
+                  tabPanel("About this Tool",
+                           fluidPage( 
+                             
+                             HTML( manual )
+                             
+                           )
+                  )
 
 ########################## Ending the Shiny UI ###########################################
 
