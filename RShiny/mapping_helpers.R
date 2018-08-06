@@ -66,7 +66,7 @@ add_colored_polygon_map <- function(map, spdf, pal_type, label_type,
               opacity = 1,
               color = "#777",
               dashArray = "",
-              fillOpacity = 0.4,
+              fillOpacity = 0.65,
               highlight = highlightOptions(
                 weight = 5,
                 color = "#666",
