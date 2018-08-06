@@ -17,7 +17,6 @@ This is notebook for calculations for the analysis in the report. In theory, you
 library(rgeos)
 library(rgdal)
 library(raster)
-library(tidyverse)
 library(RPostgreSQL)
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
@@ -212,8 +211,8 @@ dps_agg <- merge(dps_agg,crime)
 ####Loop for cor table, driving
 We wanna look at everything right? well there's a lot of things to look at, so here we return a dataframe of correlations for all ranges, and free vs. low and high cost. For driving.
 ```{r}
-cor_tests <- colnames(dps_agg)[c(2:21,36:38)] #prepare dataframe
-index_tests <- colnames(dps_agg)[23:35] #prepare things we want to loop
+cor_tests <- colnames(dps_agg)[c(2:21,37:38)] #prepare dataframe
+index_tests <- colnames(dps_agg)[23:36] #prepare things we want to loop
 cor_table <- data.frame(cor_tests)
 
 for (i in 1:length(index_tests)){ #here we loop the aggregation of students we want to test for correlations, store p_values and results in a dataframe. 
@@ -245,7 +244,7 @@ cor_driving_dps <- cor_table
 dps_agg_transit <- dps_agg[-c(23:35)]
 dps_agg_transit <- merge(dps_agg_transit,transit_index)
 
-cor_tests <- colnames(dps_agg_transit)[c(2:21,23:25)] #prepare dataframe
+cor_tests <- colnames(dps_agg_transit)[c(3:21,23:25)] #prepare dataframe
 index_tests <- colnames(dps_agg_transit)[26:length(colnames(dps_agg_transit))] #prepare things we want to loop
 cor_table <- data.frame(cor_tests)
 
@@ -286,12 +285,12 @@ for (i in 1:length(index_tests)){
          labs(title=paste("Student Correlations",test)) + 
   geom_hline(yintercept = 0,color="grey3") +
   ylab("Overall Driving Access Index") + 
-  xlab("Percent of Students in Block Group")
+  xlab("Percent of Students in Block Group") +
+    ylim(0,0.5)
   plot_list_t[[i]] <- p
   print(p)
   print(paste(i,"working..."))
 }
 
 ```
-
 
