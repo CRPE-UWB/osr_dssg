@@ -259,7 +259,7 @@ shinyServer(
         
         ##### ACTUALLY DRAW THE OTHER RESOURCES MAP #####
         
-        open_resource_map <- create_demographic_map(input$school_or_census_other, input$demographics_other, input$student_demographics_other)
+        open_resource_map <- create_demographic_map(input$school_or_census_other, input$demographics_other, input$student_demographics_other, nbhd_labels_reactive(), nbhd_labels_student_reactive())
         
         # Loop over selected resources types, plotting the locations of each
         for (col in input$program_other){
