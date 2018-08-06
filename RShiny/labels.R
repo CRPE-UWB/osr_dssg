@@ -164,7 +164,7 @@ demog_names <- list("None selected",
 demog_student_names <- list("None selected",
                             "Disabled student population (%)",
                             "Hispanic student population (%)",
-                            "EL student population (%)")
+                            "English Learner student population (%)")
 
 # Internal values for demographic filtering options (correspond to demog_names above)
 # (don't change these, it will make your life difficult)
