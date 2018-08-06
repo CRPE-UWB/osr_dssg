@@ -6,24 +6,28 @@ wrap_text <- function(s, offset) {
   gsub('(.{1,50})(\\s|$)', '\\1<br/>',s)
 }
 
-# Function to make program popup text
+# Function to make ReSchool program popup text
 make_program_popups <- function(program_data) {
   sprintf(
-    "<b>%s</b><br/> 
-    %s <br/> 
-    <i>%s</i><br/>
-    $%i per session<br/>
-    Starts: %s, Ends: %s <br/>  
+    "<p>
+    <b>%s</b> 
+    %s
+    </p><p>
+    $%i per session<br>
+    Starts: %s, Ends: %s
+    </p><p>
+    <i>%s</i>
     Special needs = %s,  
-    Scholarships = %s <br/>",
+    Scholarships = %s
+    </p>",
     wrap_text(paste("Program: ",program_data$session_name)), 
     wrap_text(paste("Organization: ",program_data$camp_name)), 
-    wrap_text(paste("Description: ",program_data$session_short_description)),
     program_data$session_cost,
     program_data$session_date_start, 
     program_data$session_date_end,
-    program_data$has_special_needs_offerings, 
-    program_data$has_scholarships
+    wrap_text(paste("Description: ",program_data$session_short_description)),
+    ifelse(program_data$has_special_needs_offerings, "YES", "NO"), 
+    ifelse(program_data$has_scholarships, "YES", "NO")
   ) %>% lapply(htmltools::HTML)
 }
 
@@ -158,7 +162,7 @@ demog_names <- list("None selected",
 demog_student_names <- list("None selected",
                             "Disabled student population (%)",
                             "Hispanic student population (%)",
-                            "EL student population (%)")
+                            "English Learner student population (%)")
 
 # Internal values for demographic filtering options (correspond to demog_names above)
 # (don't change these, it will make your life difficult)

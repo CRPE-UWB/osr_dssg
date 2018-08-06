@@ -30,13 +30,15 @@ fields_color <- other_resources_colors[6]
 ###################### Color palettes for sidebar selections on demographics ########################
 
 # Palettes for non-racial demographics (grey)
-bins_income <- c(0, 25000, 50000, 75000, 100000, Inf)
+bins_income <- c(0, 25000, 50000, 75000, 100000, max(shape_census@data$MED_HH_))
 pal_income <- colorBin("Greys", domain = shape_census@data$MED_HH_, bins = bins_income)
 pal_edu <- colorBin("Greys", domain = shape_census@data$PCT_LES, bins = 5)
 pal_edu2 <- colorBin("Greys", domain = shape_census@data$PCT_COL, bins = 5)
 # bins_language <- c(0, 15, 30, 45, 60, 75)
 pal_language <- colorBin("Greys", domain = shape_census@data$PCT_NON, bins = 4)
-pal_age <- colorQuantile("Greys", domain = shape_census@data$AGE_5_T, n = 5)
+bins_age <- c(0, 500, 1000, 1500, 2000, max(shape_census@data$AGE_5_T))
+pal_age <- colorBin("Greys", domain = shape_census@data$AGE_5_T, bins = bins_age)
+# pal_age <- colorQuantile("Greys", domain = shape_census@data$AGE_5_T, n = 5)
 
 # Palettes for racial demographics (colored)
 pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS, bins = 5)
