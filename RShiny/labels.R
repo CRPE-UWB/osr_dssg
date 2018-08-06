@@ -86,7 +86,7 @@ get_nbhd_census_labels <- function(val) {
       No. children 5-17 yrs old = %i <br/>
       Median Household Income = $%i <br/>
       %% Hispanic Population = %g%% <br/>
-      %% Students who use transportation = %g%% <br/>
+      %% White population = %g%% <br/>
       %% Students with disability = %g%% ",
       shape_census@data$NBHD_NA,
       val,
