@@ -1,0 +1,104 @@
+---
+title: "Temporary- Incorporating Program Time"
+author: "Andrew Taylor"
+date: "8/3/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Intro
+This is going to be merged with the dataprocessing for reschool data and deleted PRN. This only exists so we can get work done for now. **know that and move on**
+
+##Incoporating new time data from Selam
+```{r}
+reschool_programs <- reschool_programs[order(reschool_programs$session_id),]
+test <- read.csv("/Users/Andrew/Downloads/Detailed_B4S_Colorado_Camp_Export.csv",stringsAsFactors = FALSE,header=TRUE)
+test <- test[order(test$session_id),]
+reschool_programs$first_start_time <- test$first_session_start_time
+reschool_programs$last_start_time <- test$first_session_end_time
+reschool_programs$Posfirst_start_time <- strptime(reschool_programs$first_start_time, "%I:%M:%S %p")
+reschool_programs$Poslast_start_time <- strptime(reschool_programs$last_start_time, "%I:%M:%S %p")
+reschool_programs$Hours_Day <- (reschool_programs$Poslast_start_time - reschool_programs$Posfirst_start_time)/(60*60) #differences are stored numerically in seconds, counting up from a static date. Thus we do last minus first for the difference in seconds, divide by 60*60 for to convert to hours
+```
+
+###Spot Checking
+Reveals five strange ones. There are three 0s, and two start at midnight end at 11:59 (>23 hours per day). The 0s (0 hours per day) are a for a camp, so we treat those as 24 hours. The 11:59s are for an online course, so we drop em. 
+```{r}
+summary(as.numeric(reschool_programs$Hours_Day))
+reschool_programs$Hours_Day[reschool_programs$Hours_Day>23] <- NA
+reschool_programs$Hours_Day[reschool_programs$Hours_Day==0] <- 24
+summary(as.numeric(reschool_programs$Hours_Day))
+```
+
+###Get Raw Days
+For sessions that are less than one week
+```{r}
+reschool_programs$session_date_start <- as.Date(reschool_programs$session_date_start, formate = "%Y /%m /%d")
+reschool_programs$session_date_end <- as.Date(reschool_programs$session_date_end, formate = "%Y /%m /%d")
+reschool_programs$raw_days <- reschool_programs$session_date_end - reschool_programs$session_date_start
+summary(as.numeric(reschool_programs$raw_days))
+```
+
+###Get Working Days
+Here we do some tricky things. First, for programs with "raw days" == 0, meaning they start and stop on the same day, we substitute the 0 for 1, in other treat them as being one day long. Second, we calculate number of weeks for programs with "raw days" < 7. Finally, we generate a working days col, with 1 day for 1 day long programs, the "raw days" for programs which are less than a week long, and the number of weeks * 5 (i.e, number of working days)  for all other programs.
+
+If we get days of the week information, we'll come up with a way to amend n of days per week for both <1 week and >1 week parameters then. 
+```{r}
+reschool_programs$raw_days <- ifelse(reschool_programs$raw_days==0,1,reschool_programs$raw_days)
+reschool_programs$raw_weeks <- ifelse(reschool_programs$raw_days<7,0,reschool_programs$raw_days/7)
+reschool_programs$days <- ifelse(reschool_programs$raw_week==0,reschool_programs$raw_days,reschool_programs$raw_weeks*5)
+summary(reschool_programs$days)
+```
+
+###Approximate Cost Per Day
+Still waiting on days of week to refine calculation. But here we go for now.
+```{r}
+reschool_programs$cost_per_day <- reschool_programs$session_cost/reschool_programs$days
+qplot(reschool_programs$cost_per_day,bins=200)
+qplot(reschool_programs$session_cost,bins=200)
+```
+
+###RDS Push
+yea ok, to be fair we'll need to update the markdown, but for now we're gonna push and worry about that later. 
+```{r}
+library("RPostgreSQL")
+
+# loads the PostgreSQL driver
+drv <- dbDriver("PostgreSQL")
+
+con <- dbConnect(drv, dbname = "dssg2018uw",
+                 host = "localhost", port = 9000,
+                 user = user, password = password)
+
+# specify data and schema and table names
+data <- reschool_programs  # must be already loaded in your environment
+schemaName <- "clean"
+tableName <- "reschool_programs"
+
+dbWriteTable(con,
+             c(schemaName, tableName),
+             value = data,
+             row.names = FALSE,
+             overwrite = TRUE  # overwrite an existing table
+)
+
+data <- transit_index  # must be already loaded in your environment
+schemaName <- "clean"
+tableName <- "reschool_programs"
+
+dbWriteTable(con,
+             c(schemaName, tableName),
+             value = data,
+             row.names = FALSE,
+             overwrite = TRUE)
+
+
+dbListTables(con) #check both are saved
+
+dbDisconnect(con) 
+dbUnloadDriver(drv)
+```
+

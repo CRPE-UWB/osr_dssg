@@ -79,39 +79,45 @@ shape_census@data$racial_dist_html <- mapply(
 
 ###################### Construct tooltip/popup text for hovering over neighborhoods ######################
 
-nbhd_labels <- sprintf(
-  "<b>%s</b><br/>
-  No. program sessions = %i <br/>
-  No. children 5-17 yrs old = %i <br/> 
-  %% Hispanic students = %g%% <br/> 
-  %% English student learners = %g%% <br/> 
-  %% Students who use transportation = %g%% <br/> 
-  %% Students with disability = %g%% ",
-  shape_census@data$NBHD_NA,
-  replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
-  shape_census@data$AGE_5_T, 
-  shape_census@data$perc_hispanic_students, 
-  shape_census@data$perc_nonenglish_students,
-  shape_census@data$perc_with_transport_students, 
-  shape_census@data$perc_disable_students
-) %>% lapply(htmltools::HTML)
+get_nbhd_census_labels <- function(val) {
+    return(sprintf(
+      "<b>%s</b><br/>
+      No. program sessions = %i <br/>
+      No. children 5-17 yrs old = %i <br/>
+      %% Hispanic students = %g%% <br/>
+      %% English student learners = %g%% <br/>
+      %% Students who use transportation = %g%% <br/>
+      %% Students with disability = %g%% ",
+      val,
+      replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
+      shape_census@data$AGE_5_T,
+      shape_census@data$perc_hispanic_students,
+      shape_census@data$perc_nonenglish_students,
+      shape_census@data$perc_with_transport_students,
+      shape_census@data$perc_disable_students
+    ) %>% lapply(htmltools::HTML)
+  )
+}
 
-nbhd_labels_student <- sprintf(
-  "<b>%s</b><br/>
-  ONION = %i <br/>
-  No. children 5-17 yrs old = %i <br/> 
-  %% Hispanic students = %g%% <br/> 
-  %% English student learners = %g%% <br/> 
-  %% Students who use transportation = %g%% <br/> 
-  %% Students with disability = %g%% ",
-  shape_census@data$NBHD_NA,
-  replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
-  shape_census@data$AGE_5_T, 
-  shape_census@data$perc_hispanic_students, 
-  shape_census@data$perc_nonenglish_students,
-  shape_census@data$perc_with_transport_students, 
-  shape_census@data$perc_disable_students
-) %>% lapply(htmltools::HTML)
+get_nbhd_student_labels <- function(val) {
+  return(sprintf(
+    "<b>%s</b><br/>
+    No. program sessions = %i <br/>
+    No. children 5-17 yrs old = %i <br/>
+    %% Hispanic students = %g%% <br/>
+    %% English student learners = %g%% <br/>
+    %% Students who use transportation = %g%% <br/>
+    %% Students with disability = %g%% ",
+    val,
+    replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
+    shape_census@data$AGE_5_T,
+    shape_census@data$perc_hispanic_students,
+    shape_census@data$perc_nonenglish_students,
+    shape_census@data$perc_with_transport_students,
+    shape_census@data$perc_disable_students
+  ) %>% lapply(htmltools::HTML)
+  )
+}
 
 ######################### Specify legend titles for different demographic maps ########################
 

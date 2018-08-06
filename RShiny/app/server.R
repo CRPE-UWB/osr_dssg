@@ -31,6 +31,11 @@ shinyServer(
     
     ####### RESCHOOL PROGRAMS DATA TAB #######
     
+    # for subsetting to only the given neighborhood
+    summary_data <- reactive({
+      return(subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods))
+    })
+    
     # Output the relevant data in the data tab based on the selections
     output$datatable <- DT::renderDataTable({
       data_table1 <- neighborhood_data()
@@ -63,8 +68,13 @@ shinyServer(
     
     reschool_mapdata <- reactiveValues(dat = 0)
     
+    nbhd_labels_reactive <- reactive({get_nbhd_census_labels(sum(summary_data()[, "total_scholarships"]))})
+    nbhd_labels_student_reactive <- reactive({get_nbhd_student_labels(sum(summary_data()[, "total_special_needs"]))})
+    
     output$mymap <- renderLeaflet({
-      
+      nbhd_labels <- nbhd_labels_reactive() #aggregate(program_cost_and_type_data(),nbhd_name~)
+      #nbhd_labels <- nbhd_labels_reactive()
+      nbhd_labels_student <- nbhd_labels_student_reactive()
       # Subset to data for only this neighborhood
       neighborhood_data1 <- neighborhood_data()
       
@@ -77,7 +87,8 @@ shinyServer(
       }
       
       ##### ACTUALLY DRAW THE RESCHOOL MAP #####
-      curr_map <- create_demographic_map(input$school_or_census, input$demographics, input$student_demographics)
+      curr_map <- create_demographic_map(input$school_or_census, input$demographics, input$student_demographics,
+                                         census_labels=nbhd_labels, student_labels=nbhd_labels_student)
       curr_map <- curr_map %>% add_circle_markers(neighborhood_data1, "program", myyellow, 
                                                   program_popup_text, weight = 0.7, opacity = 0.8)
       
@@ -120,11 +131,6 @@ shinyServer(
     )
     
     ####### MAKE THE RESCHOOL PROGRAMS SUMMARY ANALYSIS #######
-    
-    # for subsetting to only the given neighborhood
-    summary_data <- reactive({
-      return(subset_for_neighborhoods(nbhd_program_summary, input$neighborhoods))
-    })
 
     output$summary_title <- renderUI({
       summary_nbhds <- summary_data()[, "nbhd_name"]
@@ -253,7 +259,7 @@ shinyServer(
         
         ##### ACTUALLY DRAW THE OTHER RESOURCES MAP #####
         
-        open_resource_map <- create_demographic_map(input$school_or_census_other, input$demographics_other, input$student_demographics_other)
+        open_resource_map <- create_demographic_map(input$school_or_census_other, input$demographics_other, input$student_demographics_other, nbhd_labels_reactive(), nbhd_labels_student_reactive())
         
         # Loop over selected resources types, plotting the locations of each
         for (col in input$program_other){

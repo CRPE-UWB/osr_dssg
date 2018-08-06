@@ -93,7 +93,7 @@ add_colored_polygon_map <- function(map, spdf, pal_type, label_type,
 # Function to draw the WHOLE DEMOGRAPHICS MAP - no circle markers, though
 make_demographic_map <- function(pal, col_name, labFormat=NULL, my_labels=nbhd_labels) {
   if (is.null(col_name)) {
-    make_base_map() %>% add_blank_map(id_col_name="NBHD_NA")
+    make_base_map() %>% add_blank_map(id_col_name="NBHD_NA", my_labels = my_labels)
   }
   else{
     make_base_map() %>%
@@ -102,10 +102,10 @@ make_demographic_map <- function(pal, col_name, labFormat=NULL, my_labels=nbhd_l
   }
 }
 
-create_demographic_map <- function(school_or_census, demographics, student_demographics) {
+create_demographic_map <- function(school_or_census, demographics, student_demographics, census_labels, student_labels) {
   if(school_or_census=="census_dems") {
     if(demographics=="none"){
-      return(make_demographic_map(NULL, NULL))
+      return(make_demographic_map(NULL, NULL, my_labels = census_labels))
     }
     else if(demographics == "majority_race") {
       labels_race_breakdown <- shape_census@data$racial_dist_html
@@ -116,15 +116,15 @@ create_demographic_map <- function(school_or_census, demographics, student_demog
     }
     else {
       return(make_demographic_map(pal_list[[demographics]], demographics, labFormat = lab_format_list[[demographics]],
-                                  my_labels=nbhd_labels_student))
+                                  my_labels=census_labels))
     }
   }
   
   else if(school_or_census=="student_dems") {
     if(student_demographics == "none"){
-      curr_map <- make_demographic_map(NULL,NULL)
+      curr_map <- make_demographic_map(NULL,NULL, my_labels=student_labels)
     } else {
-      curr_map <- make_demographic_map(pal_black, student_demographics, labFormat = labelFormat(suffix = " %"))
+      curr_map <- make_demographic_map(pal_black, student_demographics, labFormat = labelFormat(suffix = " %"), my_labels=student_labels)
     }
   }
 }

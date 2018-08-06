@@ -86,6 +86,7 @@ MI <- vr*sw
 ###Compute Moran's I using a prebuilt function
 Rather than doing everything by hand, we could just use this function. But it's good to verify we're doing things correctly. 
 ```{r}
+library(spdep)
 ww <-  nb2listw(w, style='B')
 moran(p$AI_overall,ww,n=length(ww$neighbours),S0=Szero(ww))
 ```
