@@ -56,6 +56,13 @@ shinyUI(
                                                        inline = TRUE
                                                        )
                                   ),
+                                conditionalPanel(condition = "input.program_panel != 'Summary analysis'",
+                                  checkboxGroupInput("special_needs", NULL, 
+                                                     choiceNames = "Only show programs that allow special needs", 
+                                                     choiceValues = TRUE,
+                                                     selected = NULL
+                                  )
+                                ),
                                   conditionalPanel(condition = "input.program_panel != 'Summary analysis'",
                                     sliderInput("slider", "Select a range for program cost:", 
                                                 min = minprice_reschoolprograms, 

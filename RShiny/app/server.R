@@ -18,7 +18,11 @@ shinyServer(
     ####### RESCHOOL PROGRAMS SUBSETTING BY COST AND TYPE #######
     
     program_category_data <- reactive({
-      return(subset_for_category(reschool_summer_program, input$program))
+      cat_dat <- subset_for_category(reschool_summer_program, input$program)
+      if ( !is.null(input$special_needs) ) {
+        cat_dat <- subset_for_special_needs(cat_dat)
+      }
+      return(cat_dat)
     })
     
     program_cost_and_type_data <- reactive({
