@@ -285,8 +285,9 @@ shinyUI(
                                                                )
                                                                ) ,
                                               conditionalPanel('input.specific_search_questions=="Number of searches made by zipcode"',
-                                                               
-                                                                 div(plotlyOutput("search_zipcode_plot", height = "300px"))
+                                                                 fluidRow(
+                                                                 div(plotlyOutput("search_zipcode_plot", height = "300px")), br(),
+                                                                 div(plotlyOutput("search_programs_zipcode_plot", height = "300px")))
                                                                  
                                                                
                                               )),
