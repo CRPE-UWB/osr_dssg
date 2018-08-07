@@ -128,8 +128,7 @@ shinyUI(
                                                    column(6, plotOutput("program_cost_summary", height = "250px"))
                                                  ),
                                                 br(),
-                                                 uiOutput("program_special_cats"),
-                                                 DT::dataTableOutput("nbhd_summary")
+                                                 uiOutput("program_special_cats")
                                               ),
                                               id = "program_panel"
                                               
@@ -218,90 +217,101 @@ shinyUI(
                           
                           conditionalPanel(condition = "input.conditionedPanels == 'Summary'",
                           
+                          #fluidRow(
+                          checkboxGroupInput("program_search", 
+                                             "Filter down to one or more program types:", 
+                                             choiceNames = c("Academic", "Arts", "Cooking", "Dance", "Drama", "Music", "Nature", "Sports", "STEM"),
+                                             choiceValues = sort(unique(google_analytics$category)), 
+                                             selected = character(0), 
+                                             inline = TRUE
+                          ),
+                          # br(),
                           fluidRow(
-                        
                           column(6, textInput("minprice_search", "Enter Min Cost:","")),
-                          column(6, textInput("maxprice_search", "Enter Max Cost:","")),
-                          br(),
+                          column(6, textInput("maxprice_search", "Enter Max Cost:",""))
+                                 ),
+                          # br(),
+                          fluidRow(
                           column(6, textInput("minage_search", "Enter Min Age:","")),
-                          column(6, textInput("maxage_search", "Enter Max Age:","")),
+                          column(6, textInput("maxage_search", "Enter Max Age:",""))
+                                 ),
                           
-                          selectInput("zipcode_searchprog", "Restrict to one zipcode:", 
-                                      choices = c("No zipcode selected", 
+                          selectInput("zipcode_searchprog", "Filter down to one zipcode:", 
+                                      choices = c("N/A", 
                                                   sort(zipcode_searchdata)
                                                   )
                                       ),
-                          br(),
-                          selectInput("sessiontimes_searchprog", "Restrict to one session time:", 
-                                      choices = c("No session time selected", 
+                          # br(),
+                          selectInput("sessiontimes_searchprog", "Filter down to one session time:", 
+                                      choices = c("N/A", 
                                                   sort(unique(google_analytics$sessiontimes))
                                                   )
                                       ), 
-                          br(),
-                          checkboxGroupInput("program_search", 
-                                             "Select one or more program type:", 
-                                             choices = sort(unique(google_analytics$category)), 
-                                             selected = character(0), 
-                                             inline = TRUE
-                                             ),br(),
+                          # br(),
                           radioButtons("specialneeds_search", 
-                                       "Other selections", 
-                                       choices = c("Special needs students", "Scholarships Available", "None Selected"),
-                                       selected = "None Selected"
+                                       "Other filters:", 
+                                       choices = c("Special needs students", "Scholarships available", "N/A"),
+                                       selected = "N/A"
                                      
 
-                          ))),
+                          )),
                           
                           conditionalPanel(condition = "input.conditionedPanels == 'Visualization'",
-                                           selectInput("specific_search_questions", "Select:", 
-                                                       choices = c("Insights about the number of searches made by program category",
-                                                                   "Number of searches made by different variables",
-                                                                   "Number of searches made by zipcode")))
+                                           radioButtons("specific_search_questions", "Choose a question about the Blueprint4Summer Search Data to investigate:", 
+                                                       choices = c("What program categories do people search for the most?",
+                                                                   "What distances and session times do people search for, and how do they sort their results?",
+                                                                   "What locations are people searching for?")))
                           ),
 
                         
                         mainPanel(
                           tabsetPanel(type = "tab",
                                       tabPanel("Summary",
-                                               
+                                               br(),
                                                fluidRow(
-
                                                  column(6, uiOutput("totalsearches", 
                                                                     style = "background-color:lightblue; 
                                                                     height:100px; padding:20px;
                                                                     border:solid", align = "center")),
                                                  column(6, uiOutput("percentagesearches", style = "background-color:lightblue; 
                                                                     height:100px; padding:20px;
-                                                                    border:solid", align = "center")),
-                                                 
-                                                 DT::dataTableOutput("datatable_search")
-                                               )
+                                                                    border:solid", align = "center"))
+                                               ),
+                                               br(),
+                                               DT::dataTableOutput("datatable_search")
                                       ),
 
                                       tabPanel("Visualization",
                                               
-                                               
-                                              conditionalPanel('input.specific_search_questions=="Number of searches made by different variables"',
+                                              conditionalPanel('input.specific_search_questions==
+                                                               "What distances and session times do people search for, and how do they sort their results?"',
+                                                          br(),
+                                                          div(plotlyOutput("search_distance_plot", height = "250px")),
+                                                          HTML("<i>Note: Searches with distance set to 20 miles are excluded in this plot, 
+                                                               as 20 miles was the default search distance and appeared abnormally often.</i>"),
+                                                          br(),
+                                                          br(),
                                                           fluidRow(
-                                                          column(6,div(plotlyOutput("search_sort_plot", height = "300px"))),
-                                                          column(6,div(plotlyOutput("search_sessiontimes_plot", height = "300px")))),
-                                                          div(plotlyOutput("search_distance_plot", height = "400px"))
+                                                                  column(6,div(plotlyOutput("search_sessiontimes_plot", height = "250px"))),
+                                                                  column(6,div(plotlyOutput("search_sort_plot", height = "250px")))
+                                                                  )
                                                           ),
                                               
-                                              conditionalPanel('input.specific_search_questions=="Insights about the number of searches made by program category"',
-                                                               fluidRow(
-                                                                 div(plotlyOutput("search_prog_category", height = "300px")), br(),
-                                                                 div(plotlyOutput("search_compare_prog_category", height = "350px"))
-                                                                 
-                                                               )
+                                              conditionalPanel('input.specific_search_questions=="What program categories do people search for the most?"',
+                                                               br(),
+                                                               div(plotlyOutput("search_prog_category", height = "350px")), 
+                                                               br(),
+                                                               div(plotlyOutput("search_compare_prog_category", height = "350px")),
+                                                               br()
                                                                ) ,
-                                              conditionalPanel('input.specific_search_questions=="Number of searches made by zipcode"',
-                                                                 fluidRow(
-                                                                 div(plotlyOutput("search_zipcode_plot", height = "300px")), br(),
-                                                                 div(plotlyOutput("search_programs_zipcode_plot", height = "300px")))
-                                                                 
-                                                               
-                                              )),
+                                              conditionalPanel('input.specific_search_questions=="What locations are people searching for?"',
+                                                               br(),
+                                                               div(plotlyOutput("search_zipcode_plot", height = "200px")), 
+                                                               br(),
+                                                               div(plotlyOutput("search_programs_zipcode_plot", height = "200px"))
+                 
+                                              )
+                                              ),
                                       id = "conditionedPanels"
                           ) 
                         )#end of main panel
@@ -318,7 +328,7 @@ shinyUI(
                               
                               sidebarPanel(
                                 checkboxGroupInput("type_access", 
-                                                   "Select one or more program types:", 
+                                                   "Select one or more program types to include:", 
                                                    choiceNames = c("Academic", "Arts", "Athletic", "Nature"),
                                                    choiceValues = list("academic","art","sports","nature"),
                                                    inline = TRUE,
@@ -326,14 +336,15 @@ shinyUI(
                                                    ),
                                 br(),
                                 radioButtons("cost_access", 
-                                             "Select a cost range for programs:", 
+                                             "Select a cost range for programs to include:", 
                                              choiceNames = list("Free", "Free to Low Cost", "All Programs"),
                                              choiceValues = list("free", "low", "any"),
                                              selected = "any"
                                              ),
                                 br(),
                                 radioButtons("drive_or_transit",
-                                             "Drive or transit?",
+                                             "Calculate distances to programs based on driving or 
+                                             public transit?",
                                              choiceNames = list("Drive", "Transit"),
                                              choiceValues = list("drive", "transit"),
                                              selected = "drive"
