@@ -13,7 +13,7 @@ library(plotly)
 
 # Source needed data and functions for ui and server - impt. to do in this order!!
 # (note that all paths should be relative to the location of this ui.R file)
-# source(file.path('..', 'get_data.R'), chdir = TRUE)
+#source(file.path('..', 'get_data.R'), chdir = TRUE)
 source(file.path('..', 'color.R'))
 source(file.path('..', 'labels.R'))
 source(file.path('..', 'mapping_helpers.R'))

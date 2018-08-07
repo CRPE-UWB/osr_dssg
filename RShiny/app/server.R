@@ -276,6 +276,9 @@ shinyServer(
     # Create the map
     other_mapdata <- reactiveValues(dat = 0)
     
+    nbhd_labels_reactive_other <- reactive({get_nbhd_census_labels()})
+    nbhd_labels_student_reactive_other <- reactive({get_nbhd_student_labels()})
+    
     output$mymap_other = renderLeaflet({
         
         # Get the data
@@ -288,7 +291,8 @@ shinyServer(
         
         ##### ACTUALLY DRAW THE OTHER RESOURCES MAP #####
         
-        open_resource_map <- create_demographic_map(input$school_or_census_other, input$demographics_other, input$student_demographics_other, nbhd_labels_reactive(), nbhd_labels_student_reactive())
+        open_resource_map <- create_demographic_map(input$school_or_census_other, input$demographics_other, input$student_demographics_other, 
+                                                    nbhd_labels_reactive_other(), nbhd_labels_student_reactive_other())
         
         # Loop over selected resources types, plotting the locations of each
         for (col in input$program_other){
@@ -886,7 +890,7 @@ shinyServer(
       })
     
     # Create labels and stuff
-    access_label <- reactive({get_access_label(index())})
+    access_label <- reactive({get_block_census_labels(index())})
     
     ####### PROGRAM SUBSETTING BY COST AND TYPE #######
     
