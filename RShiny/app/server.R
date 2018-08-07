@@ -211,7 +211,7 @@ shinyServer(
     
     output$program_cost_summary <- renderPlotly({
       nbhd_cost_data <- subset_for_neighborhoods(reschool_summer_program, input$neighborhoods)
-      nbhd_cost_data <- nbhd_cost_data[,"session_cost"]
+      nbhd_cost_data <- gsub(0, nbhd_cost_data[,"session_cost"])
       
       par(mar = c(5.1, 5.1, 2.1, 2.1))  # set margins
       
