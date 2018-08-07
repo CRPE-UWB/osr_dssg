@@ -46,6 +46,6 @@ pal_black <- colorBin("Blues", domain = shape_census@data$PCT_BLA, bins = 5)
 pal_white <- colorBin("Purples", domain = shape_census@data$PCT_WHI, bins = 5)
 
 # Palette for racial distribution selection (three colors)
-colors_all_races <- brewer.pal(3, "Paired")[c(1,3,2)]
-pal_all_races <- colorFactor(colors_all_races, 
+# colors_all_races <- brewer.pal(3, "Paired")[c(1,3,2)]
+pal_all_races <- colorFactor(c(myblue3, mygreen, mypurple2), 
                              domain = shape_census@data$majority_race)
