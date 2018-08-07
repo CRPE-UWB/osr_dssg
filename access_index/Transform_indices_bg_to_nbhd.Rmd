@@ -1,0 +1,99 @@
+---
+title: "Transform_indices_bg_to_nbhd"
+author: "Haowen Zheng"
+date: "8/7/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Transform the indices from block groups to neighborhood levels
+
+Get data
+```{r}
+require("RPostgreSQL")
+
+# loads the PostgreSQL driver
+drv <- dbDriver("PostgreSQL")
+source('/Users/luna/Desktop/DSSG/ors/other/keyforRDS')
+# creates a connection to the postgres database
+# note that "con" will be used later in each connection to the database
+con <- dbConnect(drv, dbname = "dssg2018uw",
+                 host = "localhost", port = 9000,
+                 user = user, password = password)
+
+# get the indices
+driving_index <- dbGetQuery(con, "select * from clean.driving_index")
+transit_index <- dbGetQuery(con, "select * from clean.transit_index")
+driving_index_disability <- dbGetQuery(con, "select * from clean.driving_index_disabillity")
+transit_index_disability <- dbGetQuery(con, "select * from clean.transit_index_disabillity")
+
+# get relationship file
+bg_nbhd <- dbGetQuery(con, "select * from clean.blockgroup_nbhds")
+
+# get the data that evenually get you number of students in each neighborhood from acs data
+acs_demographics <- dbGetQuery(con, "select * from clean.acs_demographics")
+
+```
+
+``` {r}
+colnames(bg_nbhd)[3] <- "Id2"
+driving_index_nbhd <- merge(driving_index, bg_nbhd, by = "Id2")
+transit_index_nbhd <- merge(transit_index, bg_nbhd, by = "Id2")
+driving_index_disability_nbhd <- merge(driving_index_disability, bg_nbhd, by = "Id2")
+transit_index_disability_nbhd <- merge(transit_index_disability, bg_nbhd, by = "Id2")
+
+colnames(acs_demographics)[2] <- "Id2"
+acs_demographics$student_age_n <- 
+  acs_demographics$age_less_18 - acs_demographics$age_less_5 #get student age population
+
+acs_subset <- analysis1 %>% select(Id2, student_age_n) %>%
+  merge(bg_nbhd, by = "Id2")
+
+ # aggregate by nbhd
+analysis_subset_aggregated2 <- analysis_subset %>% group_by(nbhd_name) %>% summarise(student_age_a = sum(student_age_n))
+
+
+driving_index_nbhd <- driving_index_nbhd %>%
+    group_by(nbhd_name) %>%
+    summarise_at(vars(matches("AI")), funs(mean)) %>%
+    left_join(., analysis_subset_aggregated2, by = c("nbhd_name")) %>%
+    mutate_at(vars(matches("AI")),funs(weighted = . / analysis_subset_aggregated2$student_age_a)) %>%
+    filter(student_age_a != 0) %>%  #drop the two neighborhoods that have 0 values for number of students.
+    mutate_at(vars(matches("weighted")), funs(rank = dense_rank(desc(.))))
+
+transit_index_nbhd <- transit_index_nbhd %>%
+    group_by(nbhd_name) %>%
+    summarise_at(vars(matches("AI")), funs(mean)) %>%
+    left_join(., analysis_subset_aggregated2, by = c("nbhd_name")) %>%
+    mutate_at(vars(matches("AI")),funs(weighted = . / analysis_subset_aggregated2$student_age_a)) %>%
+    filter(student_age_a != 0) %>%  #drop the two neighborhoods that have 0 values for number of students.
+    mutate_at(vars(matches("weighted")), funs(rank = dense_rank(desc(.))))
+
+driving_index_disability_nbhd <- driving_index_disability_nbhd %>%
+    group_by(nbhd_name) %>%
+    summarise_at(vars(matches("AI")), funs(mean)) %>%
+    left_join(., analysis_subset_aggregated2, by = c("nbhd_name")) %>%
+    mutate_at(vars(matches("AI")),funs(weighted = . / analysis_subset_aggregated2$student_age_a)) %>%
+    filter(student_age_a != 0) %>%  #drop the two neighborhoods that have 0 values for number of students.
+    mutate_at(vars(matches("weighted")), funs(rank = dense_rank(desc(.))))
+
+transit_index_disability_nbhd <- transit_index_disability_nbhd %>%
+    group_by(nbhd_name) %>%
+    summarise_at(vars(matches("AI")), funs(mean)) %>%
+    left_join(., analysis_subset_aggregated2, by = c("nbhd_name")) %>%
+    mutate_at(vars(matches("AI")),funs(weighted = . / analysis_subset_aggregated2$student_age_a)) %>%
+    filter(student_age_a != 0) %>%  #drop the two neighborhoods that have 0 values for number of students.
+    mutate_at(vars(matches("weighted")), funs(rank = dense_rank(desc(.))))
+```
+
+Upload to RDS
+```{r}
+dbWriteTable(con, c("clean", "driving_index_nbhd"), value = driving_index_nbhd, row.names = FALSE)
+dbWriteTable(con, c("clean", "transit_index_nbhd"), value = transit_index_nbhd, row.names = FALSE)
+dbWriteTable(con, c("clean", "driving_index_disability_nbhd"), value = driving_index_disability_nbhd, row.names = FALSE)
+dbWriteTable(con, c("clean", "transit_index_disability_nbhd"), value = transit_index_disability_nbhd, row.names = FALSE)
+```
+
