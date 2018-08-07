@@ -40,9 +40,9 @@ shape_census@data$racial_dist_html <- mapply(
   # color palette generated from brewer.pal()
   function(nbhd, pct_hisp, pct_white, pct_black, pct_native, pct_asian){
     
-    black_color <- pal_all_races("Black")
-    hispanic_color <- pal_all_races("Hispanic")
-    white_color <- pal_all_races("White")
+    black_color <- colors_all_races[1]
+    hispanic_color <- colors_all_races[2]
+    white_color <- colors_all_races[3]
     other_color <- "gray"
     
     sprintf(
@@ -101,10 +101,16 @@ get_access_label <- function(index_val) {
   ) %>% lapply(htmltools::HTML)
 }
 
-get_nbhd_census_labels <- function(val) {
+get_nbhd_census_labels <- function(val=NULL) {
+    if (is.null(val)) {
+      str_num_programs = ""
+    } else {
+      str_num_programs = paste("No. program sessions = ", val,"<br/>")
+    }
     return(sprintf(
       "<b>%s</b><br/>
-      No. program sessions = %i <br/>
+      %s 
+      <i>Census level data:</i><br/>
       No. children 5-17 yrs old = %i <br/>
       Median Household Income = $%i <br/>
       < HS desgree (%% over 25) = %.2f%% <br/>
@@ -112,7 +118,7 @@ get_nbhd_census_labels <- function(val) {
       %% White population = %g%% <br/>
       %% Black population = %g%% <br/>",
       shape_census@data$NBHD_NA,
-      val,
+      str_num_programs,
       shape_census@data$AGE_5_T,
       round(shape_census@data$MED_HH_),
       shape_census$PCT_NON,
@@ -123,24 +129,50 @@ get_nbhd_census_labels <- function(val) {
   )
 }
 
-get_nbhd_student_labels <- function(val) {
+get_nbhd_student_labels <- function(val=NULL) {
+  if (is.null(val)) {
+    str_num_programs = ""
+  } else {
+    str_num_programs = paste("No. program sessions = ", val,"<br/>")
+  }
   return(sprintf(
     "<b>%s</b><br/>
-    No. program sessions = %i <br/>
-    No. children 5-17 yrs old = %i <br/>
+    %s
+    <i>Student level data:</i><br/>
+    %% English student learners = %g%% <br/>
+    %% Students with disability = %g%% <br/>
     %% Hispanic students = %g%% <br/>
     %% White students = %g%% <br/>
     %% Black students = %g%% <br/>
-    %% English student learners = %g%% <br/>
-    %% Students with disability = %g%%",
+    <i><font size=1>(Note: sample size = %a)</font></i>",
     shape_census@data$NBHD_NA,
-    val,
-    shape_census@data$AGE_5_T,
+    str_num_programs,
+    shape_census@data$perc_nonenglish_students,
+    shape_census@data$perc_disable_students,
     shape_census@data$perc_hispanic_students,
     shape_census@data$perc_white_students,
     shape_census@data$perc_black_students,
-    shape_census@data$perc_nonenglish_students,
-    shape_census@data$students_with_any_disability
+    aggregate_dps_student_nbhds$total_students
+  ) %>% lapply(htmltools::HTML)
+  )
+}
+
+get_block_census_labels <- function(val) {
+  return(sprintf(
+    "Access index: <b>%.2f</b><br/>
+      No. children 5-17 yrs old = %i <br/>
+      Median Household Income = $%i <br/>
+      < HS desgree (%% over 25) = %.2f%% <br/>
+      %% Hispanic Population = %.2f%% <br/>
+      %% White population = %.2f%% <br/>
+      %% Black population = %.2f%% <br/>",
+    val,
+    shape_census_block@data$Ag_L_18-shape_census_block@data$Ag_Ls_5,
+    shape_census_block@data$Mdn_HH_,
+    shape_census_block$LESS_TH/shape_census_block@data$TTL_ppl,
+    shape_census_block@data$PCT_Hsp,
+    shape_census_block@data$PCT_Wht,
+    shape_census_block@data$PCT_Afr
   ) %>% lapply(htmltools::HTML)
   )
 }
@@ -184,8 +216,8 @@ demog_names <- list("None selected",
 )
 
 demog_student_names <- list("None selected",
-                            "English Learner student population (%)",
-                            "Disabled student population (%)",
+                            "English learner student population (%)",
+                            "Student with disability population (%)",
                             "Hispanic student population (%)",
                             "White student population (%)",
                             "Black student population (%)")
