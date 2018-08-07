@@ -728,13 +728,18 @@ shinyServer(
       
     })
     
-    #Zipcode searches and programs graph
+    #Zipcode sessions graph
     output$search_programs_zipcode_plot <- renderPlotly({
       validate(need(input$specific_search_questions=="Number of searches made by zipcode", message=FALSE))
       
-      plot_ly(final_zipcode_searches_programs, x = ~location, y = ~total_searches, type = 'bar', name = 'Number of searches') %>%
-        
-        layout(yaxis = list(title = 'Count'), barmode = 'group', title = 'Number of searches and programs by zipcode' )
+      xform <- list(categoryorder = "array",
+                    categoryarray = c(final_zipcode_searches_programs$location))
+      
+      plot_ly(final_zipcode_searches_programs, x = ~location, y = ~total_sessions, type = 'bar', 
+              name = 'Number of searches', color = I("dark orange"))%>%
+        layout(yaxis = list(title = 'Count'), barmode = 'group', title = 'Number of programs by zipcode' ) %>% 
+        layout(xaxis = xform)
+      
       
     })
     
