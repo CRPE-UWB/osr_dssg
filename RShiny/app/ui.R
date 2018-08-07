@@ -29,7 +29,7 @@ shinyUI(
   includeCSS("style.css"),
   
   navbarPage("Denver Out-of-School Resources",
-             selected = "About this Tool",
+             selected = "B4S Searches",
                    
 ########################## Blueprint4Summer Programs Tab ###########################################
 
@@ -118,6 +118,7 @@ shinyUI(
                                                        downloadButton('reschool_map_down', label = "Download Map")
                                                        ),
                                               tabPanel("Data",
+                                                       br(),
                                                        DT::dataTableOutput("datatable")
                                                        ),
                                               tabPanel(
@@ -197,6 +198,7 @@ shinyUI(
                                                      downloadButton('other_map_down', label = "Download Map")
                                                      ),
                                             tabPanel("Data",
+                                                     br(),
                                                      uiOutput("dt")),
                                             tabPanel("Summary analysis"),
                                             id = "program_other_panel"
@@ -270,10 +272,10 @@ shinyUI(
                                                br(),
                                                fluidRow(
                                                  column(6, uiOutput("totalsearches", 
-                                                                    style = "background-color:lightblue; 
+                                                                    style = "background-color:#c6dbef; 
                                                                     height:100px; padding:20px;
                                                                     border:solid", align = "center")),
-                                                 column(6, uiOutput("percentagesearches", style = "background-color:lightblue; 
+                                                 column(6, uiOutput("percentagesearches", style = "background-color:#c6dbef; 
                                                                     height:100px; padding:20px;
                                                                     border:solid", align = "center"))
                                                ),

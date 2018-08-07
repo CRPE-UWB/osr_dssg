@@ -63,7 +63,7 @@ shinyServer(
                     
       ) %>%
         formatStyle(colnames(data_table1[,-c(5,6,7)]),
-                    backgroundColor = 'lightblue'
+                    backgroundColor = '#c6dbef'
         )
                     
     })
@@ -237,7 +237,7 @@ shinyServer(
     #                 
     #   ) %>%
     #     formatStyle(colnames(summary_data),
-    #                 backgroundColor = 'lightblue'
+    #                 backgroundColor = '#c6dbef'
     #     )
     # 
     # })
@@ -425,7 +425,7 @@ shinyServer(
     })
     
     # Function to get datatables for each resources. Has a bunch of aesthetics
-    data_table_function = function(checkbox_input, data, column_names){
+    data_table_function <- function(checkbox_input, data, column_names){
       
       datatable(data,
                 options = list(pageLength = 3, 
@@ -447,7 +447,7 @@ shinyServer(
                 colnames = column_names
       ) %>%
         formatStyle(colnames(data),
-                    backgroundColor = 'lightblue'
+                    backgroundColor = '#c6dbef'
         )
     }
     
@@ -632,16 +632,16 @@ shinyServer(
                                    );",
                                      "}")),
                     caption = htmltools::tags$caption(
-                      style = 'caption-side: top; text-align: center; color: black ;',
+                      style = 'caption-side: top; text-align: left; color: black;',
                       htmltools::h3("Search Data")
-                    ), 
+                    ),
                     style = "bootstrap",
                     class = 'cell-border stripe',
                     rownames = FALSE
                     
       ) %>%
         formatStyle(colnames(data_table1),
-                    backgroundColor = 'lightblue'
+                    backgroundColor = '#c6dbef'
         )
       
     })
