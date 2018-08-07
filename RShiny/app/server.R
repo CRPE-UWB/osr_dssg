@@ -63,7 +63,7 @@ shinyServer(
                     
       ) %>%
         formatStyle(colnames(data_table1[,-c(5,6,7)]),
-                    backgroundColor = 'lightyellow'
+                    backgroundColor = 'lightblue'
         )
                     
     })
@@ -211,36 +211,36 @@ shinyServer(
              )
     })
     
-    output$nbhd_summary <- renderDataTable({
-      datatable(summary_data(), 
-                    options = list(pageLength = 3, 
-                                   scrollX = TRUE,
-                                   searching = FALSE,
-                                   paging = FALSE,
-                                   ordering = FALSE,
-                                   lengthChange = FALSE,
-                                   info = FALSE,
-                                   initComplete = JS(
-                                     "function(settings, json) {",
-                                     "$(this.api().table().header()).css(
-                                      {'background-color': '#000', 'color': '#fff'}
-                                      );",
-                                     "}")),
-                    # caption = htmltools::tags$caption(
-                    #   style = 'caption-side: top; text-align: left; color: black ;',
-                    #   htmltools::h3("caption")
-                    # ),
-                    width = 300,
-                    style = "bootstrap",
-                    class = 'cell-border stripe',
-                    rownames = FALSE
-                    
-      ) %>%
-        formatStyle(colnames(summary_data),
-                    backgroundColor = 'lightblue'
-        )
-
-    })
+    # output$nbhd_summary <- renderDataTable({
+    #   datatable(summary_data(), 
+    #                 options = list(pageLength = 3, 
+    #                                scrollX = TRUE,
+    #                                searching = FALSE,
+    #                                paging = FALSE,
+    #                                ordering = FALSE,
+    #                                lengthChange = FALSE,
+    #                                info = FALSE,
+    #                                initComplete = JS(
+    #                                  "function(settings, json) {",
+    #                                  "$(this.api().table().header()).css(
+    #                                   {'background-color': '#000', 'color': '#fff'}
+    #                                   );",
+    #                                  "}")),
+    #                 # caption = htmltools::tags$caption(
+    #                 #   style = 'caption-side: top; text-align: left; color: black ;',
+    #                 #   htmltools::h3("caption")
+    #                 # ),
+    #                 width = 300,
+    #                 style = "bootstrap",
+    #                 class = 'cell-border stripe',
+    #                 rownames = FALSE
+    #                 
+    #   ) %>%
+    #     formatStyle(colnames(summary_data),
+    #                 backgroundColor = 'lightblue'
+    #     )
+    # 
+    # })
     
   
     #### Other out of school resources tab ####

@@ -128,8 +128,7 @@ shinyUI(
                                                    column(6, plotOutput("program_cost_summary", height = "250px"))
                                                  ),
                                                 br(),
-                                                 uiOutput("program_special_cats"),
-                                                 DT::dataTableOutput("nbhd_summary")
+                                                 uiOutput("program_special_cats")
                                               ),
                                               id = "program_panel"
                                               
