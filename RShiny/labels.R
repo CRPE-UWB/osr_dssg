@@ -40,9 +40,9 @@ shape_census@data$racial_dist_html <- mapply(
   # color palette generated from brewer.pal()
   function(nbhd, pct_hisp, pct_white, pct_black, pct_native, pct_asian){
     
-    black_color <- colors_all_races[1]
-    hispanic_color <- colors_all_races[2]
-    white_color <- colors_all_races[3]
+    black_color <- pal_all_races("Black")
+    hispanic_color <- pal_all_races("Hispanic")
+    white_color <- pal_all_races("White")
     other_color <- "gray"
     
     sprintf(
