@@ -29,7 +29,7 @@ shinyUI(
   includeCSS("style.css"),
   
   navbarPage("Denver Out-of-School Resources",
-             selected = "Other Resources",
+             selected = "B4S Programs",
                    
 ########################## Blueprint4Summer Programs Tab ###########################################
 
@@ -127,10 +127,12 @@ shinyUI(
                                                        ),
                                               tabPanel(
                                                 "Summary analysis",
+                                                 br(),
                                                  uiOutput("summary_title"),
+                                                br(),
                                                  fluidRow(
-                                                   column(6, plotOutput("program_type_summary", height = "250px")),
-                                                   column(6, plotOutput("program_cost_summary", height = "250px"))
+                                                   column(6, div(plotlyOutput("program_type_summary", height = "250px"))),
+                                                   column(6, div(plotlyOutput("program_cost_summary", height = "250px")))
                                                  ),
                                                 br(),
                                                  uiOutput("program_special_cats")

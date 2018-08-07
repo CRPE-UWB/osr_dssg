@@ -168,34 +168,34 @@ shinyServer(
       ) %>% lapply(htmltools::HTML)
     })
     
-    output$program_type_summary <- renderPlot(
-      {
-        data_names <- c("academic", "arts", "cooking", "dance", "drama",
-                        "music", "nature", "sports", "stem")
-        relevant_colnames <- c("total_academic", "total_arts", "total_cooking", "total_dance", "total_drama",
-                               "total_music", "total_nature", "total_sports", "total_stem")
-        
-        if (nrow(summary_data())==0) {
-          dat <- rep(0,9)
-        } else {
-          dat <- colSums(summary_data()[,relevant_colnames])
-          dat <- unlist(dat)
-        }
-        
-        names(dat) <- data_names
-        
-        par(mar = c(5.1, 5.1, 2.1, 2.1))  # make left margin larger to fit names(data)
-        barplot(rev(dat),  # reverse so that reads top - bottom alphabetically
-                main = "Program Types",
-                col = c(mygreen2, mypurple3, myblue2, 
-                        mygreen, myblue, mygreen3,
-                        mypurple2, myblue3, mypurple),
-                horiz = TRUE,
-                xlab = "# programs",
-                las = 1
-                )
+    output$program_type_summary <- renderPlotly({
+      
+      # format the data properly
+      data_names <- c("academic", "arts", "cooking", "dance", "drama",
+                      "music", "nature", "sports", "stem")
+      relevant_colnames <- c("total_academic", "total_arts", "total_cooking", "total_dance", "total_drama",
+                             "total_music", "total_nature", "total_sports", "total_stem")
+
+      if (nrow(summary_data())==0) {
+        dat <- rep(0,9)
+      } else {
+        dat <- colSums(summary_data()[,relevant_colnames])
+        dat <- unlist(dat)
       }
-    )
+
+      names(dat) <- data_names
+      
+      # actually make the plot
+      plot_ly(x = sort(data_names, decreasing = TRUE),
+              y = dat[sort(data_names, decreasing = TRUE)],
+              type = "bar"
+              ) %>%
+        layout(xaxis = list(title = "Program Category"), 
+               yaxis = list(title = "No. Programs"),  
+               title = "Programs by Category"
+               )
+      
+    })
     
     output$program_special_cats <- renderUI({
       if (nrow(summary_data())==0) {
@@ -209,20 +209,24 @@ shinyServer(
       }
     })
     
-    output$program_cost_summary <- renderPlot({
+    output$program_cost_summary <- renderPlotly({
       nbhd_cost_data <- subset_for_neighborhoods(reschool_summer_program, input$neighborhoods)
       nbhd_cost_data <- nbhd_cost_data[,"session_cost"]
       
-        par(mar = c(5.1, 5.1, 2.1, 2.1))  # set margins
-        hist(nbhd_cost_data,
-             main = "Program Costs",
-             breaks = seq(from=0, to=1400, by=10),
-             xlim = c(0, max(10, max(nbhd_cost_data))),
-             xlab = "cost ($)",
-             ylab = "# programs"
-             )
+      par(mar = c(5.1, 5.1, 2.1, 2.1))  # set margins
+      
+      # actually make the plot
+      plot_ly(x = ~nbhd_cost_data,
+              type = "histogram"
+      ) %>%
+        layout(xaxis = list(title = "Total Cost ($)"), 
+               yaxis = list(title = "No. Programs"), 
+               title = "Programs by Cost"
+        )
+    
     })
     
+    # Data table for nbhd summary - deprecated
     # output$nbhd_summary <- renderDataTable({
     #   datatable(summary_data(), 
     #                 options = list(pageLength = 3, 
