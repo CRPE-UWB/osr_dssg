@@ -99,20 +99,96 @@ create table dps_student_aggregate_nbhd as
     count(case
             when primary_home_language != 'English' then primary_home_language
             else null
-            end) as non_english_speakers
+            end) as non_english_speakers,
+    count(case
+            when primary_disability = 'Autism' then primary_disability
+            else null
+            end) as students_with_autism,
+    count(case
+            when primary_disability = 'Emotional Disability' then primary_disability
+            else null
+            end) as students_with_emotional_disability,
+    count(case
+            when primary_disability = 'Intellectual Disability' then primary_disability
+            else null
+            end) as students_with_intel_disability,
+    count(case
+            when primary_disability = 'Other Health Impairment' then primary_disability
+            else null
+            end) as students_with_other_health_impairment,
+    count(case
+            when primary_disability = 'SLD' then primary_disability
+            else null
+            end) as students_with_sld,
+    count(case
+            when primary_disability = 'SLI' then primary_disability
+            else null
+            end) as students_with_sli,
+    count(case
+            when primary_disability != 'No Disability' then primary_disability
+            else null
+            end) as students_with_any_disability
 from shiny.dps_students
 group by nbhd_name);
+
+create table dps_student_aggregate_bgs as
+(select
+    block_group,
+    count(case
+            when primary_disability != 'No Disability' then primary_disability
+            else null
+            end) as students_disability,
+    count (student_number) as unique_students,
+    count(case
+            when race = 'Hispanic' then race
+            else null
+            end) as hispanic_students,
+    count(case
+            when race = 'Black' then race
+            else null
+            end) as black_students,
+    count(case
+            when race = 'White' then race
+            else null
+            end) as white_students,
+    count(case
+            when has_transportation = 'Yes' then has_transportation
+            else null
+            end) as students_with_transportation,
+    count(case
+            when primary_home_language != 'English' then primary_home_language
+            else null
+            end) as non_english_speakers
+from shiny.dps_students
+group by block_group);
 
 /*Calculating the percentages for the dps aggregate dataset*/
 create table shiny.dps_student_aggregate_nbhd as
 (select nbhd_name,
 round(students_disability*100.0/unique_students, 1) as perc_disable_students,
+students_with_any_disability,
+students_with_autism,
+students_with_emotional_disability,
+students_with_other_health_impairment,
+students_with_intel_disability,
+students_with_sli,
+students_with_sld,
 round(hispanic_students*100.0/unique_students, 1) as perc_hispanic_students,
 round(black_students*100.0/unique_students, 1) as perc_black_students,
 round(white_students*100.0/unique_students, 1) as perc_white_students,
 round(students_with_transportation*100.0/unique_students, 1) as perc_with_transport_students,
 round(non_english_speakers*100.0/unique_students, 1) as perc_nonenglish_students
 from dps_student_aggregate_nbhd);
+
+create table shiny.dps_student_aggregate_bgs as
+(select block_group,
+round(students_disability*100.0/unique_students, 1) as perc_disable_students,
+round(hispanic_students*100.0/unique_students, 1) as perc_hispanic_students,
+round(black_students*100.0/unique_students, 1) as perc_black_students,
+round(white_students*100.0/unique_students, 1) as perc_white_students,
+round(students_with_transportation*100.0/unique_students, 1) as perc_with_transport_students,
+round(non_english_speakers*100.0/unique_students, 1) as perc_nonenglish_students
+from dps_student_aggregate_bgs);
 
 /*Joining libraries, playgrounds, museums, rec_centers and parks */
 /*Libraries*/
