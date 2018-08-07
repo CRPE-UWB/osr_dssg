@@ -113,7 +113,7 @@ get_nbhd_census_labels <- function(val=NULL) {
       <i>Census level data:</i><br/>
       No. children 5-17 yrs old = %i <br/>
       Median Household Income = $%i <br/>
-      < HS desgree (%% over 25) = %.2f%% <br/>
+      < HS degree (%% over 25) = %.2f%% <br/>
       %% Hispanic Population = %g%% <br/>
       %% White population = %g%% <br/>
       %% Black population = %g%% <br/>",
@@ -162,7 +162,7 @@ get_block_census_labels <- function(val) {
     "Access index: <b>%.2f</b><br/>
       No. children 5-17 yrs old = %i <br/>
       Median Household Income = $%i <br/>
-      < HS desgree (%% over 25) = %.2f%% <br/>
+      < HS degree (%% over 25) = %.2f%% <br/>
       %% Hispanic Population = %.2f%% <br/>
       %% White population = %.2f%% <br/>
       %% Black population = %.2f%% <br/>",
