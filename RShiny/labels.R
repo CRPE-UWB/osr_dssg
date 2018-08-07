@@ -132,7 +132,7 @@ get_nbhd_student_labels <- function(val) {
     %% White students = %g%% <br/>
     %% Black students = %g%% <br/>
     %% English student learners = %g%% <br/>
-    %% Students with disability = %g%% ",
+    %% Students with disability = %g%%",
     shape_census@data$NBHD_NA,
     val,
     shape_census@data$AGE_5_T,
@@ -140,7 +140,7 @@ get_nbhd_student_labels <- function(val) {
     shape_census@data$perc_white_students,
     shape_census@data$perc_black_students,
     shape_census@data$perc_nonenglish_students,
-    shape_census@data$perc_disable_students
+    shape_census@data$students_with_any_disability
   ) %>% lapply(htmltools::HTML)
   )
 }
@@ -156,9 +156,11 @@ legend_titles_demographic <- list(MED_HH_ = "Median HH Income",
                                   PCT_NON = "Lang. Besides <br>English",
                                   AGE_5_T = "5-17 Year Olds (#)",
                                   majority_race = "Most Common<br>Race/Ethnicity",
-                                  "perc_disable_students" = "Disabled",
-                                  "perc_hispanic_students" = "Hispanic Students (%)",
-                                  "perc_nonenglish_students" = "EL"
+                                  "perc_nonenglish_students" = "% EL",
+                                  "perc_disable_students" = "% Disabled",
+                                  "perc_hispanic_students" = "% Hispanic",
+                                  "perc_white_students" = "% White",
+                                  "perc_black_students" = "% Black"
 )
 
 #### TESTING - UPDATE THIS TEXT (JOE)
