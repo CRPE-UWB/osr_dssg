@@ -124,7 +124,8 @@ create_demographic_map <- function(school_or_census, demographics, student_demog
     if(student_demographics == "none"){
       curr_map <- make_demographic_map(NULL,NULL, my_labels=student_labels)
     } else {
-      curr_map <- make_demographic_map(pal_black, student_demographics, labFormat = labelFormat(suffix = " %"), my_labels=student_labels)
+      curr_map <- make_demographic_map(pal_list_student[[student_demographics]], student_demographics, labFormat = lab_format_list_student[[student_demographics]], 
+                                       my_labels=student_labels)
     }
   }
 }
