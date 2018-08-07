@@ -201,8 +201,8 @@ shinyServer(
       if (nrow(summary_data())==0) {
         sprintf("No programs in this neighborhood.") %>% lapply(htmltools::HTML)
       } else {
-        sprintf("Programs with Scholarships: %i <br/> 
-                Programs Accommodating Special Needs: %i <br/><br/>",
+        sprintf("<center><b>Programs with Scholarships: %i <br><br> 
+                Programs Accommodating Special Needs: %i </b> <br><br></center>",
                 sum(summary_data()[, "total_scholarships"]),
                 sum(summary_data()[, "total_special_needs"])
         ) %>% lapply(htmltools::HTML)
@@ -211,18 +211,39 @@ shinyServer(
     
     output$program_cost_summary <- renderPlotly({
       nbhd_cost_data <- subset_for_neighborhoods(reschool_summer_program, input$neighborhoods)
-      nbhd_cost_data <- gsub(0, nbhd_cost_data[,"session_cost"])
+      nbhd_cost_data <- nbhd_cost_data[,"session_cost"]
       
-      par(mar = c(5.1, 5.1, 2.1, 2.1))  # set margins
+      # par(mar = c(5.1, 5.1, 2.1, 2.1))  # set margins
       
       # actually make the plot
-      plot_ly(x = ~nbhd_cost_data,
-              type = "histogram"
-      ) %>%
-        layout(xaxis = list(title = "Total Cost ($)"), 
-               yaxis = list(title = "No. Programs"), 
-               title = "Programs by Cost"
-        )
+      if (sum(nbhd_cost_data > 0) >0 ){
+        plot_ly(x = ~nbhd_cost_data[nbhd_cost_data > 0],
+                type = "histogram",
+                name = "Not Free"
+        ) %>%
+          layout(xaxis = list(title = "Total Cost ($)"), 
+                 yaxis = list(title = "No. Programs"), 
+                 title = "Programs by Cost"
+          ) %>%
+          add_bars(x = 0,
+                   y = sum(nbhd_cost_data == 0),
+                   name = "Free"
+          )
+      }
+      else{
+        plot_ly(y = sum(nbhd_cost_data == 0),
+                x = 0,
+                type = "bar",
+                color = "orange"
+        ) %>%
+          layout(xaxis = list(title = "Total Cost ($)"), 
+                 yaxis = list(title = "No. Programs"), 
+                 title = "Programs by Cost"
+          )
+        
+        
+      }
+        
     
     })
     

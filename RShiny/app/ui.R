@@ -130,10 +130,9 @@ shinyUI(
                                                  br(),
                                                  uiOutput("summary_title"),
                                                 br(),
-                                                 fluidRow(
-                                                   column(6, div(plotlyOutput("program_type_summary", height = "250px"))),
-                                                   column(6, div(plotlyOutput("program_cost_summary", height = "250px")))
-                                                 ),
+                                                div(plotlyOutput("program_type_summary", height = "250px")),
+                                                br(),
+                                                div(plotlyOutput("program_cost_summary", height = "250px")),
                                                 br(),
                                                  uiOutput("program_special_cats")
                                               ),
