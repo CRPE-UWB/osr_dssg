@@ -762,6 +762,39 @@ shinyServer(
       
     })
     
+    output$search_mymap <- renderLeaflet({
+      validate(need(input$specific_search_questions=="What locations are people searching for? - spatial analysis", message=FALSE))
+      
+      pal_search = colorBin("YlOrRd", domain = search_map_data@data$total_searches, bins = 5)
+      labels_search = sprintf(
+        "<strong>zipcode</strong> = %s<br/><strong>Number of searches</strong> = %s",
+        search_map_data@data$GEOID10, search_map_data@data$total_searches) %>% lapply(htmltools::HTML)
+      leaflet()  %>% 
+        setView(lng = -104.901531, lat = 39.722043, zoom = 11) %>% 
+        addProviderTiles(providers$CartoDB.Positron) %>%
+        addPolygons(data = subset_denver_zipcodes, color = "#777",
+                    weight = 1,
+                    smoothFactor = 0.5,
+                    opacity = 1.0) %>%
+        addPolygons(data = search_map_data, color = "#444444", weight = 1, smoothFactor = 0.5,
+                    opacity = 1.0, fillOpacity = 0.5,
+                    fillColor = ~pal_search(total_searches),
+                    highlight = highlightOptions(
+                      bringToFront = FALSE,
+                      weight = 5,
+                      color = "#666"
+                    ),
+                    label = labels_search,
+                    labelOptions = labelOptions(
+                      style = list("font-weight" = "normal", padding = "3px 8px"),
+                      textsize = "15px",
+                      direction = "auto")) %>%
+        addLegend(pal = pal_search, values = search_map_data$total_searches, opacity = 0.7, title = NULL,
+                  position = "bottomright")
+      
+      
+    })
+    
     ###################################################################################################################
     # Access Index Tab
     ###################################################################################################################

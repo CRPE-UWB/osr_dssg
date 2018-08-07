@@ -260,7 +260,8 @@ shinyUI(
                                            radioButtons("specific_search_questions", "Choose a question about the Blueprint4Summer Search Data to investigate:", 
                                                        choices = c("What program categories do people search for the most?",
                                                                    "What distances and session times do people search for, and how do they sort their results?",
-                                                                   "What locations are people searching for?")))
+                                                                   "What locations are people searching for?",
+                                                                   "What locations are people searching for? - spatial analysis")))
                           ),
 
                         
@@ -310,6 +311,11 @@ shinyUI(
                                                                br(),
                                                                div(plotlyOutput("search_programs_zipcode_plot", height = "200px"))
                  
+                                              ),
+                                              conditionalPanel('input.specific_search_questions=="What locations are people searching for? - spatial analysis"',
+                                                               leafletOutput("search_mymap", height = 520),
+                                                               HTML("<i>Note: Only top 20 zipcodes in terms of the number of searches are shown.</i>")
+                                                               
                                               )
                                               ),
                                       id = "conditionedPanels"
