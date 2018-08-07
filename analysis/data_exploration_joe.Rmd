@@ -28,7 +28,7 @@ drv <- dbDriver("PostgreSQL")
 #
 # in the directory above the osr_dssg2018 folder
 
-source(file.path(dirname(dirname(mypath)),"cred.txt"))
+source(file.path(dirname(dirname(mypath)),"../cred.txt"))
 
 # creates a connection to the postgres database
 # note that "con" will be used later in each connection to the database

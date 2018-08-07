@@ -62,6 +62,7 @@ shape_census <- geo_join(shape_census, aggregate_session_nbhds,
 # Join the aggregate dps students information to the census shape file
 shape_census <- geo_join(shape_census, aggregate_dps_student_nbhds, 
                          "NBHD_NA", "nbhd_name", how = "left")
+shape_census <- shape_census[order(as.character(shape_census@data$NBHD_NA)),]
 
 ######################## Creating filter variables for the sidebar panels ############################
 

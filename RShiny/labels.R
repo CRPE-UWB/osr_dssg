@@ -83,22 +83,42 @@ shape_census@data$racial_dist_html <- mapply(
 
 ###################### Construct tooltip/popup text for hovering over neighborhoods ######################
 
+get_access_label <- function(index_val) {
+  sprintf(
+    "<b>Access index: %.2f</b><br/>",
+    # No. children 5-17 yrs old = %i <br/>
+    # Median Household Income = $%i <br/>
+    # %% Hispanic Population = %g%% <br/>
+    # %% White population = %g%% <br/>
+    # %% Students with disability = %g%%"
+    index_val
+    # shape_census_block@data$
+    # round(shape_census@data$MED_HH_),
+    # shape_census@data$PCT_HIS,
+    # shape_census@data$perc_with_transport_students,
+    # shape_census@data$perc_disable_students,
+    # shape_census_block
+  ) %>% lapply(htmltools::HTML)
+}
+
 get_nbhd_census_labels <- function(val) {
     return(sprintf(
       "<b>%s</b><br/>
       No. program sessions = %i <br/>
       No. children 5-17 yrs old = %i <br/>
-      %% Hispanic students = %g%% <br/>
-      %% English student learners = %g%% <br/>
-      %% Students who use transportation = %g%% <br/>
-      %% Students with disability = %g%% ",
+      Median Household Income = $%i <br/>
+      < HS desgree (%% over 25) = %.2f%% <br/>
+      %% Hispanic Population = %g%% <br/>
+      %% White population = %g%% <br/>
+      %% Black population = %g%% <br/>",
+      shape_census@data$NBHD_NA,
       val,
-      replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
       shape_census@data$AGE_5_T,
-      shape_census@data$perc_hispanic_students,
-      shape_census@data$perc_nonenglish_students,
-      shape_census@data$perc_with_transport_students,
-      shape_census@data$perc_disable_students
+      round(shape_census@data$MED_HH_),
+      shape_census$PCT_NON,
+      shape_census@data$PCT_HIS,
+      shape_census@data$PCT_WHI,
+      shape_census@data$PCT_BLA
     ) %>% lapply(htmltools::HTML)
   )
 }
@@ -109,15 +129,17 @@ get_nbhd_student_labels <- function(val) {
     No. program sessions = %i <br/>
     No. children 5-17 yrs old = %i <br/>
     %% Hispanic students = %g%% <br/>
+    %% White students = %g%% <br/>
+    %% Black students = %g%% <br/>
     %% English student learners = %g%% <br/>
-    %% Students who use transportation = %g%% <br/>
     %% Students with disability = %g%% ",
+    shape_census@data$NBHD_NA,
     val,
-    replace(shape_census@data$count, is.na(shape_census@data$count), 0), # show 0s not NAs
     shape_census@data$AGE_5_T,
     shape_census@data$perc_hispanic_students,
+    shape_census@data$perc_white_students,
+    shape_census@data$perc_black_students,
     shape_census@data$perc_nonenglish_students,
-    shape_census@data$perc_with_transport_students,
     shape_census@data$perc_disable_students
   ) %>% lapply(htmltools::HTML)
   )
@@ -160,9 +182,11 @@ demog_names <- list("None selected",
 )
 
 demog_student_names <- list("None selected",
+                            "English Learner student population (%)",
                             "Disabled student population (%)",
                             "Hispanic student population (%)",
-                            "English Learner student population (%)")
+                            "White student population (%)",
+                            "Black student population (%)")
 
 # Internal values for demographic filtering options (correspond to demog_names above)
 # (don't change these, it will make your life difficult)
@@ -179,9 +203,11 @@ demog_values <- list("none",
 )
 
 demog_student_values <- list("none",
+                             "perc_nonenglish_students",
                              "perc_disable_students",
                              "perc_hispanic_students",
-                             "perc_nonenglish_students")
+                             "perc_white_students",
+                             "perc_black_students")
 
 labFormatAge = function(type, cuts, p) {
   n = length(cuts)
@@ -190,12 +216,12 @@ labFormatAge = function(type, cuts, p) {
 
 lab_format_list <- list(labFormatAge,
                         labelFormat(prefix = "$ "),
-                        labFormat = labelFormat(suffix = " %"),
-                        labFormat = labelFormat(suffix = " %"),
-                        labFormat = labelFormat(suffix = " %"),
-                        labFormat = labelFormat(suffix = " %"),
-                        labFormat = labelFormat(suffix = " %"),
-                        labFormat = labelFormat(suffix = " %"),
+                        labelFormat(suffix = " %"),
+                        labelFormat(suffix = " %"),
+                        labelFormat(suffix = " %"),
+                        labelFormat(suffix = " %"),
+                        labelFormat(suffix = " %"),
+                        labelFormat(suffix = " %"),
                         NULL)
 
 pal_list <- list(pal_age,
@@ -211,3 +237,18 @@ pal_list <- list(pal_age,
 names(pal_list) <- demog_values[demog_values!="none"]
 names(lab_format_list) <- demog_values[demog_values!="none"]
 
+pal_list_student <- list(pal_el,
+                         pal_disabled,
+                         pal_hispanic_student,
+                         pal_white_student,
+                         pal_black_student
+)
+
+lab_format_list_student <- list(labelFormat(prefix = " %"),
+                                labelFormat(suffix = " %"),
+                                labelFormat(suffix = " %"),
+                                labelFormat(suffix = " %"),
+                                labelFormat(suffix = " %"))
+
+names(pal_list_student) <- demog_student_values[demog_student_values!="none"]
+names(lab_format_list_student) <- demog_student_values[demog_student_values!="none"]
