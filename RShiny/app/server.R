@@ -11,9 +11,9 @@ library(mapview)
 shinyServer(
   function(input, output, session) {
     
-    #############################
+    ############################################################################################################
     # Reschool Programs Tab
-    #############################
+    ############################################################################################################
     
     ####### RESCHOOL PROGRAMS SUBSETTING BY COST AND TYPE #######
     
@@ -63,10 +63,22 @@ shinyServer(
                     
       ) %>%
         formatStyle(colnames(data_table1[,-c(5,6,7)]),
-                    backgroundColor = 'lightblue'
+                    backgroundColor = '#c6dbef'
         )
                     
     })
+    
+    output$download_reschool_data <- downloadHandler(
+      filename = "b4s_programs.csv",
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        write.csv(neighborhood_data(), file, row.names = FALSE)
+      }
+    )
     
     ####### RESCHOOL PROGRAMS MAP #######
     
@@ -156,34 +168,34 @@ shinyServer(
       ) %>% lapply(htmltools::HTML)
     })
     
-    output$program_type_summary <- renderPlot(
-      {
-        data_names <- c("academic", "arts", "cooking", "dance", "drama",
-                        "music", "nature", "sports", "stem")
-        relevant_colnames <- c("total_academic", "total_arts", "total_cooking", "total_dance", "total_drama",
-                               "total_music", "total_nature", "total_sports", "total_stem")
-        
-        if (nrow(summary_data())==0) {
-          dat <- rep(0,9)
-        } else {
-          dat <- colSums(summary_data()[,relevant_colnames])
-          dat <- unlist(dat)
-        }
-        
-        names(dat) <- data_names
-        
-        par(mar = c(5.1, 5.1, 2.1, 2.1))  # make left margin larger to fit names(data)
-        barplot(rev(dat),  # reverse so that reads top - bottom alphabetically
-                main = "Program Types",
-                col = c(mygreen2, mypurple3, myblue2, 
-                        mygreen, myblue, mygreen3,
-                        mypurple2, myblue3, mypurple),
-                horiz = TRUE,
-                xlab = "# programs",
-                las = 1
-                )
+    output$program_type_summary <- renderPlotly({
+      
+      # format the data properly
+      data_names <- c("academic", "arts", "cooking", "dance", "drama",
+                      "music", "nature", "sports", "stem")
+      relevant_colnames <- c("total_academic", "total_arts", "total_cooking", "total_dance", "total_drama",
+                             "total_music", "total_nature", "total_sports", "total_stem")
+
+      if (nrow(summary_data())==0) {
+        dat <- rep(0,9)
+      } else {
+        dat <- colSums(summary_data()[,relevant_colnames])
+        dat <- unlist(dat)
       }
-    )
+
+      names(dat) <- data_names
+      
+      # actually make the plot
+      plot_ly(x = sort(data_names, decreasing = TRUE),
+              y = dat[sort(data_names, decreasing = TRUE)],
+              type = "bar"
+              ) %>%
+        layout(xaxis = list(title = "Program Category"), 
+               yaxis = list(title = "No. Programs"),  
+               title = "Programs by Category"
+               )
+      
+    })
     
     output$program_special_cats <- renderUI({
       if (nrow(summary_data())==0) {
@@ -197,20 +209,24 @@ shinyServer(
       }
     })
     
-    output$program_cost_summary <- renderPlot({
+    output$program_cost_summary <- renderPlotly({
       nbhd_cost_data <- subset_for_neighborhoods(reschool_summer_program, input$neighborhoods)
-      nbhd_cost_data <- nbhd_cost_data[,"session_cost"]
+      nbhd_cost_data <- gsub(0, nbhd_cost_data[,"session_cost"])
       
-        par(mar = c(5.1, 5.1, 2.1, 2.1))  # set margins
-        hist(nbhd_cost_data,
-             main = "Program Costs",
-             breaks = seq(from=0, to=1400, by=10),
-             xlim = c(0, max(10, max(nbhd_cost_data))),
-             xlab = "cost ($)",
-             ylab = "# programs"
-             )
+      par(mar = c(5.1, 5.1, 2.1, 2.1))  # set margins
+      
+      # actually make the plot
+      plot_ly(x = ~nbhd_cost_data,
+              type = "histogram"
+      ) %>%
+        layout(xaxis = list(title = "Total Cost ($)"), 
+               yaxis = list(title = "No. Programs"), 
+               title = "Programs by Cost"
+        )
+    
     })
     
+    # Data table for nbhd summary - deprecated
     # output$nbhd_summary <- renderDataTable({
     #   datatable(summary_data(), 
     #                 options = list(pageLength = 3, 
@@ -237,7 +253,7 @@ shinyServer(
     #                 
     #   ) %>%
     #     formatStyle(colnames(summary_data),
-    #                 backgroundColor = 'lightblue'
+    #                 backgroundColor = '#c6dbef'
     #     )
     # 
     # })
@@ -260,6 +276,9 @@ shinyServer(
     # Create the map
     other_mapdata <- reactiveValues(dat = 0)
     
+    nbhd_labels_reactive_other <- reactive({get_nbhd_census_labels()})
+    nbhd_labels_student_reactive_other <- reactive({get_nbhd_student_labels()})
+    
     output$mymap_other = renderLeaflet({
         
         # Get the data
@@ -272,7 +291,8 @@ shinyServer(
         
         ##### ACTUALLY DRAW THE OTHER RESOURCES MAP #####
         
-        open_resource_map <- create_demographic_map(input$school_or_census_other, input$demographics_other, input$student_demographics_other, nbhd_labels_reactive(), nbhd_labels_student_reactive())
+        open_resource_map <- create_demographic_map(input$school_or_census_other, input$demographics_other, input$student_demographics_other, 
+                                                    nbhd_labels_reactive_other(), nbhd_labels_student_reactive_other())
         
         # Loop over selected resources types, plotting the locations of each
         for (col in input$program_other){
@@ -420,12 +440,15 @@ shinyServer(
     output$dt <- renderUI({
       lapply(as.list(seq_len(length(as.list(input$program_other)))), function(i) {
         id <- paste0("dt", i)
-        DT::dataTableOutput(id)
+        return(list(DT::dataTableOutput(id), 
+                    downloadButton(paste0("download_", id), label = "Download Data"),
+                    br(), br()
+                    ))
       })
     })
     
     # Function to get datatables for each resources. Has a bunch of aesthetics
-    data_table_function = function(checkbox_input, data, column_names){
+    data_table_function <- function(checkbox_input, data, column_names){
       
       datatable(data,
                 options = list(pageLength = 3, 
@@ -447,13 +470,14 @@ shinyServer(
                 colnames = column_names
       ) %>%
         formatStyle(colnames(data),
-                    backgroundColor = 'lightblue'
+                    backgroundColor = '#c6dbef'
         )
     }
     
     observe(
       for (i in seq_len(length(input$program_other))) {
         id <- paste0("dt", i)
+        download_id <- paste0("download_", id)
         
         if(input$program_other[i] == "Parks"){
           output[[id]] <- DT::renderDataTable({
@@ -463,7 +487,21 @@ shinyServer(
                                          "Has biking", "Sqft", "Nbhd name")
                                        )
             return(dat)    
-          })}
+          })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "parks.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(parks_data(), file, row.names = FALSE)
+            }
+          )
+          
+          }
         else if(input$program_other[i] == "Libraries"){
           output[[id]] <- DT::renderDataTable({
             dat <- data_table_function("Libraries", 
@@ -472,6 +510,19 @@ shinyServer(
                                          "Circulation Vol", "Sqft", "Nbhd name"))
             return(dat)    
           })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "libraries.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(libraries_data(), file, row.names = FALSE)
+            }
+          )
+          
         }
        
         else if(input$program_other[i] == "Rec Centers"){
@@ -486,6 +537,19 @@ shinyServer(
                                        )
             return(dat)    
           })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "rec_centers.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(rec_centers_data(), file, row.names = FALSE)
+            }
+          )
+          
         }
         else if(input$program_other[i] == "Museums"){
           output[[id]] <- DT::renderDataTable({
@@ -493,6 +557,19 @@ shinyServer(
                                        c("Museum name", "Address", "Nbhd name"))
             return(dat)    
           })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "museums.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(museums_data(), file, row.names = FALSE)
+            }
+          )
+          
         }
         else if(input$program_other[i] == "Fields"){
           output[[id]] <- DT::renderDataTable({
@@ -502,6 +579,19 @@ shinyServer(
                                          "Class", "Sqft", "Nbhd name"))
             return(dat)    
           })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "fields.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(fields_data(), file, row.names = FALSE)
+            }
+          )
+          
         }
         else if(input$program_other[i] == "Playgrounds"){
           output[[id]] <-DT::renderDataTable({
@@ -511,6 +601,19 @@ shinyServer(
                                          "Sqft", "Nbhd name"))
             return(dat)    
           })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "playgrounds.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(playgrounds_data(), file, row.names = FALSE)
+            }
+          )
+          
         }
         
       })
@@ -632,19 +735,31 @@ shinyServer(
                                    );",
                                      "}")),
                     caption = htmltools::tags$caption(
-                      style = 'caption-side: top; text-align: center; color: black ;',
+                      style = 'caption-side: top; text-align: left; color: black;',
                       htmltools::h3("Search Data")
-                    ), 
+                    ),
                     style = "bootstrap",
                     class = 'cell-border stripe',
                     rownames = FALSE
                     
       ) %>%
         formatStyle(colnames(data_table1),
-                    backgroundColor = 'lightblue'
+                    backgroundColor = '#c6dbef'
         )
       
     })
+    
+    output$download_search_data <- downloadHandler(
+      filename = "b4s_searches.csv",
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        write.csv(subset_search_data(), file, row.names = FALSE)
+      }
+    )
     
 
     #################### Rendering plots for visualization tab in the search data tab #################################
@@ -808,7 +923,7 @@ shinyServer(
       })
     
     # Create labels and stuff
-    access_label <- reactive({get_access_label(index())})
+    access_label <- reactive({get_block_census_labels(index())})
     
     ####### PROGRAM SUBSETTING BY COST AND TYPE #######
     

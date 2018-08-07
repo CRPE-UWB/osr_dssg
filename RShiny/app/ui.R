@@ -13,7 +13,7 @@ library(plotly)
 
 # Source needed data and functions for ui and server - impt. to do in this order!!
 # (note that all paths should be relative to the location of this ui.R file)
-# source(file.path('..', 'get_data.R'), chdir = TRUE)
+#source(file.path('..', 'get_data.R'), chdir = TRUE)
 source(file.path('..', 'color.R'))
 source(file.path('..', 'labels.R'))
 source(file.path('..', 'mapping_helpers.R'))
@@ -29,7 +29,7 @@ shinyUI(
   includeCSS("style.css"),
   
   navbarPage("Denver Out-of-School Resources",
-             selected = "About this Tool",
+             selected = "B4S Programs",
                    
 ########################## Blueprint4Summer Programs Tab ###########################################
 
@@ -115,17 +115,24 @@ shinyUI(
                                   tabsetPanel(type = "tab",
                                               tabPanel("Map",
                                                        leafletOutput("mymap", height = 520),
-                                                       downloadButton('reschool_map_down', label = "Download Map")
+                                                       br(),
+                                                       downloadButton('reschool_map_down', label = "Download Map (Takes About 10 Seconds)"),
+                                                       br(), br()
                                                        ),
                                               tabPanel("Data",
-                                                       DT::dataTableOutput("datatable")
+                                                       br(),
+                                                       DT::dataTableOutput("datatable"),
+                                                       downloadButton("download_reschool_data", "Download Data"),
+                                                       br(), br()
                                                        ),
                                               tabPanel(
                                                 "Summary analysis",
+                                                 br(),
                                                  uiOutput("summary_title"),
+                                                br(),
                                                  fluidRow(
-                                                   column(6, plotOutput("program_type_summary", height = "250px")),
-                                                   column(6, plotOutput("program_cost_summary", height = "250px"))
+                                                   column(6, div(plotlyOutput("program_type_summary", height = "250px"))),
+                                                   column(6, div(plotlyOutput("program_cost_summary", height = "250px")))
                                                  ),
                                                 br(),
                                                  uiOutput("program_special_cats")
@@ -194,9 +201,12 @@ shinyUI(
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
                                                      leafletOutput("mymap_other", height = 520),
-                                                     downloadButton('other_map_down', label = "Download Map")
+                                                     br(),
+                                                     downloadButton('other_map_down', label = "Download Map (Takes About 10 Seconds)"),
+                                                     br(), br()
                                                      ),
                                             tabPanel("Data",
+                                                     br(),
                                                      uiOutput("dt")),
                                             tabPanel("Summary analysis"),
                                             id = "program_other_panel"
@@ -271,15 +281,17 @@ shinyUI(
                                                br(),
                                                fluidRow(
                                                  column(6, uiOutput("totalsearches", 
-                                                                    style = "background-color:lightblue; 
+                                                                    style = "background-color:#c6dbef; 
                                                                     height:100px; padding:20px;
                                                                     border:solid", align = "center")),
-                                                 column(6, uiOutput("percentagesearches", style = "background-color:lightblue; 
+                                                 column(6, uiOutput("percentagesearches", style = "background-color:#c6dbef; 
                                                                     height:100px; padding:20px;
                                                                     border:solid", align = "center"))
                                                ),
                                                br(),
-                                               DT::dataTableOutput("datatable_search")
+                                               DT::dataTableOutput("datatable_search"),
+                                               downloadButton("download_search_data", label = "Download Data"),
+                                               br(), br()
                                       ),
 
                                       tabPanel("Visualization",
@@ -369,7 +381,9 @@ shinyUI(
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
                                                      leafletOutput("mymap_access", height = 520),
-                                                     downloadButton('access_map_down', label = "Download Map")
+                                                     br(),
+                                                     downloadButton('access_map_down', label = "Download Map (Takes About 10 Seconds)"),
+                                                     br(), br()
                                                      )
                                             # tabPanel("Data",
                                             #          uiOutput("dt")),

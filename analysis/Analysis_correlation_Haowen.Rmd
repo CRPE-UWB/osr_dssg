@@ -170,7 +170,7 @@ We care about the following indices, AI for overall programs for driving and tra
 full_index <- merge(driving_index, transit_index, by = "Id2")
 selected_index <- full_index %>% 
   dplyr::select(Id2, AI_overall.x, AI_overall_free.x, AI_overall.y, AI_overall_free.y) %>% # x driving, y transit 
-head(selected_index)
+  merge(bg_nbhd, by = "Id2")
 
 index_agg <- selected_index %>%
     group_by(nbhd_name) %>%
@@ -195,7 +195,7 @@ apply(index_agg1, 2, FUN =  plotLC) #plot
             ggplot( aes(student_age_a, df[,var1])) +
             geom_point(aes(color= df[,var2]>66)) +
             scale_color_manual(values = c("black", "red")) +
-            geom_text(aes(label=ifelse(df[,var2]>66,as.character(nbhd_name),'')),hjust=0.7,vjust=1, size=3) +
+            geom_text(aes(label=ifelse(df[,var2]>66,as.character(nbhd_name),'')),hjust=0.7,vjust=1, size=2) +
             xlab("Number of students in each neighborhood") +
             ylab("Access Index score") +
             theme_bw() +
@@ -263,22 +263,11 @@ leaflet(nbhd_merged_MI) %>%
 data <- merge(selected_index, acs_demographics, by = "Id2") %>% 
   mutate(student_age_n = age_less_18 - age_less_5) %>%
   filter(student_age_n != 0)  # drop if no students are in the block group to keep things consistent (456 bg)
+
 # look at AI_overall first 
 summary(data$AI_overall.x)
 
 # demographics
-
-demo_calculator <- function(var, data) {
-  mnb1stQ <- mean(data[data$AI_overall.x < 58.57, ]$var, na.rm = TRUE)
-  mnbmedian <- mean(data[data$AI_overall.x < 64.01, ]$var, na.rm = TRUE)
-  mnamedian <- mean(data[data$AI_overall.x > 64.01, ]$var, na.rm = TRUE)
-  mna4stQ <- mean(data[data$AI_overall.x > 68.99, ]$var, na.rm = TRUE)
-  
-  return(c(mnb1stQ, mnbmedian, mnamedian, mna4stQ))
-}
-
-demo_calculator(median_hh_income, data)
-
 # 1. median household income, there are 11 N.A.s so we have to drop those first
 mnb1stQ <- mean(data[data$AI_overall.x < 58.57, ]$median_hh_income, na.rm = TRUE)
 mnbmedian <- mean(data[data$AI_overall.x < 64.01, ]$median_hh_income, na.rm = TRUE)
@@ -328,15 +317,24 @@ pctab_bmedian <- mean(data[data$AI_overall.x < 64.01, ]$Pct_ab, na.rm = TRUE)
 pctab_amedian <- mean(data[data$AI_overall.x > 64.01, ]$Pct_ab, na.rm = TRUE)
 pctab_a3Q <- mean(data[data$AI_overall.x > 68.99, ]$Pct_ab, na.rm = TRUE)
 # 5. Pct_native 
+data$pct_native <- data$native/data$ttl_population
+pctn_b1Q <- mean(data[data$AI_overall.x < 58.57, ]$pct_native, na.rm = TRUE)
+pctn_bmedian <- mean(data[data$AI_overall.x < 64.01, ]$pct_native, na.rm = TRUE)
+pctn_amedian <- mean(data[data$AI_overall.x > 64.01, ]$pct_native, na.rm = TRUE)
+pctn_a3Q <- mean(data[data$AI_overall.x > 68.99, ]$pct_native, na.rm = TRUE)
+# 6. car ownership if we care about this
+hist(data$pct_vehicle_own) # highly screwed, tail on the left 
+pctcar_b1Q <- mean(data[data$AI_overall.x < 58.57, ]$pct_vehicle_own, na.rm = TRUE)
+pctcar_bmedian <- mean(data[data$AI_overall.x < 64.01, ]$pct_vehicle_own, na.rm = TRUE)
+pctcar_amedian <- mean(data[data$AI_overall.x > 64.01, ]$pct_vehicle_own, na.rm = TRUE)
+pctcar_a3Q <- mean(data[data$AI_overall.x > 68.99, ]$pct_vehicle_own, na.rm = TRUE)
+
+summary(data)
+```
 
 
-# car ownership
- 
-
-# living in households in poverty,
-acs_demographics$poverty_pct_hh 
-
-
+Graphics
+``` {r}
 sample_comparison <- data.frame(
   "sample" = c("Below 1st Quantile", "Below Median", "Above Median", "Above 3rd Quantile"), 
   "Ave_Median_HI" = c(mnb1stQ, mnbmedian, mnamedian, mna4stQ), 
@@ -346,7 +344,9 @@ sample_comparison <- data.frame(
   "PCT_Otheraces" = c(pctOthers_b1Q, pctOthers_bmedian, pctOthers_amedian, pctOthers_a3Q),
   "PCT_Poverty" = c(pctPoverty_b1Q, pctPoverty_bmedian, pctPoverty_amedian, pctPoverty_a3Q), 
   "PCT_LessThanHighSchool" = c(pctlhs_b1Q, pctlhs_bmedian, pctlhs_amedian, pctlhs_a3Q),
-  "PCT_AboveBechalorDegree" = c(pctab_b1Q, pctab_bmedian, pctab_amedian, pctab_a3Q))     
+  "PCT_AboveBechalorDegree" = c(pctab_b1Q, pctab_bmedian, pctab_amedian, pctab_a3Q),
+  "PCT_Native" = c(pctn_b1Q, pctn_bmedian, pctn_amedian, pctn_a3Q),
+  "PCT_CarOwn" = c(pctcar_b1Q, pctcar_bmedian, pctcar_amedian, pctcar_a3Q))     
 
 sample_comparison$sample <- 
   factor(sample_comparison$sample, 
@@ -354,7 +354,8 @@ sample_comparison$sample <-
 
 # graph for median household income 
 plot_MHI <- ggplot(sample_comparison, aes(sample, Ave_Median_HI)) +
-  geom_bar(stat = "identity")
+  geom_bar(stat = "identity", fill = "#2166ac")  +
+  theme_tufte()
 
 plot_MHI
 
@@ -367,7 +368,7 @@ sample_compare_race$race <-
   factor(sample_compare_race$race, 
   levels = c("PCT_White", "PCT_Hispanic", "PCT_Otheraces", "PCT_Black"))
   
-ggplot(sample_compare_race) +
+plot_race <- ggplot(sample_compare_race) +
   geom_bar(aes(sample, value, fill = race), stat = "identity", position = "dodge") +
   scale_fill_manual(values=c("#2166ac", "#b2182b", "#fd8d3c", "#78c679")) +
   xlab("") + 
@@ -380,11 +381,171 @@ sample_compare_ses <- sample_comparison %>%
 sample_compare_ses$ses <-
   factor(sample_compare_ses$ses,
   levels = c("PCT_LessThanHighSchool", "PCT_AboveBechalorDegree", "PCT_Poverty"))
-ggplot(sample_compare_ses) +
+plot_edu_poverty <- 
+  ggplot(sample_compare_ses) +
   geom_bar(aes(sample, value, fill = ses), stat = "identity", position = "dodge") +
   xlab("") +
   theme_bw()
+
+# graph for percentage of native people
+plot_native <- ggplot(sample_comparison, aes(sample, PCT_Native)) +
+  geom_bar(stat = "identity", position = "dodge")
+
+plot_native
 ```
+
+``` {r}
+# graph for percentage of households that have car(s)
+plot_car1 <- ggplot(sample_comparison, aes(sample, PCT_CarOwn)) +
+  geom_bar(stat = "identity", position = "dodge") #maybe it makes more sense to compare the car ownership accross transit index?                                                   #see if there are places where people really need public transit but score low
+  # 1st Q, 2nd Q, 3rd Q, 4th Q
+  car1 <- mean(data[data$AI_overall.y < 5.58, ]$pct_vehicle_own, na.rm = TRUE)
+  car2 <- mean(data[data$AI_overall.y < 7.86 & data$AI_overall.y >= 5.58, ]$pct_vehicle_own, na.rm = TRUE)
+  car3 <- mean(data[data$AI_overall.y < 10.75 & data$AI_overall.y >= 7.86, ]$pct_vehicle_own, na.rm = TRUE)
+  car4 <- mean(data[data$AI_overall.y > 10.75, ]$pct_vehicle_own, na.rm = TRUE)
+
+  sample_comparison_transit <- data.frame(
+  "sample" = c("1st Quantile", "2nd Quantile", "3rd Quantile", "4th Quantile"), 
+  "Pct_car" = c(car1, car2, car3, car4))
+  
+  sample_comparison_transit$sample <- 
+  factor(sample_comparison_transit$sample, 
+         levels = c("1st Quantile", "2nd Quantile", "3rd Quantile", "4th Quantile"))
+
+  plot_car2 <- ggplot(sample_comparison_transit, aes(sample, Pct_car)) +
+    geom_bar(stat = "identity", position = "dodge")
+  plot_car2 #not particularly interesting
+  
+  # let's pull out the leaflet map of car ownership again 
+  leaflet(census_shape) %>%
+  addTiles() %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5, popup = info2,
+    fillColor = ~colorFactor(colors5, census_shape@data$PCT_Vhcl_w)(census_shape@data$PCT_Vhcl_w))
+  
+  # Okay last try. This time see if there is any patterns if we avarage over low vs. high car ownership rates
+  summary(data$pct_vehicle_own)
+  # really low (below 1st Q) vs. really high(above 3rd Q)
+  score1 <- mean(data[data$pct_vehicle_own < 86.31, ]$AI_overall.y, na.rm = TRUE)
+  score2 <- mean(data[data$pct_vehicle_own > 98.37, ]$AI_overall.y, na.rm = TRUE)
+```
+
+Other stuff that could be of potential interest
+```{r}
+# ses and free programs 
+
+
+# or just averaging the index score for different groups? 
+ # first aggregate the number of students to a block group level 
+
+
+```
+
+
+Mann-Whitney U Tests
+```{r}
+head(data)
+
+# Ai_overall_x low access
+subset1 <- data %>% filter(AI_overall.x < 58.57) 
+# Ai_overall_x high access
+subset2 <- data %>% filter(AI_overall.x > 68.99)
+
+# median household income
+wilcox.test(subset1$median_hh_income, subset2$median_hh_income) #significant at p = 0.04024
+# t.test(subset1$median_hh_income, subset2$median_hh_income) 
+ #shouldn't use t test cause data is skewed
+
+# race
+wilcox.test(subset1$pct_white, subset2$pct_white) #rejects null
+wilcox.test(subset1$pct_african, subset2$pct_african) #rejects null
+wilcox.test(subset1$pct_hispanic, subset2$pct_hispanic) #rejects null 
+wilcox.test(subset1$pct_raceOthers, subset2$pct_raceOthers) #rejects null 
+# native
+wilcox.test(subset1$pct_native, subset2$pct_native) #rejects null 
+# car ownership
+wilcox.test(subset1$pct_vehicle_own, subset2$pct_vehicle_own) # can't reject null; distributions look exactly the same
+# education
+wilcox.test(subset1$Pct_ab, subset2$Pct_ab) #rejects null 
+wilcox.test(subset1$Pct_lhs, subset2$Pct_lhs) #rejects null 
+# poverty
+wilcox.test(subset1$poverty_pct_hh, subset2$poverty_pct_hh) #couldn't reject null
+
+```
+
+How is access correlated with student characteristics? 
+
+RACE
+```{r}
+head(student_bg) # number of students in each block group 
+head(student_new) # each row being a student
+head(selected_index) # indices for all & free programs 
+head(student_DPS_bg) # aggregate to block group levels
+
+student_DPS_bg <- dbGetQuery(con, "select * from shiny.dps_student_aggregate_bgs")
+student_DPS_bg$perc_otheraces_students <- 
+  100 - student_DPS_bg$perc_hispanic_students - student_DPS_bg$perc_black_students - student_DPS_bg$perc_white_students
+# Because the numbers were rounded up, we got 4 values that are negative. Change them to zeros. 
+student_DPS_bg$perc_otheraces_students <- ifelse(
+  student_DPS_bg$perc_otheraces_students < 0, 0, student_DPS_bg$perc_otheraces_students )
+
+# merge
+colnames(student_DPS_bg)[1] <- "Id2"
+student_DPS_bg <- merge(student_DPS_bg, selected_index, by = "Id2")
+
+# Does racial composition change if we use DPS data?
+# get the variables
+# hispanic
+hispanic1 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x < 58.57, ]$perc_hispanic_students, na.rm = TRUE)
+hispanic2 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x < 64.01, ]$perc_hispanic_students, na.rm = TRUE)
+hispanic3 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x > 64.01, ]$perc_hispanic_students, na.rm = TRUE)
+hispanic4 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x > 68.99, ]$perc_hispanic_students, na.rm = TRUE)
+# white 
+white1 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x < 58.57, ]$perc_white_students, na.rm = TRUE)
+white2 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x < 64.01, ]$perc_white_students, na.rm = TRUE)
+white3 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x > 64.01, ]$perc_white_students, na.rm = TRUE)
+white4 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x > 68.99, ]$perc_white_students, na.rm = TRUE)
+# black
+black1 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x < 58.57, ]$perc_black_students, na.rm = TRUE)
+black2 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x < 64.01, ]$perc_black_students, na.rm = TRUE)
+black3 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x > 64.01, ]$perc_black_students, na.rm = TRUE)
+black4 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x > 68.99, ]$perc_black_students, na.rm = TRUE)
+# others
+others1 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x < 58.57, ]$perc_otheraces_students, na.rm = TRUE)
+others2 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x < 64.01, ]$perc_otheraces_students, na.rm = TRUE)
+others3 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x > 64.01, ]$perc_otheraces_students, na.rm = TRUE)
+others4 <- mean(student_DPS_bg[student_DPS_bg$AI_overall.x > 68.99, ]$perc_otheraces_students, na.rm = TRUE)
+
+
+# make the data frame
+student_comparison <- data.frame(
+  "sample" = c("Low", "Below median", "Above median", "High"),
+  "Hispanic" = c(hispanic1, hispanic2, hispanic3, hispanic4),
+  "White" = c(white1, white2, white3, white4),
+  "Black" = c(black1, black2, black3, black4),
+  "Others" = c(others1, others2, others3, others4)
+)
+student_comparison$sample <- factor(student_comparison$sample, 
+                                       levels = c("Low", "Below Median", "Above Median", "High"))
+
+# transform the dataset 
+plotdata <- student_comparison %>% 
+  gather(Race, value, -sample) 
+plotdata$Race <- factor(plotdata$Race, 
+                        levels = c("Hispanic", "White", "Black", "Others"))
+
+# make the graph 
+ggplot(plotdata, aes(sample, value, fill = Race)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab(" ") +
+  ylab("Percentages") +
+  ggtitle("Racial Compostion for Areas with Different Levels of Access to OSR") +
+  scale_fill_discrete(name="Race and Ethnicity") +
+  scale_fill_manual(values=c("#2b8cbe", "#fb6a4a", "#fecc5c", "#78c679")) +
+  theme_tufte()
+
+```
+
 
 
 ## Close the link when you are done.
