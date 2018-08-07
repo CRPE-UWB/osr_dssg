@@ -433,7 +433,8 @@ shinyServer(
       lapply(as.list(seq_len(length(as.list(input$program_other)))), function(i) {
         id <- paste0("dt", i)
         return(list(DT::dataTableOutput(id), 
-                    downloadButton(paste0("download_", id), label = "Download Data")
+                    downloadButton(paste0("download_", id), label = "Download Data"),
+                    br(), br()
                     ))
       })
     })
@@ -739,6 +740,18 @@ shinyServer(
         )
       
     })
+    
+    output$download_search_data <- downloadHandler(
+      filename = "b4s_searches.csv",
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        write.csv(subset_search_data(), file, row.names = FALSE)
+      }
+    )
     
 
     #################### Rendering plots for visualization tab in the search data tab #################################
