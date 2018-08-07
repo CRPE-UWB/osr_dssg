@@ -75,6 +75,7 @@ group by nbhd_name);
 create table dps_student_aggregate_nbhd as
 (select
     nbhd_name,
+		count(distinct student_number) as total_students,
     count(case
             when primary_disability != 'No Disability' then primary_disability
             else null
@@ -165,6 +166,7 @@ group by block_group);
 /*Calculating the percentages for the dps aggregate dataset*/
 create table shiny.dps_student_aggregate_nbhd as
 (select nbhd_name,
+total_students,
 round(students_disability*100.0/unique_students, 1) as perc_disable_students,
 students_with_any_disability,
 students_with_autism,

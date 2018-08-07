@@ -11,9 +11,9 @@ library(mapview)
 shinyServer(
   function(input, output, session) {
     
-    #############################
+    ############################################################################################################
     # Reschool Programs Tab
-    #############################
+    ############################################################################################################
     
     ####### RESCHOOL PROGRAMS SUBSETTING BY COST AND TYPE #######
     
@@ -63,10 +63,22 @@ shinyServer(
                     
       ) %>%
         formatStyle(colnames(data_table1[,-c(5,6,7)]),
-                    backgroundColor = 'lightblue'
+                    backgroundColor = '#c6dbef'
         )
                     
     })
+    
+    output$download_reschool_data <- downloadHandler(
+      filename = "b4s_programs.csv",
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        write.csv(neighborhood_data(), file, row.names = FALSE)
+      }
+    )
     
     ####### RESCHOOL PROGRAMS MAP #######
     
@@ -237,7 +249,7 @@ shinyServer(
     #                 
     #   ) %>%
     #     formatStyle(colnames(summary_data),
-    #                 backgroundColor = 'lightblue'
+    #                 backgroundColor = '#c6dbef'
     #     )
     # 
     # })
@@ -424,12 +436,15 @@ shinyServer(
     output$dt <- renderUI({
       lapply(as.list(seq_len(length(as.list(input$program_other)))), function(i) {
         id <- paste0("dt", i)
-        DT::dataTableOutput(id)
+        return(list(DT::dataTableOutput(id), 
+                    downloadButton(paste0("download_", id), label = "Download Data"),
+                    br(), br()
+                    ))
       })
     })
     
     # Function to get datatables for each resources. Has a bunch of aesthetics
-    data_table_function = function(checkbox_input, data, column_names){
+    data_table_function <- function(checkbox_input, data, column_names){
       
       datatable(data,
                 options = list(pageLength = 3, 
@@ -451,13 +466,14 @@ shinyServer(
                 colnames = column_names
       ) %>%
         formatStyle(colnames(data),
-                    backgroundColor = 'lightblue'
+                    backgroundColor = '#c6dbef'
         )
     }
     
     observe(
       for (i in seq_len(length(input$program_other))) {
         id <- paste0("dt", i)
+        download_id <- paste0("download_", id)
         
         if(input$program_other[i] == "Parks"){
           output[[id]] <- DT::renderDataTable({
@@ -467,7 +483,21 @@ shinyServer(
                                          "Has biking", "Sqft", "Nbhd name")
                                        )
             return(dat)    
-          })}
+          })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "parks.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(parks_data(), file, row.names = FALSE)
+            }
+          )
+          
+          }
         else if(input$program_other[i] == "Libraries"){
           output[[id]] <- DT::renderDataTable({
             dat <- data_table_function("Libraries", 
@@ -476,6 +506,19 @@ shinyServer(
                                          "Circulation Vol", "Sqft", "Nbhd name"))
             return(dat)    
           })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "libraries.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(libraries_data(), file, row.names = FALSE)
+            }
+          )
+          
         }
        
         else if(input$program_other[i] == "Rec Centers"){
@@ -490,6 +533,19 @@ shinyServer(
                                        )
             return(dat)    
           })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "rec_centers.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(rec_centers_data(), file, row.names = FALSE)
+            }
+          )
+          
         }
         else if(input$program_other[i] == "Museums"){
           output[[id]] <- DT::renderDataTable({
@@ -497,6 +553,19 @@ shinyServer(
                                        c("Museum name", "Address", "Nbhd name"))
             return(dat)    
           })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "museums.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(museums_data(), file, row.names = FALSE)
+            }
+          )
+          
         }
         else if(input$program_other[i] == "Fields"){
           output[[id]] <- DT::renderDataTable({
@@ -506,6 +575,19 @@ shinyServer(
                                          "Class", "Sqft", "Nbhd name"))
             return(dat)    
           })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "fields.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(fields_data(), file, row.names = FALSE)
+            }
+          )
+          
         }
         else if(input$program_other[i] == "Playgrounds"){
           output[[id]] <-DT::renderDataTable({
@@ -515,6 +597,19 @@ shinyServer(
                                          "Sqft", "Nbhd name"))
             return(dat)    
           })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "playgrounds.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(playgrounds_data(), file, row.names = FALSE)
+            }
+          )
+          
         }
         
       })
@@ -636,19 +731,31 @@ shinyServer(
                                    );",
                                      "}")),
                     caption = htmltools::tags$caption(
-                      style = 'caption-side: top; text-align: center; color: black ;',
+                      style = 'caption-side: top; text-align: left; color: black;',
                       htmltools::h3("Search Data")
-                    ), 
+                    ),
                     style = "bootstrap",
                     class = 'cell-border stripe',
                     rownames = FALSE
                     
       ) %>%
         formatStyle(colnames(data_table1),
-                    backgroundColor = 'lightblue'
+                    backgroundColor = '#c6dbef'
         )
       
     })
+    
+    output$download_search_data <- downloadHandler(
+      filename = "b4s_searches.csv",
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        write.csv(subset_search_data(), file, row.names = FALSE)
+      }
+    )
     
 
     #################### Rendering plots for visualization tab in the search data tab #################################
