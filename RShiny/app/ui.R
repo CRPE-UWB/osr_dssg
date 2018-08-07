@@ -13,7 +13,7 @@ library(plotly)
 
 # Source needed data and functions for ui and server - impt. to do in this order!!
 # (note that all paths should be relative to the location of this ui.R file)
-source(file.path('..', 'get_data.R'), chdir = TRUE)
+# source(file.path('..', 'get_data.R'), chdir = TRUE)
 source(file.path('..', 'color.R'))
 source(file.path('..', 'labels.R'))
 source(file.path('..', 'mapping_helpers.R'))
@@ -252,10 +252,10 @@ shinyUI(
                           ))),
                           
                           conditionalPanel(condition = "input.conditionedPanels == 'Visualization'",
-                                           selectInput("specific_search_questions", "Select:", 
-                                                       choices = c("Insights about the number of searches made by program category",
-                                                                   "Number of searches made by different variables",
-                                                                   "Number of searches made by zipcode")))
+                                           radioButtons("specific_search_questions", "Choose a question about the Blueprint4Summer Search Data to investigate:", 
+                                                       choices = c("What program categories do people search for the most?",
+                                                                   "What distances and session times do people search for, and how do they sort their results?",
+                                                                   "What locations are people searching for?")))
                           ),
 
                         
@@ -279,28 +279,35 @@ shinyUI(
 
                                       tabPanel("Visualization",
                                               
-                                               
-                                              conditionalPanel('input.specific_search_questions=="Number of searches made by different variables"',
+                                              conditionalPanel('input.specific_search_questions==
+                                                               "What distances and session times do people search for, and how do they sort their results?"',
+                                                          br(),
+                                                          div(plotlyOutput("search_distance_plot", height = "250px")),
+                                                          HTML("<i>Note: Searches with distance set to 20 miles are excluded in this plot, 
+                                                               as 20 miles was the default search distance and appeared abnormally often.</i>"),
+                                                          br(),
+                                                          br(),
                                                           fluidRow(
-                                                          column(6,div(plotlyOutput("search_sort_plot", height = "300px"))),
-                                                          column(6,div(plotlyOutput("search_sessiontimes_plot", height = "300px")))),
-                                                          div(plotlyOutput("search_distance_plot", height = "400px"))
+                                                                  column(6,div(plotlyOutput("search_sessiontimes_plot", height = "250px"))),
+                                                                  column(6,div(plotlyOutput("search_sort_plot", height = "250px")))
+                                                                  )
                                                           ),
                                               
-                                              conditionalPanel('input.specific_search_questions=="Insights about the number of searches made by program category"',
-                                                               fluidRow(
-                                                                 div(plotlyOutput("search_prog_category", height = "300px")), br(),
-                                                                 div(plotlyOutput("search_compare_prog_category", height = "350px"))
-                                                                 
-                                                               )
+                                              conditionalPanel('input.specific_search_questions=="What program categories do people search for the most?"',
+                                                               br(),
+                                                               div(plotlyOutput("search_prog_category", height = "350px")), 
+                                                               br(),
+                                                               div(plotlyOutput("search_compare_prog_category", height = "350px")),
+                                                               br()
                                                                ) ,
-                                              conditionalPanel('input.specific_search_questions=="Number of searches made by zipcode"',
-                                                                 fluidRow(
-                                                                 div(plotlyOutput("search_zipcode_plot", height = "300px")), br(),
-                                                                 div(plotlyOutput("search_programs_zipcode_plot", height = "300px")))
-                                                                 
-                                                               
-                                              )),
+                                              conditionalPanel('input.specific_search_questions=="What locations are people searching for?"',
+                                                               br(),
+                                                               div(plotlyOutput("search_zipcode_plot", height = "200px")), 
+                                                               br(),
+                                                               div(plotlyOutput("search_programs_zipcode_plot", height = "200px"))
+                 
+                                              )
+                                              ),
                                       id = "conditionedPanels"
                           ) 
                         )#end of main panel

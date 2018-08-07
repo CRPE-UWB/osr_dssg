@@ -517,52 +517,46 @@ shinyServer(
     
     
     
-    #############################
+    ###################################################################################################################
     # Search Data Tab
-    #############################
-    #Subset the search data depending on the slider input and the zipcode slected in the sidebar panel
+    ###################################################################################################################
+    # Subset the search data depending on the slider input and the zipcode selected in the sidebar panel
     # Getting column numbers depending on the type of the program selected. 
     # (used to subset the data in the next step)
     colm_search <- reactive({
       input$program_search
     })
     
-    #Subsetting the data depending on the various selections made in the sidebar panel 
+    # Subsetting the data depending on the various selections made in the sidebar panel 
     subset_search_data = reactive({
       
       if(input$minprice_search != ""){
         mincost_search_data = google_analytics[which(google_analytics$mincost  >= as.numeric(input$minprice_search)),]
-        
-      }else{
+      }
+      else {
         mincost_search_data = google_analytics
       }
       
-
       if(input$maxprice_search != ""){
         maxcost_search_data = mincost_search_data[which(mincost_search_data$maxcost  <= as.numeric(input$maxprice_search)),]
-        
-      }else{
+      }
+      else {
         maxcost_search_data = mincost_search_data
       }
       
-
-      
       if(input$minage_search != ""){
         minage_search_data = maxcost_search_data[which(maxcost_search_data$minage  >= as.numeric(input$minage_search)),]
-        
-      }else{
+      }
+      else{
         minage_search_data = maxcost_search_data
       }
       
-      
       if(input$maxage_search != ""){
         maxage_search_data = minage_search_data[which(minage_search_data$maxage  <= as.numeric(input$maxage_search)),]
-        
-      }else{
+      }
+      else{
         maxage_search_data = minage_search_data
       }
-      
-
       
       if(input$zipcode_searchprog != "No zipcode selected" ) {
         zipcode_search_data <- subset(maxage_search_data, 
@@ -570,9 +564,7 @@ shinyServer(
       }
       else {
         zipcode_search_data <- maxage_search_data
-        
       }
-      
       
       if(input$sessiontimes_searchprog != "No session time selected" ) {
         sessiontime_search_data <- subset(zipcode_search_data, 
@@ -580,53 +572,36 @@ shinyServer(
       }
       else {
         sessiontime_search_data <- zipcode_search_data
-        
       }
       
-      
       if(length(colm_search()) != 0){
-        
         data_list = list()
-        
         for(i in 1:length(colm_search())){
           data_list[[i]] = sessiontime_search_data[which(sessiontime_search_data$category == colm_search()[i]),]
         }
-        
         category_search_data = as.data.frame(data.table::rbindlist(data_list))
-       
-        
       }
-      
       else {
-        
         category_search_data = sessiontime_search_data
       }
-      
       
       if(input$specialneeds_search == "Special needs students" ) {
         final_search_data <- subset(category_search_data, 
                                     category_search_data$specialneeds  == "specialNeedsStudent")
       }
-      
       else if(input$specialneeds_search == "Scholarships Available" ) {
         final_search_data <- subset(category_search_data, 
                                     category_search_data$scholarships  == "scholarshipsAvailable")
       }
-      
       else {
         final_search_data <- category_search_data
-        
       }
       
       return(final_search_data) 
       
-      
     })
-    
 
-    
-
-    #Display the total number of searches made with this combination selected in the side bar panel
+    # Display the total number of searches made with this combination selected in the side bar panel
     output$totalsearches <- renderText({
       
       sprintf(
@@ -636,7 +611,7 @@ shinyServer(
       ) 
     })
   
-    #Display the total percentage of searches made with this combination selected in the side bar panel
+    # Display the total percentage of searches made with this combination selected in the side bar panel
     output$percentagesearches <- renderText({
       
       sprintf(
@@ -645,8 +620,6 @@ shinyServer(
       ) 
     })
   
-    
-    
     # Output the relevant data in the data tab based on the search data tab
     output$datatable_search <- DT::renderDataTable({
       data_table1 <- subset_search_data()
@@ -675,35 +648,35 @@ shinyServer(
     })
     
 
-    #Rendering plots for visualization tab in the search data tab
-    #'Sort by' variable graph
+    #################### Rendering plots for visualization tab in the search data tab #################################
+    # 'Sort by' variable graph
     output$search_sort_plot <- renderPlotly({
-      validate(need(input$specific_search_questions=="Number of searches made by different variables", message=FALSE))
+      validate(need(input$specific_search_questions=="What distances and session times do people search for, and how do they sort their results?", message=FALSE))
       search_sort_summary %>%
         plot_ly(labels = ~sort, values = ~total_searches) %>%
         add_pie(hole = 0.6) %>%
-        layout(title = "Most 'sorted by' in the searches",  showlegend = T,
+        layout(title = "Search Results Most 'Sorted By'",  showlegend = T,
                xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE),
                yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE))
       
     })
     
-    #sessiontimes variable graph
+    # Sessiontimes variable graph
     output$search_sessiontimes_plot = renderPlotly({
-      validate(need(input$specific_search_questions=="Number of searches made by different variables", message=FALSE))
+      validate(need(input$specific_search_questions=="What distances and session times do people search for, and how do they sort their results?", message=FALSE))
       
       search_sessiontimes_summary %>%
         plot_ly(labels = ~sessiontimes, values = ~total_searches) %>%
         add_pie(hole = 0.6) %>%
-        layout(title = "Searches by Session time",  showlegend = T,
+        layout(title = "Searches by Session Time",  showlegend = T,
                xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE),
                yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE))
       
     })
     
-    #Distance graph
+    # Distance graph
     output$search_distance_plot <- renderPlotly({
-      validate(need(input$specific_search_questions=="Number of searches made by different variables", message=FALSE))
+      validate(need(input$specific_search_questions=="What distances and session times do people search for, and how do they sort their results?", message=FALSE))
       
       xform <- list(categoryorder = "array",
                     categoryarray = c(search_distance_summary$distance))
@@ -711,17 +684,16 @@ shinyServer(
               x = ~distance,
               y = ~total_searches,
               type = "bar" ) %>%
-        layout(xaxis = list(title = "Distance in miles"), 
-               yaxis = list(title = "Number of searches"), 
-               title = "Number of searches by distance") %>% 
+        layout(xaxis = list(title = "Maximum Distance in Miles"), 
+               yaxis = list(title = "No. Searches"), 
+               title = "Searches by Distance") %>% 
         layout(xaxis = xform)
-      
       
     })
     
     #Zipcode searches graph
     output$search_zipcode_plot <- renderPlotly({
-      validate(need(input$specific_search_questions=="Number of searches made by zipcode", message=FALSE))
+      validate(need(input$specific_search_questions=="What locations are people searching for?", message=FALSE))
       
       xform <- list(categoryorder = "array",
                     categoryarray = c(search_zipcode_summary$location))
@@ -739,31 +711,36 @@ shinyServer(
     
     #Zipcode sessions graph
     output$search_programs_zipcode_plot <- renderPlotly({
-      validate(need(input$specific_search_questions=="Number of searches made by zipcode", message=FALSE))
+      validate(need(input$specific_search_questions=="What locations are people searching for?", message=FALSE))
       
       xform <- list(categoryorder = "array",
                     categoryarray = c(final_zipcode_searches_programs$location))
       
       plot_ly(final_zipcode_searches_programs, x = ~location, y = ~total_sessions, type = 'bar', 
-              name = 'Number of searches', color = I("dark orange"))%>%
+              name = 'No. Searches', color = I("dark orange"))%>%
         layout(yaxis = list(title = 'Count'), barmode = 'group', title = 'Number of programs by zipcode' ) %>% 
         layout(xaxis = xform)
-      
-      
+
     })
     
-    
-    #Bubble graph for copmaring programs
+    # Bubble graph for comparing programs
     output$search_compare_prog_category = renderPlotly({
-      validate(need(input$specific_search_questions=="Insights about the number of searches made by program category", message=FALSE))
+      validate(need(input$specific_search_questions=="What program categories do people search for the most?", message=FALSE))
       
-      p = ggplot(programs_sessions, aes(x= `Percentage of searches`, y= `Percentage of programs`, size= `Percentage gap`, color = category)) + 
-        geom_point() + 
+      p = ggplot(programs_sessions, aes(x= `Percentage of searches`, 
+                                        y= `Percentage of programs`, 
+                                        #size = 0.5, 
+                                        color = category)
+                 ) + 
+        geom_abline(slope = 1, intercept = 0, color = "lightgray") +
+        geom_point(size = 4.0) + 
+        xlim(0,NA) + ylim(0,NA) +
         theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
         stat_smooth(method="lm", se=FALSE) + 
-        theme(legend.title=element_blank()) + ggtitle("Compare % of searches and % of ReSchool programs by category")
+        theme(legend.title=element_blank()) + 
+        ggtitle("Prevalence of Searches vs. Programs, by Category")
       
-      #Converting this plot into a ggplotly output
+      # Converting this plot into a ggplotly output
       p <- p + guides(size=FALSE)
       p <- p + scale_size_continuous(guide=FALSE) 
       ggplotly(p) 
@@ -771,24 +748,24 @@ shinyServer(
       
     })
     
-    #Number of searches by program category graph
+    # Number of searches by program category graph
     output$search_prog_category = renderPlotly({
-      validate(need(input$specific_search_questions=="Insights about the number of searches made by program category", message=FALSE))
+      validate(need(input$specific_search_questions=="What program categories do people search for the most?", message=FALSE))
       
       plot_ly(data = search_programtype_summary,
               x = ~category,
               y = ~total_searches,
-              name = "Number of searches by program type",
+              name = "Searches by Program Category",
               type = "bar" ) %>%
-        layout(xaxis = list(title = "Program categories"), 
-               yaxis = list(title = "Number of searches"), 
-               title = "Number of searches made by program category")
+        layout(xaxis = list(title = "Program Categories"), 
+               yaxis = list(title = "No. Searches"), 
+               title = "Searches by Program Category")
       
     })
     
-    #############################
+    ###################################################################################################################
     # Access Index Tab
-    #############################
+    ###################################################################################################################
     
     # first calculate the aggregated access index based on user input
     index <- reactive({calculate_aggregated_index(input$drive_or_transit,input$type_access,input$cost_access)})
