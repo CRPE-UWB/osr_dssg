@@ -558,7 +558,7 @@ shinyServer(
         maxage_search_data = minage_search_data
       }
       
-      if(input$zipcode_searchprog != "No zipcode selected" ) {
+      if(input$zipcode_searchprog != "N/A" ) {
         zipcode_search_data <- subset(maxage_search_data, 
                                       maxage_search_data$location == input$zipcode_searchprog)
       }
@@ -566,7 +566,7 @@ shinyServer(
         zipcode_search_data <- maxage_search_data
       }
       
-      if(input$sessiontimes_searchprog != "No session time selected" ) {
+      if(input$sessiontimes_searchprog != "N/A" ) {
         sessiontime_search_data <- subset(zipcode_search_data, 
                                           zipcode_search_data$sessiontimes == input$sessiontimes_searchprog)
       }
@@ -605,8 +605,7 @@ shinyServer(
     output$totalsearches <- renderText({
       
       sprintf(
-        
-        "<b><i> Number of searches made in this combination </i><br/><font size=\"+3\"> %s </b>",
+        "<b><i> Number of searches with these filters:</i><br/><font size=\"+3\"> %s </b>",
         sum(subset_search_data()[,"users"])
       ) 
     })
@@ -615,7 +614,7 @@ shinyServer(
     output$percentagesearches <- renderText({
       
       sprintf(
-         "<b><i> Percentage searches </i><br/><font size=\"+3\"> %s%% </b>",
+         "<b><i> Percentage of searches with these filters:</i><br/><font size=\"+3\"> %s%% </b>",
          round(((sum(subset_search_data()[,"users"])*100)/sum(google_analytics$users)), 2)
       ) 
     })

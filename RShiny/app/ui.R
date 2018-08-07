@@ -13,7 +13,7 @@ library(plotly)
 
 # Source needed data and functions for ui and server - impt. to do in this order!!
 # (note that all paths should be relative to the location of this ui.R file)
-# source(file.path('..', 'get_data.R'), chdir = TRUE)
+source(file.path('..', 'get_data.R'), chdir = TRUE)
 source(file.path('..', 'color.R'))
 source(file.path('..', 'labels.R'))
 source(file.path('..', 'mapping_helpers.R'))
@@ -217,39 +217,44 @@ shinyUI(
                           
                           conditionalPanel(condition = "input.conditionedPanels == 'Summary'",
                           
+                          #fluidRow(
+                          checkboxGroupInput("program_search", 
+                                             "Filter down to one or more program types:", 
+                                             choiceNames = c("Academic", "Arts", "Cooking", "Dance", "Drama", "Music", "Nature", "Sports", "STEM"),
+                                             choiceValues = sort(unique(google_analytics$category)), 
+                                             selected = character(0), 
+                                             inline = TRUE
+                          ),
+                          # br(),
                           fluidRow(
-                        
                           column(6, textInput("minprice_search", "Enter Min Cost:","")),
-                          column(6, textInput("maxprice_search", "Enter Max Cost:","")),
-                          br(),
+                          column(6, textInput("maxprice_search", "Enter Max Cost:",""))
+                                 ),
+                          # br(),
+                          fluidRow(
                           column(6, textInput("minage_search", "Enter Min Age:","")),
-                          column(6, textInput("maxage_search", "Enter Max Age:","")),
+                          column(6, textInput("maxage_search", "Enter Max Age:",""))
+                                 ),
                           
-                          selectInput("zipcode_searchprog", "Restrict to one zipcode:", 
-                                      choices = c("No zipcode selected", 
+                          selectInput("zipcode_searchprog", "Filter down to one zipcode:", 
+                                      choices = c("N/A", 
                                                   sort(zipcode_searchdata)
                                                   )
                                       ),
-                          br(),
-                          selectInput("sessiontimes_searchprog", "Restrict to one session time:", 
-                                      choices = c("No session time selected", 
+                          # br(),
+                          selectInput("sessiontimes_searchprog", "Filter down to one session time:", 
+                                      choices = c("N/A", 
                                                   sort(unique(google_analytics$sessiontimes))
                                                   )
                                       ), 
-                          br(),
-                          checkboxGroupInput("program_search", 
-                                             "Select one or more program type:", 
-                                             choices = sort(unique(google_analytics$category)), 
-                                             selected = character(0), 
-                                             inline = TRUE
-                                             ),br(),
+                          # br(),
                           radioButtons("specialneeds_search", 
-                                       "Other selections", 
-                                       choices = c("Special needs students", "Scholarships Available", "None Selected"),
-                                       selected = "None Selected"
+                                       "Other filters:", 
+                                       choices = c("Special needs students", "Scholarships available", "N/A"),
+                                       selected = "N/A"
                                      
 
-                          ))),
+                          )),
                           
                           conditionalPanel(condition = "input.conditionedPanels == 'Visualization'",
                                            radioButtons("specific_search_questions", "Choose a question about the Blueprint4Summer Search Data to investigate:", 
@@ -262,19 +267,18 @@ shinyUI(
                         mainPanel(
                           tabsetPanel(type = "tab",
                                       tabPanel("Summary",
-                                               
+                                               br(),
                                                fluidRow(
-
                                                  column(6, uiOutput("totalsearches", 
                                                                     style = "background-color:lightblue; 
                                                                     height:100px; padding:20px;
                                                                     border:solid", align = "center")),
                                                  column(6, uiOutput("percentagesearches", style = "background-color:lightblue; 
                                                                     height:100px; padding:20px;
-                                                                    border:solid", align = "center")),
-                                                 
-                                                 DT::dataTableOutput("datatable_search")
-                                               )
+                                                                    border:solid", align = "center"))
+                                               ),
+                                               br(),
+                                               DT::dataTableOutput("datatable_search")
                                       ),
 
                                       tabPanel("Visualization",
@@ -324,7 +328,7 @@ shinyUI(
                               
                               sidebarPanel(
                                 checkboxGroupInput("type_access", 
-                                                   "Select one or more program types:", 
+                                                   "Select one or more program types to include:", 
                                                    choiceNames = c("Academic", "Arts", "Athletic", "Nature"),
                                                    choiceValues = list("academic","art","sports","nature"),
                                                    inline = TRUE,
@@ -332,14 +336,15 @@ shinyUI(
                                                    ),
                                 br(),
                                 radioButtons("cost_access", 
-                                             "Select a cost range for programs:", 
+                                             "Select a cost range for programs to include:", 
                                              choiceNames = list("Free", "Free to Low Cost", "All Programs"),
                                              choiceValues = list("free", "low", "any"),
                                              selected = "any"
                                              ),
                                 br(),
                                 radioButtons("drive_or_transit",
-                                             "Drive or transit?",
+                                             "Calculate distances to programs based on driving or 
+                                             public transit?",
                                              choiceNames = list("Drive", "Transit"),
                                              choiceValues = list("drive", "transit"),
                                              selected = "drive"
