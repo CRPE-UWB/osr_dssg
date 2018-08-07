@@ -794,11 +794,7 @@ shinyServer(
       })
     
     # Create labels and stuff
-    access_label <- reactive({sprintf(
-      "<b>Access index: %.2f</b><br/>",
-      index()
-      ) %>% lapply(htmltools::HTML)
-    })
+    access_label <- reactive({get_access_label(index())})
     
     ####### PROGRAM SUBSETTING BY COST AND TYPE #######
     
