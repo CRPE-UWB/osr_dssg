@@ -162,7 +162,7 @@ search_zipcode_summary = google_analytics %>%
   filter(location != '') %>% 
   group_by(location) %>% 
   summarize(total_searches = sum(users)) %>% 
-  arrange(total_searches, location)
+  arrange(total_searches, location) %>% top_n(n = 20)
 
 search_zipcode_summary$location = as.character(search_zipcode_summary$location)
 
@@ -175,7 +175,13 @@ zipcode_programs = reschool_summer_program_clean %>%
   summarize(total_sessions = n()) %>% filter(session_zip %in% c(search_zipcode_summary$location))
 colnames(zipcode_programs) = c("location", "total_sessions")
 
-final_zipcode_searches_programs = merge(search_zipcode_summary, zipcode_programs, by = "location")
+final_zipcode_searches_programs = merge(search_zipcode_summary, zipcode_programs, all.x = TRUE)
+
+
+target <- c(search_zipcode_summary$location)
+final_zipcode_searches_programs = final_zipcode_searches_programs[match(target, final_zipcode_searches_programs$location),]
+final_zipcode_searches_programs = final_zipcode_searches_programs %>% filter(is.na(location) == FALSE)
+
 
 
 ############################ Creating racial distributions variables ##################################
