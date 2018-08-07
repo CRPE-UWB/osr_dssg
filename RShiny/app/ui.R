@@ -29,7 +29,7 @@ shinyUI(
   includeCSS("style.css"),
   
   navbarPage("Denver Out-of-School Resources",
-             selected = "B4S Searches",
+             selected = "Other Resources",
                    
 ########################## Blueprint4Summer Programs Tab ###########################################
 
@@ -119,7 +119,8 @@ shinyUI(
                                                        ),
                                               tabPanel("Data",
                                                        br(),
-                                                       DT::dataTableOutput("datatable")
+                                                       DT::dataTableOutput("datatable"),
+                                                       downloadButton("download_reschool_data", "Download Data")
                                                        ),
                                               tabPanel(
                                                 "Summary analysis",
