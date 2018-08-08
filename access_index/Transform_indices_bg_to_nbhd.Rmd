@@ -55,13 +55,11 @@ acs_subset <- analysis1 %>% select(Id2, student_age_n) %>%
  # aggregate by nbhd
 analysis_subset_aggregated2 <- analysis_subset %>% group_by(nbhd_name) %>% summarise(student_age_a = sum(student_age_n))
 
-
 driving_index_nbhd <- driving_index_nbhd %>%
     group_by(nbhd_name) %>%
     summarise_at(vars(matches("AI")), funs(mean)) %>%
     left_join(., analysis_subset_aggregated2, by = c("nbhd_name")) %>%
     mutate_at(vars(matches("AI")),funs(weighted = . / analysis_subset_aggregated2$student_age_a)) %>%
-    filter(student_age_a != 0) %>%  #drop the two neighborhoods that have 0 values for number of students.
     mutate_at(vars(matches("weighted")), funs(rank = dense_rank(desc(.))))
 
 transit_index_nbhd <- transit_index_nbhd %>%
@@ -69,7 +67,6 @@ transit_index_nbhd <- transit_index_nbhd %>%
     summarise_at(vars(matches("AI")), funs(mean)) %>%
     left_join(., analysis_subset_aggregated2, by = c("nbhd_name")) %>%
     mutate_at(vars(matches("AI")),funs(weighted = . / analysis_subset_aggregated2$student_age_a)) %>%
-    filter(student_age_a != 0) %>%  #drop the two neighborhoods that have 0 values for number of students.
     mutate_at(vars(matches("weighted")), funs(rank = dense_rank(desc(.))))
 
 driving_index_disability_nbhd <- driving_index_disability_nbhd %>%
@@ -77,7 +74,6 @@ driving_index_disability_nbhd <- driving_index_disability_nbhd %>%
     summarise_at(vars(matches("AI")), funs(mean)) %>%
     left_join(., analysis_subset_aggregated2, by = c("nbhd_name")) %>%
     mutate_at(vars(matches("AI")),funs(weighted = . / analysis_subset_aggregated2$student_age_a)) %>%
-    filter(student_age_a != 0) %>%  #drop the two neighborhoods that have 0 values for number of students.
     mutate_at(vars(matches("weighted")), funs(rank = dense_rank(desc(.))))
 
 transit_index_disability_nbhd <- transit_index_disability_nbhd %>%
@@ -85,7 +81,6 @@ transit_index_disability_nbhd <- transit_index_disability_nbhd %>%
     summarise_at(vars(matches("AI")), funs(mean)) %>%
     left_join(., analysis_subset_aggregated2, by = c("nbhd_name")) %>%
     mutate_at(vars(matches("AI")),funs(weighted = . / analysis_subset_aggregated2$student_age_a)) %>%
-    filter(student_age_a != 0) %>%  #drop the two neighborhoods that have 0 values for number of students.
     mutate_at(vars(matches("weighted")), funs(rank = dense_rank(desc(.))))
 ```
 
@@ -95,5 +90,22 @@ dbWriteTable(con, c("clean", "driving_index_nbhd"), value = driving_index_nbhd, 
 dbWriteTable(con, c("clean", "transit_index_nbhd"), value = transit_index_nbhd, row.names = FALSE)
 dbWriteTable(con, c("clean", "driving_index_disability_nbhd"), value = driving_index_disability_nbhd, row.names = FALSE)
 dbWriteTable(con, c("clean", "transit_index_disability_nbhd"), value = transit_index_disability_nbhd, row.names = FALSE)
+```
+
+Try this out. 
+```{r}
+# pull data from RDS
+driving_index_nbhd1 <- dbGetQuery(con, "select * from clean.driving_index_nbhd")
+
+
+ggplot(driving_index_nbhd1, aes(student_age_a, AI_overall)) +
+  geom_point(aes(color= AI_overall_weighted_weighted_rank>66)) +
+  scale_color_manual(values = c("black", "red")) +
+  geom_text(aes(label=ifelse(AI_overall_weighted_weighted_rank>66,as.character(nbhd_name),'')),hjust=0.7,vjust=1, size=3) +
+  xlab("Number of students in each neighborhood") +
+  ylab("Access Index score") +
+  theme_bw() +
+  theme(legend.position="none") +
+  ggtitle("Neighborhoods with low access and high student age population") 
 ```
 
