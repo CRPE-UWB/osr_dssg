@@ -144,7 +144,7 @@ get_nbhd_student_labels <- function(val=NULL) {
     %% Hispanic students = %g%% <br/>
     %% White students = %g%% <br/>
     %% Black students = %g%% <br/>
-    <i><font size=1>(Note: sample size = %a)</font></i>",
+    <i><font size=1>(Note: sample size = %g)</font></i>",
     shape_census@data$NBHD_NA,
     str_num_programs,
     shape_census@data$perc_nonenglish_students,
