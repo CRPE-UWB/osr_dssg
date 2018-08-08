@@ -883,7 +883,7 @@ shinyServer(
       
       pal_search = colorBin("YlOrRd", domain = search_map_data@data$total_searches, bins = 5)
       labels_search = sprintf(
-        "<strong>zipcode</strong> = %s<br/><strong>Number of searches</strong> = %s",
+        "<strong>zipcode</strong>: %s<br/><strong>Number of searches</strong>: %s",
         search_map_data@data$GEOID10, search_map_data@data$total_searches) %>% lapply(htmltools::HTML)
       leaflet()  %>% 
         setView(lng = -104.901531, lat = 39.722043, zoom = 11) %>% 
