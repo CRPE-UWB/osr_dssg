@@ -111,16 +111,20 @@ get_nbhd_census_labels <- function(val=NULL) {
       "<b>%s</b><br/>
       %s 
       <i>Census level data:</i><br/>
-      No. children 5-17 yrs old = %i <br/>
-      Median Household Income = $%i <br/>
-      < HS degree (%% over 25) = %.2f%% <br/>
-      %% Hispanic Population = %g%% <br/>
-      %% White population = %g%% <br/>
-      %% Black population = %g%% <br/>",
+      No. children 5-17 yrs old = %s <br/>
+      Median Household Income = $%s <br/>
+      < HS degree (%% Over 25) = %.1f%% <br/>
+      College Graduates (%% over 25) = %.1f%% <br/>
+      %% Language Besides English Spoken = %.1f%% <br/>
+      %% Hispanic Population = %.1f%% <br/>
+      %% White population = %.1f%% <br/>
+      %% Black population = %.1f%% <br/>",
       shape_census@data$NBHD_NA,
       str_num_programs,
-      shape_census@data$AGE_5_T,
-      round(shape_census@data$MED_HH_),
+      format(shape_census@data$AGE_5_T, big.mark = ","),
+      format(round(shape_census@data$MED_HH_), big.mark = ","),
+      shape_census$PCT_LES,
+      shape_census$PCT_COL,
       shape_census$PCT_NON,
       shape_census@data$PCT_HIS,
       shape_census@data$PCT_WHI,
@@ -199,7 +203,7 @@ legend_titles_demographic <- list(MED_HH_ = "Median HH Income",
 
 # Options to show in the UI for filtering by demographics
 # (feel free to change these for better appearances)
-demog_names <- list("None selected",
+demog_names <- list("None",
                     "Number of 5-17 year olds",
                     "Median household income ($)", 
                     "Less than high school degree (% over 25 years)",
@@ -212,7 +216,7 @@ demog_names <- list("None selected",
                     "Hispanic population (%)", 
                     "Black population (%)",
                     "White population (%)",
-                    "Most common + breakdown"
+                    "Most common race + breakdown"
 )
 
 demog_student_names <- list("None selected",
@@ -286,3 +290,40 @@ lab_format_list_student <- list(labelFormat(prefix = " %"),
 
 names(pal_list_student) <- demog_student_values[demog_student_values!="none"]
 names(lab_format_list_student) <- demog_student_values[demog_student_values!="none"]
+
+############################## Demographic info for the ReSchool Summary Analysis Tab ##############################
+
+get_nbhd_census_summary <- function(nbhd_list) {
+  if (is.null(nbhd_list)) {
+    census_summary_data <- NA
+  } else {
+    census_summary_data <- shape_census@data["NBHD_NA"]
+    
+    
+    
+    
+    
+    
+  }
+  
+  return(sprintf(
+    "<b>%s</b><br/>
+    %s 
+    <i>Census level data:</i><br/>
+    No. children 5-17 yrs old = %i <br/>
+    Median Household Income = $%i <br/>
+    < HS desgree (%% over 25) = %.2f%% <br/>
+    %% Hispanic Population = %g%% <br/>
+    %% White population = %g%% <br/>
+    %% Black population = %g%% <br/>",
+    shape_census@data$NBHD_NA,
+    str_num_programs,
+    shape_census@data$AGE_5_T,
+    round(shape_census@data$MED_HH_),
+    shape_census$PCT_NON,
+    shape_census@data$PCT_HIS,
+    shape_census@data$PCT_WHI,
+    shape_census@data$PCT_BLA
+  ) %>% lapply(htmltools::HTML)
+  )
+}
