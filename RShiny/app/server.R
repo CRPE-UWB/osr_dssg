@@ -176,21 +176,28 @@ shinyServer(
       # aggregate the demographics over all selected neighborhoods
       # dummy transformations for now
       summary_AGE_5_T <- sum(summary_data$AGE_5_T)
-      summary_MED_HH_ <- toString(summary_data$MED_HH_)
-      summary_PCT_NON <- NA
-      summary_PCT_HIS <- NA
-      summary_PCT_WHI <- NA
-      summary_PCT_BLA <- NA
+      summary_MED_HH_ <- summary_data$MED_HH_
+      summary_PCT_LES <- sum(summary_data$PCT_LES * summary_data$POP_EDU) / sum(summary_data$POP_EDU)
+      summary_PCT_COL <- sum(summary_data$PCT_COL * summary_data$POP_EDU) / sum(summary_data$POP_EDU)
+      summary_PCT_NON <- sum(summary_data$PCT_NON * summary_data$POP_LAN) / sum(summary_data$POP_LAN)
+      summary_PCT_HIS <- sum(summary_data$PCT_HIS * summary_data$POP_RAC) / sum(summary_data$POP_RAC)
+      summary_PCT_WHI <- sum(summary_data$PCT_WHI * summary_data$POP_RAC) / sum(summary_data$POP_RAC)
+      summary_PCT_BLA <- sum(summary_data$PCT_BLA * summary_data$POP_RAC) / sum(summary_data$POP_RAC)
       
       sprintf("<h4>Census Demographics</h4> 
-              No. children 5-17 yrs old = %i <br/>
-              Median Household Incomes = $%s <br/>
-              < HS desgree (%% over 25) = %.2f%% <br/>
-              %% Hispanic Population = %g%% <br/>
-              %% White population = %g%% <br/>
-              %% Black population = %g%% <br/>",
-              summary_AGE_5_T,
-              summary_MED_HH_,
+              No. children 5-17 yrs old = %s <br/>
+              Median Household Income Range = $%s - $%s <br/>
+              < HS Degree (%% Over 25) = %.1f%% <br/>
+              College Graduates (%% Over 25) = %.1f%% <br/>
+              %% Language Besides English Spoken = %.1f%% <br/>
+              %% Hispanic Population = %.1f%% <br/>
+              %% White population = %.1f%% <br/>
+              %% Black population = %.1f%% <br/>",
+              format(summary_AGE_5_T, big.mark = ","),
+              format(min(summary_MED_HH_), big.mark = ","), 
+              format(max(summary_MED_HH_), big.mark = ","),
+              summary_PCT_LES,
+              summary_PCT_COL,
               summary_PCT_NON,
               summary_PCT_HIS,
               summary_PCT_WHI,

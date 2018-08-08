@@ -111,16 +111,20 @@ get_nbhd_census_labels <- function(val=NULL) {
       "<b>%s</b><br/>
       %s 
       <i>Census level data:</i><br/>
-      No. children 5-17 yrs old = %i <br/>
-      Median Household Income = $%i <br/>
-      < HS degree (%% over 25) = %.2f%% <br/>
-      %% Hispanic Population = %g%% <br/>
-      %% White population = %g%% <br/>
-      %% Black population = %g%% <br/>",
+      No. children 5-17 yrs old = %s <br/>
+      Median Household Income = $%s <br/>
+      < HS degree (%% Over 25) = %.1f%% <br/>
+      College Graduates (%% over 25) = %.1f%% <br/>
+      %% Language Besides English Spoken = %.1f%% <br/>
+      %% Hispanic Population = %.1f%% <br/>
+      %% White population = %.1f%% <br/>
+      %% Black population = %.1f%% <br/>",
       shape_census@data$NBHD_NA,
       str_num_programs,
-      shape_census@data$AGE_5_T,
-      round(shape_census@data$MED_HH_),
+      format(shape_census@data$AGE_5_T, big.mark = ","),
+      format(round(shape_census@data$MED_HH_), big.mark = ","),
+      shape_census$PCT_LES,
+      shape_census$PCT_COL,
       shape_census$PCT_NON,
       shape_census@data$PCT_HIS,
       shape_census@data$PCT_WHI,
