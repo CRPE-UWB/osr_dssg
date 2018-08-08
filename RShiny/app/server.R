@@ -156,7 +156,7 @@ shinyServer(
       }
     )
     
-    ####### MAKE THE RESCHOOL PROGRAMS SUMMARY ANALYSIS #######
+    ####### MAKE THE RESCHOOL PROGRAMS Summary Analysis #######
 
     output$summary_title <- renderUI({
       summary_nbhds <- summary_data()[, "nbhd_name"]
@@ -185,139 +185,213 @@ shinyServer(
       summary_PCT_BLA <- sum(summary_data$PCT_BLA * summary_data$POP_RAC) / sum(summary_data$POP_RAC)
       
       sprintf("<h4>Census Demographics</h4> 
-              No. children 5-17 yrs old = %s <br/>
-              Median Household Income Range = $%s - $%s <br/>
-              < HS Degree (%% Over 25) = %.1f%% <br/>
-              College Graduates (%% Over 25) = %.1f%% <br/>
-              %% Language Besides English Spoken = %.1f%% <br/>
-              %% Hispanic Population = %.1f%% <br/>
-              %% White population = %.1f%% <br/>
-              %% Black population = %.1f%% <br/>",
+              No. children 5-17 yrs old = %s <br>
+              < HS Degree (%% Over 25) = %.1f%% <br>
+              College Graduates (%% Over 25) = %.1f%% <br>
+              %% Language Besides English Spoken = %.1f%% <br>
+              %% Hispanic Population = %.1f%% <br>
+              %% White population = %.1f%% <br>
+              %% Black population = %.1f%%<br>",
               format(summary_AGE_5_T, big.mark = ","),
-              format(min(summary_MED_HH_), big.mark = ","), 
-              format(max(summary_MED_HH_), big.mark = ","),
               summary_PCT_LES,
               summary_PCT_COL,
               summary_PCT_NON,
               summary_PCT_HIS,
               summary_PCT_WHI,
-              summary_PCT_BLA
+              summary_PCT_BLA #,
+              #format(min(summary_MED_HH_), big.mark = ","), 
+              #format(max(summary_MED_HH_), big.mark = ",")
       ) %>% lapply(htmltools::HTML)
+    })
+    
+    output$med_income_summary <- renderPlotly({
+      summary_data <- subset_for_neighborhoods(shape_census@data, input$neighborhoods)
+      plot_ly(data = summary_data, 
+              x = ~MED_HH_,
+              y = "",
+              text = as.character(summary_data$nbhd_name),
+              type = "scatter",
+              marker = list(size = 15),
+              alpha = 0.5,
+              height = 100,
+              hoverInfo = 'text'
+              ) %>%
+        layout( xaxis = list(title = "", range = c(0,NULL)),
+                title = "Median HH Income ($)",
+                titlefont = list(size = 12),
+                margin = list(l = 0)
+                ) %>%
+        config(displayModeBar = FALSE)
     })
     
     output$nbhd_student_demog_summary <- renderUI({
       # subset to the selected neighborhoods
-      summary_data <- subset_for_neighborhoods(aggregate_dps_student_nbhds, input$demographics)
+      if (input$neighborhoods == "No neighborhood selected"){
+        summary_data_student <- aggregate_dps_student_nbhds
+      }
+      else{
+        summary_data_student <- subset_for_neighborhoods(aggregate_dps_student_nbhds, input$neighborhoods)
+      }
       
       # aggregate the demographics over all selected neighborhoods
-      # dummy transformations for now
-      
-      total_nbhd_students <- sum(summary_data$total_students, na.rm = TRUE)
-      
-      summary_perc_nonenglish_students <- sum(summary_data$perc_nonenglish_students * summary_data$total_students, na.rm = TRUE) / total_nbhd_students
-      summary_perc_disable_students <- NA
-      summary_perc_hispanic_students <- NA
-      summary_perc_white_students <- NA
-      summary_perc_black_students <- NA
-      summary_total_students <- total_nbhd_students
+      total_nbhd_students <- sum(summary_data_student$total_students, na.rm = TRUE)
+      summary_perc_nonenglish_students <- sum(summary_data_student$perc_nonenglish_students * summary_data_student$total_students, 
+                                              na.rm = TRUE) / total_nbhd_students
+      summary_perc_disable_students <- sum(summary_data_student$perc_disable_students * summary_data_student$total_students, 
+                                           na.rm = TRUE) / total_nbhd_students
+      summary_perc_hispanic_students <- sum(summary_data_student$perc_hispanic_students * summary_data_student$total_students, 
+                                            na.rm = TRUE) / total_nbhd_students
+      summary_perc_white_students <- sum(summary_data_student$perc_white_students * summary_data_student$total_students, 
+                                         na.rm = TRUE) / total_nbhd_students
+      summary_perc_black_students <- sum(summary_data_student$perc_black_students * summary_data_student$total_students, 
+                                         na.rm = TRUE) / total_nbhd_students
       
       # Print it!
       sprintf(
         "<h4>Student Demographics</h4>
-        %% English student learners = %g%% <br/>
-        %% Students with disability = %g%% <br/>
-        %% Hispanic students = %g%% <br/>
-        %% White students = %g%% <br/>
-        %% Black students = %g%% <br/>
-        <i>(Note: sample size = %a)</i>",
+        %% English student learners = %.1f%% <br>
+        %% Students with disability = %.1f%% <br>
+        %% Hispanic students = %.1f%% <br>
+        %% White students = %.1f%% <br>
+        %% Black students = %.1f%% <br><br>
+        <i>Sample size = %s students</i>",
         summary_perc_nonenglish_students,
         summary_perc_disable_students,
         summary_perc_hispanic_students,
         summary_perc_white_students,
         summary_perc_black_students,
-        summary_total_students
+        format(total_nbhd_students, big.mark = ",")
       ) %>% lapply(htmltools::HTML)
     })
     
-    
-    
-    output$program_type_summary <- renderPlotly({
+    output$program_summary_plot <- renderPlotly({
       
-      # format the data properly
-      data_names <- c("academic", "arts", "cooking", "dance", "drama",
-                      "music", "nature", "sports", "stem")
-      relevant_colnames <- c("total_academic", "total_arts", "total_cooking", "total_dance", "total_drama",
-                             "total_music", "total_nature", "total_sports", "total_stem")
-
-      if (nrow(summary_data())==0) {
-        dat <- rep(0,9)
-      } else {
-        dat <- colSums(summary_data()[,relevant_colnames])
-        dat <- unlist(dat)
-      }
-
-      names(dat) <- data_names
-      
-      # actually make the plot
-      plot_ly(x = sort(data_names, decreasing = TRUE),
-              y = dat[sort(data_names, decreasing = TRUE)],
-              type = "bar"
-              ) %>%
-        layout(xaxis = list(title = "Program Category"), 
-               yaxis = list(title = "No. Programs"),  
-               title = "Programs by Category"
-               )
-      
-    })
-    
-    output$program_special_cats <- renderUI({
-      if (nrow(summary_data())==0) {
-        sprintf("No programs in this neighborhood.") %>% lapply(htmltools::HTML)
-      } else {
-        sprintf("<center><b>Programs with Scholarships: %i <br><br> 
-                Programs Accommodating Special Needs: %i </b> <br><br></center>",
-                sum(summary_data()[, "total_scholarships"]),
-                sum(summary_data()[, "total_special_needs"])
-        ) %>% lapply(htmltools::HTML)
-      }
-    })
-    
-    output$program_cost_summary <- renderPlotly({
-      nbhd_cost_data <- subset_for_neighborhoods(reschool_summer_program, input$neighborhoods)
-      nbhd_cost_data <- nbhd_cost_data[,"session_cost"]
-      
-      # par(mar = c(5.1, 5.1, 2.1, 2.1))  # set margins
-      
-      # actually make the plot
-      if (sum(nbhd_cost_data > 0) >0 ){
-        plot_ly(x = ~nbhd_cost_data[nbhd_cost_data > 0],
-                type = "histogram",
-                name = "Not Free"
+      ###########################
+      # Case 1: Category Analysis
+      ###########################
+      if (input$program_analysis == "category_question"){
+        
+        # get data
+        data_names <- c("academic", "arts", "cooking", "dance", "drama",
+                        "music", "nature", "sports", "stem", "scholarships", "special_needs")
+        relevant_colnames <- c("total_academic", "total_arts", "total_cooking", "total_dance", "total_drama",
+                               "total_music", "total_nature", "total_sports", "total_stem", "total_scholarships",
+                               "total_special_needs")
+        if (nrow(summary_data())==0) {
+          dat <- rep(0,11)
+        } else {
+          dat <- colSums(summary_data()[,relevant_colnames])
+          dat <- unlist(dat)
+        }
+        names(dat) <- data_names
+        
+        # make the plot
+        plot_ly(x = sort(data_names, decreasing = TRUE),
+                y = dat[sort(data_names, decreasing = TRUE)],
+                type = "bar"
         ) %>%
-          layout(xaxis = list(title = "Total Cost ($)"), 
-                 yaxis = list(title = "No. Programs"), 
-                 title = "Programs by Cost"
+          layout(xaxis = list(title = "Category"), 
+                 yaxis = list(title = "No. Programs"),  
+                 title = "Programs by Category",
+                 margin = list(b=100),
+                 annotations = list(x  = 0, 
+                                    y = 0,
+                                    text = paste("<i>Programs w/ Scholarships:", 
+                                                 sum(summary_data()[, "total_scholarships"]),
+                                                 "<br>Programs for Special Needs:",
+                                                 sum(summary_data()[, "total_special_needs"]),
+                                                 "</i>"
+                                                 ),
+                                    showarrow = FALSE,
+                                    xref = "paper",
+                                    yref = "paper",
+                                    xshift = -10,
+                                    yshift = -100
+                                    )
+          )
+      }
+      #######################
+      # Case 2: Cost Analysis
+      #######################
+      else if (input$program_analysis == "cost_question"){
+        
+        # get the data
+        nbhd_cost_data <- subset_for_neighborhoods(reschool_summer_program, input$neighborhoods)
+        nbhd_cost_data <- nbhd_cost_data[,"session_cost"]
+        
+        # make the plot - if at least one not-free program
+        if (sum(nbhd_cost_data > 0) > 0 ){
+          plot_ly(x = ~nbhd_cost_data[nbhd_cost_data > 0],
+                  type = "histogram",
+                  name = "Not Free"
           ) %>%
-          add_bars(x = 0,
-                   y = sum(nbhd_cost_data == 0),
-                   name = "Free"
-          )
+            layout(xaxis = list(title = "Total Cost ($)"), 
+                   yaxis = list(title = "No. Programs"), 
+                   title = "Programs by Cost"
+            ) %>%
+            add_bars(x = 0,
+                     y = sum(nbhd_cost_data == 0),
+                     name = "Free"
+            )
+        }
+        # make the plot - if all programs are free
+        else{
+          plot_ly(y = sum(nbhd_cost_data == 0),
+                  x = 0,
+                  type = "bar",
+                  color = "orange"
+          ) %>%
+            layout(xaxis = list(title = "Total Cost ($)"), 
+                   yaxis = list(title = "No. Programs"), 
+                   title = "Programs by Cost"
+            )
+        }
       }
-      else{
-        plot_ly(y = sum(nbhd_cost_data == 0),
-                x = 0,
-                type = "bar",
-                color = "orange"
-        ) %>%
-          layout(xaxis = list(title = "Total Cost ($)"), 
-                 yaxis = list(title = "No. Programs"), 
-                 title = "Programs by Cost"
+      #######################
+      # Case 3: Date Analysis
+      #######################
+      else {
+        
+        # get the data
+        dat <- subset_for_neighborhoods(reschool_summer_program, input$neighborhoods)
+        relevant_colnames <- c("session_date_start", "session_date_end", "session_name")
+        if (nrow(dat)==0) {
+          dat <- rep(0,3)
+          colnames(dat) <- relevant_colnames
+        } else {
+          dat <- dat[,relevant_colnames]
+          dat$session_date_start <- as.Date(dat$session_date_start)
+          dat$session_date_end <- as.Date(dat$session_date_end)
+          dat <- dat[ do.call(order, dat), ]
+        }
+        
+        # make the plot
+        plot_ly(data = dat) %>%
+          add_segments(x = ~session_date_start,
+                       xend = ~session_date_end,
+                       y = 1:nrow(dat),
+                       yend = 1:nrow(dat),
+                       text = ~session_name,
+                       hoverInfo = 'text',
+                       name = "Middle of Program"
+          ) %>%
+          add_markers(x = c(dat$session_date_start, dat$session_date_end), 
+                      y = rep(1:nrow(dat),2), 
+                      color = I("grey"),
+                      text = rep(dat$session_name,2),
+                      hoverInfo = 'text',
+                      name = "Start/End Dates"
+          ) %>%
+          layout(xaxis = list(title = ""), 
+                 yaxis = list(title = "", showticklabels = FALSE),  
+                 title = "Programs by Date",
+                 showLegend = FALSE
           )
-        
-        
+
       }
-        
-    
+      
+      # end cases for analysis questions
+      
     })
     
     # Data table for nbhd summary - deprecated

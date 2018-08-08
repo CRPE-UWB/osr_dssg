@@ -203,7 +203,7 @@ legend_titles_demographic <- list(MED_HH_ = "Median HH Income",
 
 # Options to show in the UI for filtering by demographics
 # (feel free to change these for better appearances)
-demog_names <- list("None selected",
+demog_names <- list("None",
                     "Number of 5-17 year olds",
                     "Median household income ($)", 
                     "Less than high school degree (% over 25 years)",
@@ -216,7 +216,7 @@ demog_names <- list("None selected",
                     "Hispanic population (%)", 
                     "Black population (%)",
                     "White population (%)",
-                    "Most common + breakdown"
+                    "Most common race + breakdown"
 )
 
 demog_student_names <- list("None selected",
