@@ -169,7 +169,7 @@ get_block_census_labels <- function(val) {
     val,
     shape_census_block@data$Ag_L_18-shape_census_block@data$Ag_Ls_5,
     shape_census_block@data$Mdn_HH_,
-    shape_census_block$LESS_TH/shape_census_block@data$TTL_ppl,
+    100*shape_census_block$LESS_TH/shape_census_block@data$TTL_ppl,
     shape_census_block@data$PCT_Hsp,
     shape_census_block@data$PCT_Wht,
     shape_census_block@data$PCT_Afr
