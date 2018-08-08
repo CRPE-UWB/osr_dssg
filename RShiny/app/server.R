@@ -786,6 +786,143 @@ shinyServer(
         
       })
     
+    #######################################
+    # Summary analysis for other resources
+    #######################################
+    
+    output$summary_title_other <- renderUI({
+      summary_nbhds <- input$neighborhoods_other
+      if ("All neighborhoods" %in% summary_nbhds){
+        summary_nbhds <- "All Neighborhoods"
+      }
+      
+      sprintf('<h3>Summary for %s</h3>',
+              toString(summary_nbhds)
+      ) %>% lapply(htmltools::HTML)
+    })
+    
+    # make the plot - number of each resource type
+    output$other_resources_summary <- renderPlotly({
+      
+      num_parks <- nrow(parks_data())
+      num_playgrounds <- nrow(playgrounds_data())
+      num_rec_centers <- nrow(rec_centers_data())
+      num_libraries <- nrow(libraries_data())
+      num_museums <- nrow(museums_data())
+      num_fields <- nrow(fields_data())
+      
+      plot_ly(x = c("Parks", "Playgrounds", "Rec Centers", "Libraries", "Museums", "Fields"),
+              y = c(num_parks, num_playgrounds, num_rec_centers, num_libraries, num_museums, num_fields),
+              type = "bar"
+              ) %>%
+        layout(xaxis = list(title = "Resource Type"),
+               yaxis = list(title = "No. Resources"),
+               title = "Number of Other Resources by Type"
+               )
+      
+    })
+    
+    ########################################################
+    # add demographics for the selected neighborhoods
+    ########################################################
+    output$nbhd_census_demog_summary_other <- renderUI({
+      # subset to the selected neighborhoods
+      summary_data <- subset_for_neighborhoods(shape_census@data, input$neighborhoods_other)
+      
+      # aggregate the demographics over all selected neighborhoods
+      # dummy transformations for now
+      summary_AGE_5_T <- sum(summary_data$AGE_5_T)
+      summary_MED_HH_ <- summary_data$MED_HH_
+      summary_PCT_LES <- sum(summary_data$PCT_LES * summary_data$POP_EDU) / sum(summary_data$POP_EDU)
+      summary_PCT_COL <- sum(summary_data$PCT_COL * summary_data$POP_EDU) / sum(summary_data$POP_EDU)
+      summary_PCT_NON <- sum(summary_data$PCT_NON * summary_data$POP_LAN) / sum(summary_data$POP_LAN)
+      summary_PCT_HIS <- sum(summary_data$PCT_HIS * summary_data$POP_RAC) / sum(summary_data$POP_RAC)
+      summary_PCT_WHI <- sum(summary_data$PCT_WHI * summary_data$POP_RAC) / sum(summary_data$POP_RAC)
+      summary_PCT_BLA <- sum(summary_data$PCT_BLA * summary_data$POP_RAC) / sum(summary_data$POP_RAC)
+      
+      sprintf("<h4>Census Demographics</h4> 
+              No. children 5-17 yrs old = %s <br>
+              < HS Degree (%% Over 25) = %.1f%% <br>
+              College Graduates (%% Over 25) = %.1f%% <br>
+              %% Language Besides English Spoken = %.1f%% <br>
+              %% Hispanic Population = %.1f%% <br>
+              %% White population = %.1f%% <br>
+              %% Black population = %.1f%%<br>",
+              format(summary_AGE_5_T, big.mark = ","),
+              summary_PCT_LES,
+              summary_PCT_COL,
+              summary_PCT_NON,
+              summary_PCT_HIS,
+              summary_PCT_WHI,
+              summary_PCT_BLA #,
+              #format(min(summary_MED_HH_), big.mark = ","), 
+              #format(max(summary_MED_HH_), big.mark = ",")
+      ) %>% lapply(htmltools::HTML)
+    })
+    
+    output$nbhd_student_demog_summary_other <- renderUI({
+      # subset to the selected neighborhoods
+      if (input$neighborhoods == "No neighborhood selected"){
+        summary_data_student <- aggregate_dps_student_nbhds
+      }
+      else{
+        summary_data_student <- subset_for_neighborhoods(aggregate_dps_student_nbhds, input$neighborhoods_other)
+      }
+      
+      # aggregate the demographics over all selected neighborhoods
+      total_nbhd_students <- sum(summary_data_student$total_students, na.rm = TRUE)
+      summary_perc_nonenglish_students <- sum(summary_data_student$perc_nonenglish_students * summary_data_student$total_students, 
+                                              na.rm = TRUE) / total_nbhd_students
+      summary_perc_disable_students <- sum(summary_data_student$perc_disable_students * summary_data_student$total_students, 
+                                           na.rm = TRUE) / total_nbhd_students
+      summary_perc_hispanic_students <- sum(summary_data_student$perc_hispanic_students * summary_data_student$total_students, 
+                                            na.rm = TRUE) / total_nbhd_students
+      summary_perc_white_students <- sum(summary_data_student$perc_white_students * summary_data_student$total_students, 
+                                         na.rm = TRUE) / total_nbhd_students
+      summary_perc_black_students <- sum(summary_data_student$perc_black_students * summary_data_student$total_students, 
+                                         na.rm = TRUE) / total_nbhd_students
+      
+      # Print it!
+      sprintf(
+        "<h4>Student Demographics</h4>
+        %% English student learners = %.1f%% <br>
+        %% Students with disability = %.1f%% <br>
+        %% Hispanic students = %.1f%% <br>
+        %% White students = %.1f%% <br>
+        %% Black students = %.1f%% <br><br>
+        <i>Sample size = %s students</i>",
+        summary_perc_nonenglish_students,
+        summary_perc_disable_students,
+        summary_perc_hispanic_students,
+        summary_perc_white_students,
+        summary_perc_black_students,
+        format(total_nbhd_students, big.mark = ",")
+      ) %>% lapply(htmltools::HTML)
+    })
+    
+    output$med_income_summary_other <- renderPlotly({
+      summary_data <- subset_for_neighborhoods(shape_census@data, input$neighborhoods_other)
+      plot_ly(data = summary_data, 
+              x = ~MED_HH_,
+              y = "",
+              text = as.character(summary_data$nbhd_name),
+              type = "scatter",
+              marker = list(size = 15),
+              alpha = 0.5,
+              height = 100,
+              hoverInfo = 'text'
+      ) %>%
+        layout( xaxis = list(title = "", range = c(0,NULL)),
+                title = "Median HH Income ($)",
+                titlefont = list(size = 12),
+                margin = list(l = 0)
+        ) %>%
+        config(displayModeBar = FALSE)
+    })
+    
+    
+    
+    
     
     
     ###################################################################################################################

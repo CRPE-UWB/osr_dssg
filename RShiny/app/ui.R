@@ -29,7 +29,7 @@ shinyUI(
   includeCSS("style.css"),
   
   navbarPage("Denver Out-of-School Resources",
-             selected = "B4S Programs",
+             selected = "Other Resources",
                    
 ########################## Blueprint4Summer Programs Tab ###########################################
 
@@ -165,15 +165,17 @@ shinyUI(
                             fluidPage(sidebarLayout(
                               
                               sidebarPanel(
-                                checkboxGroupInput("program_other", 
-                                                   "Select one or more resource types:", 
-                                                   choices = c("Parks", "Playgrounds", 
-                                                               "Rec Centers", "Libraries", 
-                                                               "Museums", "Fields"), 
-                                                   selected = "Parks", 
-                                                   inline = TRUE
-                                                   ),
-                                br(),
+                                conditionalPanel(condition = "input.program_other_panel != 'Summary Analysis'",
+                                                checkboxGroupInput("program_other", 
+                                                                   "Select one or more resource types:", 
+                                                                   choices = c("Parks", "Playgrounds", 
+                                                                               "Rec Centers", "Libraries", 
+                                                                               "Museums", "Fields"), 
+                                                                   selected = "Parks", 
+                                                                   inline = TRUE
+                                                                   ),
+                                                br()
+                                                ),
                                 conditionalPanel(condition = "input.program_other_panel == 'Map'",
                                                 radioButtons("school_or_census_other", "Select a data source for demographic data:",
                                                              choiceNames = c("Census (General Population)","DPS (Student Data)"),
@@ -219,7 +221,20 @@ shinyUI(
                                             tabPanel("Data",
                                                      br(),
                                                      uiOutput("dt")),
-                                            tabPanel("Summary Analysis"),
+                                            tabPanel("Summary Analysis",
+                                                     br(), br(),
+                                                     uiOutput("summary_title_other"),
+                                                     br(),
+                                                     plotlyOutput('other_resources_summary', height = "200px"),
+                                                     br(), br(),
+                                                     fluidRow(
+                                                       column(6, uiOutput('nbhd_census_demog_summary_other')),
+                                                       column(6, uiOutput('nbhd_student_demog_summary_other'))
+                                                     ),
+                                                     br(),
+                                                     plotlyOutput("med_income_summary_other", height = "80px", width = 300),
+                                                     br()
+                                                     ),
                                             id = "program_other_panel"
                                 )
                               )  # end mainPanel of open data tab
