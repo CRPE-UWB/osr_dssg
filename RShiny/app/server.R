@@ -168,6 +168,71 @@ shinyServer(
       ) %>% lapply(htmltools::HTML)
     })
     
+    output$nbhd_census_demog_summary <- renderUI({
+      # subset to the selected neighborhoods
+      summary_data <- subset_for_neighborhoods(shape_census@data, input$neighborhoods)
+      
+      # aggregate the demographics over all selected neighborhoods
+      # dummy transformations for now
+      summary_AGE_5_T <- sum(summary_data$AGE_5_T)
+      summary_MED_HH_ <- toString(summary_data$MED_HH_)
+      summary_PCT_NON <- NA
+      summary_PCT_HIS <- NA
+      summary_PCT_WHI <- NA
+      summary_PCT_BLA <- NA
+      
+      sprintf("<h4>Census Demographics</h4> 
+              No. children 5-17 yrs old = %i <br/>
+              Median Household Incomes = $%s <br/>
+              < HS desgree (%% over 25) = %.2f%% <br/>
+              %% Hispanic Population = %g%% <br/>
+              %% White population = %g%% <br/>
+              %% Black population = %g%% <br/>",
+              summary_AGE_5_T,
+              summary_MED_HH_,
+              summary_PCT_NON,
+              summary_PCT_HIS,
+              summary_PCT_WHI,
+              summary_PCT_BLA
+      ) %>% lapply(htmltools::HTML)
+    })
+    
+    output$nbhd_student_demog_summary <- renderUI({
+      # subset to the selected neighborhoods
+      summary_data <- subset_for_neighborhoods(aggregate_dps_student_nbhds, input$demographics)
+      
+      # aggregate the demographics over all selected neighborhoods
+      # dummy transformations for now
+      
+      total_nbhd_students <- sum(summary_data$total_students, na.rm = TRUE)
+      
+      summary_perc_nonenglish_students <- sum(summary_data$perc_nonenglish_students * summary_data$total_students, na.rm = TRUE) / total_nbhd_students
+      summary_perc_disable_students <- NA
+      summary_perc_hispanic_students <- NA
+      summary_perc_white_students <- NA
+      summary_perc_black_students <- NA
+      summary_total_students <- total_nbhd_students
+      
+      # Print it!
+      sprintf(
+        "<h4>Student Demographics</h4>
+        %% English student learners = %g%% <br/>
+        %% Students with disability = %g%% <br/>
+        %% Hispanic students = %g%% <br/>
+        %% White students = %g%% <br/>
+        %% Black students = %g%% <br/>
+        <i>(Note: sample size = %a)</i>",
+        summary_perc_nonenglish_students,
+        summary_perc_disable_students,
+        summary_perc_hispanic_students,
+        summary_perc_white_students,
+        summary_perc_black_students,
+        summary_total_students
+      ) %>% lapply(htmltools::HTML)
+    })
+    
+    
+    
     output$program_type_summary <- renderPlotly({
       
       # format the data properly

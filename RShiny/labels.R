@@ -286,3 +286,40 @@ lab_format_list_student <- list(labelFormat(prefix = " %"),
 
 names(pal_list_student) <- demog_student_values[demog_student_values!="none"]
 names(lab_format_list_student) <- demog_student_values[demog_student_values!="none"]
+
+############################## Demographic info for the ReSchool Summary Analysis Tab ##############################
+
+get_nbhd_census_summary <- function(nbhd_list) {
+  if (is.null(nbhd_list)) {
+    census_summary_data <- NA
+  } else {
+    census_summary_data <- shape_census@data["NBHD_NA"]
+    
+    
+    
+    
+    
+    
+  }
+  
+  return(sprintf(
+    "<b>%s</b><br/>
+    %s 
+    <i>Census level data:</i><br/>
+    No. children 5-17 yrs old = %i <br/>
+    Median Household Income = $%i <br/>
+    < HS desgree (%% over 25) = %.2f%% <br/>
+    %% Hispanic Population = %g%% <br/>
+    %% White population = %g%% <br/>
+    %% Black population = %g%% <br/>",
+    shape_census@data$NBHD_NA,
+    str_num_programs,
+    shape_census@data$AGE_5_T,
+    round(shape_census@data$MED_HH_),
+    shape_census$PCT_NON,
+    shape_census@data$PCT_HIS,
+    shape_census@data$PCT_WHI,
+    shape_census@data$PCT_BLA
+  ) %>% lapply(htmltools::HTML)
+  )
+}

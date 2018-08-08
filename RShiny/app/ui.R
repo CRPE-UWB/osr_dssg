@@ -13,7 +13,7 @@ library(plotly)
 
 # Source needed data and functions for ui and server - impt. to do in this order!!
 # (note that all paths should be relative to the location of this ui.R file)
-#source(file.path('..', 'get_data.R'), chdir = TRUE)
+source(file.path('..', 'get_data.R'), chdir = TRUE)
 source(file.path('..', 'color.R'))
 source(file.path('..', 'labels.R'))
 source(file.path('..', 'mapping_helpers.R'))
@@ -134,7 +134,11 @@ shinyUI(
                                                 br(),
                                                 div(plotlyOutput("program_cost_summary", height = "250px")),
                                                 br(),
-                                                 uiOutput("program_special_cats")
+                                                 uiOutput("program_special_cats"),
+                                                br(),
+                                                uiOutput("nbhd_census_demog_summary"),
+                                                br(),
+                                                uiOutput("nbhd_student_demog_summary")
                                               ),
                                               id = "program_panel"
                                               
