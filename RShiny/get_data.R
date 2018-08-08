@@ -9,6 +9,8 @@ library(tigris)
 
 ################## Getting data from the database e#############################################
 
+####### WILL TAKE OUT ONCE MOVED TO GITHUB ##########
+
 # load the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
 
@@ -22,31 +24,44 @@ con <- dbConnect(drv, dbname = dbname,
                  host = host, port = port,
                  user = user, password = password)
 
-# get the required tables from the sql database
-reschool_summer_program_clean = dbGetQuery(con, "SELECT * from clean.reschool_summer_programs")
-reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
-aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
-aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
-fields = dbGetQuery(con, "SELECT * from shiny.fields")
+# Summary of total number of programs in each neighborhood
+nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summary")
+
+# Access index stuff
+driving_index = dbGetQuery(con, "SELECT * from clean.driving_index")
+driving_index_disability = dbGetQuery(con, "SELECT * from clean.driving_index_disability")
+driving_index_nbhd = dbGetQuery(con, "SELECT * from clean.driving_index_nbhd")
+driving_index_disability_nbhd = dbGetQuery(con, "SELECT * from clean.driving_index_disability_nbhd")
+transit_index = dbGetQuery(con, "SELECT * from clean.transit_index")
+transit_index_disability = dbGetQuery(con, "SELECT * from clean.transit_index_disability")
+transit_index_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_nbhd")
+transit_index_disability_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_disability_nbhd")
+
+# Open resource stuff
+sfields = dbGetQuery(con, "SELECT * from shiny.fields")
 museums = dbGetQuery(con, "SELECT * from shiny.museums")
 libraries = dbGetQuery(con, "SELECT * from shiny.libraries")
 playgrounds = dbGetQuery(con, "SELECT * from shiny.playgrounds")
 rec_centers = dbGetQuery(con, "SELECT * from shiny.rec_centers")
 parks = dbGetQuery(con, "SELECT * from shiny.parks")
+
+# when you're done, close the connection and unload the driver 
+
+#####################################################
+
+# get the required tables from the sql database
+reschool_summer_program_clean = dbGetQuery(con, "SELECT * from clean.reschool_summer_programs")
+reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
+aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
+aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
+
 all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
 google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
 relevant_zip_codes = readOGR(dsn="../data/zip_codes")
 total_denver_zipcodes = read.csv("../data/denver_zip_codes.csv")
 
-nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summary")
-
-driving_index = dbGetQuery(con, "SELECT * from clean.driving_index")
-transit_index = dbGetQuery(con, "SELECT * from clean.transit_index")
-
-# when you're done, close the connection and unload the driver 
 dbDisconnect(con) 
 dbUnloadDriver(drv)
-
 ##################### Getting shape files to plot block groups, nbhds on the map ##########################
 
 # Get block group shape file (for access index stuff)
@@ -75,7 +90,7 @@ minprice_reschoolprograms = min(reschool_summer_program$session_cost)
 maxprice_reschoolprograms = max(reschool_summer_program$session_cost)
 
 # Filter variables for 'other resources' tab
-neighborhoods_other = unique(all_neighbourhoods$nbhd_name)
+neighborhoods_other = shape_census@data$NBHD_NA #unique(all_neighbourhoods$nbhd_name)
 
 demographic_filters = c("Median Income", "Percent below poverty level")
 

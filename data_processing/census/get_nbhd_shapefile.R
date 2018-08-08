@@ -7,13 +7,14 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))  # only works if run
 mypath <- getwd()
 
 ## get nbhd level demographics from denver open data
+## data is american community survey, 2011-2015
 source(file.path('..', 'denver_open', 'open_data_functions.R'))
 nbhds <- GetOpenData('american_community_survey_nbrhd_2011_2015')
 
 colnames(nbhds@data)
 
 names_wanted <- c("NBHD_NAME",  # neighborhood name
-                  "TTL_POPULA",  # total population
+                  "TTL_POPULA",  # total population - used for racial demographics
                   "PCT_HISPAN",  # percent hispanic
                   "PCT_WHITE",  # percent white
                   "PCT_BLACK",  # percent black
@@ -27,11 +28,11 @@ names_wanted <- c("NBHD_NAME",  # neighborhood name
                   "HSGRAD_OR_",  # population 25+ with hs diploma or equivalent
                   "SOMECOLLEG",  # population 25+ with some college
                   "BACHELORS_",  # population 25+ with bachelors degree
-                  "TTLPOP_25P",  # total population 25+
+                  "TTLPOP_25P",  # total population 25+ - used for education data
                   "AGE_5_TO_9", # for total students in age range 5-18
                   "AGE_10_TO_", # for total students in age range 5-18
                   "AGE_15_TO_", # ages 15-17
-                  "TTLPOP_5PL",  # total population 5 plus years
+                  "TTLPOP_5PL",  # total population 5 plus years - used for language data
                   "ONLY_ENGLI"  # total population 5 plus years with only english
                   )
 
@@ -85,6 +86,7 @@ colnames(nbhds_small@data)
 
 final_colnames <- c("NBHD_NAME",
                     "MED_HH_INC", 
+                    "TTL_POPULA",
                     "PCT_HISPAN", 
                     "PCT_WHITE",
                     "PCT_BLACK",
@@ -92,26 +94,31 @@ final_colnames <- c("NBHD_NAME",
                     "PCT_NATIVE",
                     "PCT_OTHERR",
                     "PCT_TWOORM",
+                    "TTLPOP_25P",
                     "PCT_LESS_HS", 
                     "PCT_COLL_GRAD",
-                    "AGE_5_TO_17", 
+                    "AGE_5_TO_17",
+                    "TTLPOP_5PL",
                     "PCT_NON_ENGL")
 
 finalspdf <- nbhds_small[,final_colnames]
 
 simpler_colnames <- c("NBHD_NAME",
-                    "MED_HH_INC", 
-                    "PCT_HISPANIC", 
-                    "PCT_WHITE",
-                    "PCT_BLACK",
-                    "PCT_ASIAN",
-                    "PCT_NATIVE",
-                    "PCT_OTHER_RACE",
-                    "PCT_TWO_OR_MORE_RACES",
-                    "PCT_LESS_HS", 
-                    "PCT_COLL_GRAD", 
-                    "AGE_5_TO_17", 
-                    "PCT_NON_ENGL")
+                      "MED_HH_INC", 
+                      "POP_RACE",
+                      "PCT_HISPANIC", 
+                      "PCT_WHITE",
+                      "PCT_BLACK",
+                      "PCT_ASIAN",
+                      "PCT_NATIVE",
+                      "PCT_OTHER_RACE",
+                      "PCT_TWO_OR_MORE_RACES",
+                      "POP_EDUC",
+                      "PCT_LESS_HS", 
+                      "PCT_COLL_GRAD", 
+                      "AGE_5_TO_17",
+                      "POP_LANG",
+                      "PCT_NON_ENGL")
 
 colnames(finalspdf@data) <- simpler_colnames
 

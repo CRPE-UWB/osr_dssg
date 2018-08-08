@@ -55,38 +55,21 @@ acs_subset <- analysis1 %>% select(Id2, student_age_n) %>%
  # aggregate by nbhd
 analysis_subset_aggregated2 <- analysis_subset %>% group_by(nbhd_name) %>% summarise(student_age_a = sum(student_age_n))
 
-
 driving_index_nbhd <- driving_index_nbhd %>%
     group_by(nbhd_name) %>%
-    summarise_at(vars(matches("AI")), funs(mean)) %>%
-    left_join(., analysis_subset_aggregated2, by = c("nbhd_name")) %>%
-    mutate_at(vars(matches("AI")),funs(weighted = . / analysis_subset_aggregated2$student_age_a)) %>%
-    filter(student_age_a != 0) %>%  #drop the two neighborhoods that have 0 values for number of students.
-    mutate_at(vars(matches("weighted")), funs(rank = dense_rank(desc(.))))
+    summarise_at(vars(matches("AI")), funs(mean)) 
 
 transit_index_nbhd <- transit_index_nbhd %>%
     group_by(nbhd_name) %>%
-    summarise_at(vars(matches("AI")), funs(mean)) %>%
-    left_join(., analysis_subset_aggregated2, by = c("nbhd_name")) %>%
-    mutate_at(vars(matches("AI")),funs(weighted = . / analysis_subset_aggregated2$student_age_a)) %>%
-    filter(student_age_a != 0) %>%  #drop the two neighborhoods that have 0 values for number of students.
-    mutate_at(vars(matches("weighted")), funs(rank = dense_rank(desc(.))))
+    summarise_at(vars(matches("AI")), funs(mean))
 
 driving_index_disability_nbhd <- driving_index_disability_nbhd %>%
     group_by(nbhd_name) %>%
-    summarise_at(vars(matches("AI")), funs(mean)) %>%
-    left_join(., analysis_subset_aggregated2, by = c("nbhd_name")) %>%
-    mutate_at(vars(matches("AI")),funs(weighted = . / analysis_subset_aggregated2$student_age_a)) %>%
-    filter(student_age_a != 0) %>%  #drop the two neighborhoods that have 0 values for number of students.
-    mutate_at(vars(matches("weighted")), funs(rank = dense_rank(desc(.))))
+    summarise_at(vars(matches("AI")), funs(mean))
 
 transit_index_disability_nbhd <- transit_index_disability_nbhd %>%
     group_by(nbhd_name) %>%
-    summarise_at(vars(matches("AI")), funs(mean)) %>%
-    left_join(., analysis_subset_aggregated2, by = c("nbhd_name")) %>%
-    mutate_at(vars(matches("AI")),funs(weighted = . / analysis_subset_aggregated2$student_age_a)) %>%
-    filter(student_age_a != 0) %>%  #drop the two neighborhoods that have 0 values for number of students.
-    mutate_at(vars(matches("weighted")), funs(rank = dense_rank(desc(.))))
+    summarise_at(vars(matches("AI")), funs(mean)) 
 ```
 
 Upload to RDS
@@ -96,4 +79,5 @@ dbWriteTable(con, c("clean", "transit_index_nbhd"), value = transit_index_nbhd, 
 dbWriteTable(con, c("clean", "driving_index_disability_nbhd"), value = driving_index_disability_nbhd, row.names = FALSE)
 dbWriteTable(con, c("clean", "transit_index_disability_nbhd"), value = transit_index_disability_nbhd, row.names = FALSE)
 ```
+
 
