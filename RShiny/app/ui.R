@@ -348,28 +348,44 @@ shinyUI(
                             fluidPage(sidebarLayout(
                               
                               sidebarPanel(
-                                checkboxGroupInput("type_access", 
-                                                   "Select one or more program types to include:", 
-                                                   choiceNames = c("Academic", "Arts", "Athletic", "Nature"),
-                                                   choiceValues = list("academic","art","sports","nature"),
-                                                   inline = TRUE,
-                                                   selected = c("academic","art","sports","nature")
-                                                   ),
-                                br(),
-                                radioButtons("cost_access", 
-                                             "Select a cost range for programs to include:", 
-                                             choiceNames = list("Free", "Free to Low Cost", "All Programs"),
-                                             choiceValues = list("free", "low", "any"),
-                                             selected = "any"
-                                             ),
-                                br(),
-                                radioButtons("drive_or_transit",
-                                             "Calculate distances to programs based on driving or 
-                                             public transit?",
-                                             choiceNames = list("Drive", "Transit"),
-                                             choiceValues = list("drive", "transit"),
-                                             selected = "drive"
-                                             ),
+                                conditionalPanel(condition = "input.access_panel == 'Summary analysis'",
+                                                 radioButtons("specific_access_questions", "Choose a question to investigate about student access to Blueprint4Summer programs:", 
+                                                              choiceNames = c("How equally is access distributed among neighborhoods?",
+                                                                          "How do the number of programs correspond to the number of students in neighborhoods?",
+                                                                          "How does access differ among demographic groups?"),
+                                                              choiceValues = c("lorenz", "scatter", "demog")),
+                                                 br(), 
+                                                 br()
+                                ),
+                                conditionalPanel(condition = "!(input.access_panel == 'Summary analysis' & input.specific_access_questions == 'lorenz')",
+                                  checkboxGroupInput("type_access", 
+                                                     "Select one or more program types to include:", 
+                                                     choiceNames = c("Academic", "Arts", "Athletic", "Nature"),
+                                                     choiceValues = list("academic","art","sports","nature"),
+                                                     inline = TRUE,
+                                                     selected = c("academic","art","sports","nature")
+                                                     ),
+                                  br(),
+                                  radioButtons("cost_access", 
+                                               "Select a cost range for programs to include:", 
+                                               choiceNames = list("Free", "Free to Low Cost", "All Programs"),
+                                               choiceValues = list("free", "low", "any"),
+                                               selected = "any"
+                                               ),
+                                  br(),
+                                  radioButtons("drive_or_transit",
+                                               "Calculate distances to programs based on driving or 
+                                               public transit?",
+                                               choiceNames = list("Drive", "Transit"),
+                                               choiceValues = list("drive", "transit"),
+                                               selected = "drive"
+                                               ),
+                                  radioButtons("disability",
+                                               "Access specifically for students with disability?",
+                                               choiceNames = c("Any student", "Students with disability"),
+                                               choiceValues = c(FALSE,TRUE),
+                                               selected = FALSE)
+                                ),
                                 br(),
                                 conditionalPanel(condition = "input.access_panel == 'Map'",
                                   selectInput("neighborhoods_access", "Focus on neighborhoods:", 
@@ -377,9 +393,7 @@ shinyUI(
                                                           neighborhoods_list),
                                               multiple = TRUE,
                                               selected = "All neighborhoods"
-                                  ),
-                                  br()
-                                )
+                                  ))
                               ),  # end sidebarPanel for access index
                               
                               mainPanel(
@@ -397,7 +411,10 @@ shinyUI(
                                                      br(), br()
                                             ),
                                             tabPanel("Summary analysis",
-                                                     plotOutput("lorenz", height=700)
+                                                     conditionalPanel(condition = "input.specific_access_questions == 'lorenz'",
+                                                                      plotOutput("lorenz", height=700)
+                                                     )
+
                                                      ),
                                             id = "access_panel"
                                 )

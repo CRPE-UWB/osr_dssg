@@ -1009,7 +1009,7 @@ shinyServer(
     ###################################################################################################################
     
     # first calculate the aggregated access index based on user input
-    index <- reactive({calculate_aggregated_index(input$drive_or_transit,input$type_access,input$cost_access)})
+    index <- reactive({calculate_aggregated_index(input$drive_or_transit,input$type_access,input$cost_access, input$disability)})
     # Bins and color palettes for demographic variables in leaflet map
     pal_access <- reactive({
       if (input$drive_or_transit=="drive") {return(colorBin("Blues", domain = index()))}
@@ -1027,8 +1027,10 @@ shinyServer(
                          "nature"=c("has_nature"))
 
     program_category_data_access <- reactive({
-      return(subset_for_category(reschool_summer_program,
-                                 unlist(program_list[input$type_access], use.names=F)))
+      df <- subset_for_category(reschool_summer_program,
+                                 unlist(program_list[input$type_access], use.names=F))
+      if (input$disability==TRUE) {df <- subset_for_special_needs(df)}
+      return(df)
     })
 
     program_cost_data_access <- reactive({
