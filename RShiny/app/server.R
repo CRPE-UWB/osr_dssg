@@ -1350,7 +1350,25 @@ shinyServer(
     )
     
     output$lorenz <- renderPlot({
-      plot(Lc(driving_index$AI_overall,shape_census_block$Ag_L_18-shape_census_block$Ag_Ls_5))
+      tot_young_pop <- shape_census_block$Ag_L_18-shape_census_block$Ag_Ls_5
+      plot(Lc(index()*tot_young_pop,tot_young_pop))
+    })
+    
+    index_nbhd <- reactive({calculate_aggregated_index(input$drive_or_transit,input$type_access,input$cost_access, input$disability, block=FALSE)})
+    
+    output$access_scatter <- renderPlot({
+        plot(x = shape_census@data$AGE_5_T, y = index_nbhd())
+    })
+    
+    
+    
+    race_access_means <- reactive({get_race_access_means(index())})
+
+    output$access_demog <- renderPlotly({
+      access_race_list <- race_access_means()
+      access_race_names <- names(access_race_list)
+      access_race_vals <- unlist(access_race_list)
+      plot_ly(x=access_race_names, y=access_race_vals, type="bar")
     })
     
   })  
