@@ -7,6 +7,7 @@ library(DT)
 library(leaflet)
 library(sp)
 library(mapview)
+library(ineq) # inequality: for creating the Lorentz curve
 
 shinyServer(
   function(input, output, session) {
@@ -1041,6 +1042,10 @@ shinyServer(
         write.csv(df_access(), file, row.names = FALSE)
       }
     )
+    
+    output$lorenz <- renderPlot({
+      plot(Lc(driving_index$AI_overall,shape_census_block$Ag_L_18-shape_census_block$Ag_Ls_5))
+    })
     
   })  
 
