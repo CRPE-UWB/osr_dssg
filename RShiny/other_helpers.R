@@ -6,11 +6,13 @@
 # Access Index Helpers
 ############################################################################################
 
-calculate_aggregated_index <- function(transport_mode, types, cost) {
+calculate_aggregated_index <- function(transport_mode, types, cost, disability) {
   if (transport_mode=="drive") {
-    df <- driving_index
+    if (disability) {df <- driving_index_disability}
+    else {df <- driving_index}
   } else {
-    df <- transit_index
+    if (disability) {df <- transit_index_disability}
+    else {df <- transit_index}
   }
   # look for the intersection of indices containing the words in the string-vector "types"
   # and the string "cost"

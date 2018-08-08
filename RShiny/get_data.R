@@ -40,7 +40,13 @@ relevant_zip_codes <- readOGR(dsn="../data/zip_codes")
 nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summary")
 
 driving_index = dbGetQuery(con, "SELECT * from clean.driving_index")
+driving_index_disability = dbGetQuery(con, "SELECT * from clean.driving_index_disability")
+driving_index_nbhd = dbGetQuery(con, "SELECT * from clean.driving_index_nbhd")
+driving_index_disability_nbhd = dbGetQuery(con, "SELECT * from clean.driving_index_disability_nbhd")
 transit_index = dbGetQuery(con, "SELECT * from clean.transit_index")
+transit_index_disability = dbGetQuery(con, "SELECT * from clean.transit_index_disability")
+transit_index_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_nbhd")
+transit_index_disability_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_disability_nbhd")
 
 # when you're done, close the connection and unload the driver 
 dbDisconnect(con) 
