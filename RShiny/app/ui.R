@@ -312,7 +312,7 @@ shinyUI(
                                               
                                               conditionalPanel('input.specific_search_questions=="What program categories do people search for the most?"',
                                                                br(),
-                                                               div(plotlyOutput("search_prog_category", height = "350px")), 
+                                                               div(plotlyOutput("search_prog_category", height = "250px")), 
                                                                br(),
                                                                div(plotlyOutput("search_compare_prog_category", height = "350px")),
                                                                br()
