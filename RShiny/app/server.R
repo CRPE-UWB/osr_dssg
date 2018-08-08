@@ -994,5 +994,53 @@ shinyServer(
       }
     )
     
+    df_access <- reactive(data.frame("block_group"=shape_census_block@data$Id2, 
+                                     "access_index"=round(index(),2), 
+                                     "num_children_5_to_17"=shape_census_block@data$Ag_L_18-shape_census_block@data$Ag_Ls_5,
+                                     "median_household_income"=shape_census_block@data$Mdn_HH_,
+                                     "less_than_hs_percent"=round(100*shape_census_block$LESS_TH/shape_census_block@data$TTL_ppl,2),
+                                     "hispanic_percent"=round(shape_census_block@data$PCT_Hsp,2),
+                                     "white_percent"=round(shape_census_block@data$PCT_Wht,2),
+                                     "black_percent"=round(shape_census_block@data$PCT_Afr,2)))
+    
+    # Output the relevant data in the data tab based on the selections
+    output$datatable_access <- DT::renderDataTable({
+      DT::datatable(df_access(), 
+                    options = list(pageLength = 5, 
+                                   scrollX = TRUE,
+                                   initComplete = JS(
+                                     "function(settings, json) {",
+                                     "$(this.api().table().header()).css(
+                                     {'background-color': '#000', 'color': '#fff'}
+                                   );",
+                                     "}")),
+                    caption = htmltools::tags$caption(
+                      style = 'caption-side: top; text-align: left; color: black ;',
+                      htmltools::h3("ReSchool Programs")
+                    ),
+                    width = 300,
+                    style = "bootstrap",
+                    class = 'cell-border stripe',
+                    rownames = FALSE
+                    
+                    ) %>%
+        formatStyle(colnames(df_access()),
+                    backgroundColor = '#c6dbef'
+        )
+      
+  })
+    
+    output$download_access_data <- downloadHandler(
+      filename = "access_index.csv",
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        write.csv(df_access(), file, row.names = FALSE)
+      }
+    )
+    
   })  
 

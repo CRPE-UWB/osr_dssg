@@ -368,13 +368,15 @@ shinyUI(
                                              selected = "drive"
                                              ),
                                 br(),
-                                selectInput("neighborhoods_access", "Focus on neighborhoods:", 
-                                            choices = c("All neighborhoods", 
-                                                        neighborhoods_list),
-                                            multiple = TRUE,
-                                            selected = "All neighborhoods"
-                                ),
-                                br()
+                                conditionalPanel(condition = "input.access_panel == 'Map'",
+                                  selectInput("neighborhoods_access", "Focus on neighborhoods:", 
+                                              choices = c("All neighborhoods", 
+                                                          neighborhoods_list),
+                                              multiple = TRUE,
+                                              selected = "All neighborhoods"
+                                  ),
+                                  br()
+                                )
                               ),  # end sidebarPanel for access index
                               
                               mainPanel(
@@ -384,10 +386,15 @@ shinyUI(
                                                      br(),
                                                      downloadButton('access_map_down', label = "Download Map (Takes About 10 Seconds)"),
                                                      br(), br()
-                                                     )
-                                            # tabPanel("Data",
-                                            #          uiOutput("dt")),
-                                            # tabPanel("Summary analysis")
+                                                     ),
+                                            tabPanel("Data",
+                                                     br(),
+                                                     DT::dataTableOutput("datatable_access"),
+                                                     downloadButton("download_access_data", "Download Data"),
+                                                     br(), br()
+                                            ),
+                                            tabPanel("Summary analysis"),
+                                            id = "access_panel"
                                 )
                               )  # end main panel for access index
                               
