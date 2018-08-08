@@ -35,6 +35,8 @@ rec_centers = dbGetQuery(con, "SELECT * from shiny.rec_centers")
 parks = dbGetQuery(con, "SELECT * from shiny.parks")
 all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
 google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
+relevant_zip_codes = readOGR(dsn="../data/zip_codes")
+total_denver_zipcodes = read.csv("../data/denver_zip_codes.csv")
 
 nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summary")
 
@@ -181,6 +183,23 @@ final_zipcode_searches_programs = merge(search_zipcode_summary, zipcode_programs
 target <- c(search_zipcode_summary$location)
 final_zipcode_searches_programs = final_zipcode_searches_programs[match(target, final_zipcode_searches_programs$location),]
 final_zipcode_searches_programs = final_zipcode_searches_programs %>% filter(is.na(location) == FALSE)
+
+
+#Search data map by zipcode
+#Aggregate the searches by zipcode
+search_zipcode_summary_map = google_analytics %>% 
+  select(location, users) %>% 
+  filter(location != '') %>% 
+  group_by(location) %>% 
+  summarize(total_searches = sum(users)) %>% 
+  arrange(total_searches, location) %>% filter(location %in% total_denver_zipcodes$zipcode)
+
+search_map_data <- geo_join(relevant_zip_codes, search_zipcode_summary_map, 
+                            "GEOID10", "location", how = "inner")
+
+#Get the exhaustive zipcodes from the reschool dataset from the clean schema 
+subset_denver_zipcodes = reschool_summer_program_clean[reschool_summer_program_clean$session_city == 'Denver',]
+subset_denver_zipcodes = relevant_zip_codes[relevant_zip_codes$GEOID10 %in% c(subset_denver_zipcodes$session_zip), ]
 
 
 

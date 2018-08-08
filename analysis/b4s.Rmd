@@ -33,9 +33,9 @@ We'll get shape files for all zip codes from online.
 
 ```{r}
 # Read shapefile into SpatialPointsDataFrame.
-spdf <- readOGR(dsn="../data/zip_codes")
+relevant_zip_codes <- readOGR(dsn="../data/zip_codes")
 
-spdf@data$GEOID10 <- as.character(spdf@data$GEOID10)
+relevant_zip_codes@data$GEOID10 <- as.character(spdf@data$GEOID10)
 ```
 
 Consider all zip codes included in the search data (some of which are outside of Denver, and some are missing from the set of Denver zip codes).
@@ -66,8 +66,7 @@ searches_with_locations <- searches_with_locations[searches_with_locations$locat
 table(searches_with_locations$location)
 ```
 
-We can look at the included areas with leaflet, weighted by the number of searches in that area:
-
+ 
 ```{r}
 search_frequencies <- as.vector(table(searches_with_locations$location))
 leaflet() %>% 
@@ -77,11 +76,11 @@ leaflet() %>%
     fillColor = ~colorQuantile("YlOrRd",search_frequencies)(search_frequencies),
     popup = as.character(search_frequencies)
     ) %>%
-  addCircleMarkers(
-    data=programs,
-    radius=5,
-    popup = programs$camp_name
-  ) %>%
+  # addCircleMarkers(
+  #   data=programs,
+  #   radius=5,
+  #   popup = programs$camp_name
+  # ) %>%
   addScaleBar() %>%
   setView(lat=39.7,lng=-104.9,zoom=10)
 ```

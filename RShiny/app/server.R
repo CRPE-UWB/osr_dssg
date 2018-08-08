@@ -7,6 +7,7 @@ library(DT)
 library(leaflet)
 library(sp)
 library(mapview)
+library(ineq) # inequality: for creating the Lorentz curve
 
 shinyServer(
   function(input, output, session) {
@@ -963,6 +964,39 @@ shinyServer(
       
     })
     
+    output$search_mymap <- renderLeaflet({
+      validate(need(input$specific_search_questions=="What locations are people searching for? - spatial analysis", message=FALSE))
+      
+      pal_search = colorBin("YlOrRd", domain = search_map_data@data$total_searches, bins = 5)
+      labels_search = sprintf(
+        "<strong>zipcode</strong>: %s<br/><strong>Number of searches</strong>: %s",
+        search_map_data@data$GEOID10, search_map_data@data$total_searches) %>% lapply(htmltools::HTML)
+      leaflet()  %>% 
+        setView(lng = -104.901531, lat = 39.722043, zoom = 11) %>% 
+        addProviderTiles(providers$CartoDB.Positron) %>%
+        addPolygons(data = subset_denver_zipcodes, color = "#777",
+                    weight = 1,
+                    smoothFactor = 0.5,
+                    opacity = 1.0) %>%
+        addPolygons(data = search_map_data, color = "#444444", weight = 1, smoothFactor = 0.5,
+                    opacity = 1.0, fillOpacity = 0.5,
+                    fillColor = ~pal_search(total_searches),
+                    highlight = highlightOptions(
+                      bringToFront = FALSE,
+                      weight = 5,
+                      color = "#666"
+                    ),
+                    label = labels_search,
+                    labelOptions = labelOptions(
+                      style = list("font-weight" = "normal", padding = "3px 8px"),
+                      textsize = "15px",
+                      direction = "auto")) %>%
+        addLegend(pal = pal_search, values = search_map_data$total_searches, opacity = 0.7, title = NULL,
+                  position = "bottomright")
+      
+      
+    })
+    
     ###################################################################################################################
     # Access Index Tab
     ###################################################################################################################
@@ -1046,6 +1080,58 @@ shinyServer(
         mapshot(access_mapdata$dat, file = file, cliprect = "viewport")
       }
     )
+    
+    df_access <- reactive(data.frame("block_group"=shape_census_block@data$Id2, 
+                                     "access_index"=round(index(),2), 
+                                     "num_children_5_to_17"=shape_census_block@data$Ag_L_18-shape_census_block@data$Ag_Ls_5,
+                                     "median_household_income"=shape_census_block@data$Mdn_HH_,
+                                     "less_than_hs_percent"=round(100*shape_census_block$LESS_TH/shape_census_block@data$TTL_ppl,2),
+                                     "hispanic_percent"=round(shape_census_block@data$PCT_Hsp,2),
+                                     "white_percent"=round(shape_census_block@data$PCT_Wht,2),
+                                     "black_percent"=round(shape_census_block@data$PCT_Afr,2)))
+    
+    # Output the relevant data in the data tab based on the selections
+    output$datatable_access <- DT::renderDataTable({
+      DT::datatable(df_access(), 
+                    options = list(pageLength = 5, 
+                                   scrollX = TRUE,
+                                   initComplete = JS(
+                                     "function(settings, json) {",
+                                     "$(this.api().table().header()).css(
+                                     {'background-color': '#000', 'color': '#fff'}
+                                   );",
+                                     "}")),
+                    caption = htmltools::tags$caption(
+                      style = 'caption-side: top; text-align: left; color: black ;',
+                      htmltools::h3("ReSchool Programs")
+                    ),
+                    width = 300,
+                    style = "bootstrap",
+                    class = 'cell-border stripe',
+                    rownames = FALSE
+                    
+                    ) %>%
+        formatStyle(colnames(df_access()),
+                    backgroundColor = '#c6dbef'
+        )
+      
+  })
+    
+    output$download_access_data <- downloadHandler(
+      filename = "access_index.csv",
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        write.csv(df_access(), file, row.names = FALSE)
+      }
+    )
+    
+    output$lorenz <- renderPlot({
+      plot(Lc(driving_index$AI_overall,shape_census_block$Ag_L_18-shape_census_block$Ag_Ls_5))
+    })
     
   })  
 
