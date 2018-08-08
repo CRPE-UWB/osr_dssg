@@ -18,10 +18,10 @@ reschool_programs <- reschool_programs[order(reschool_programs$session_id),]
 test <- read.csv("/Users/Andrew/Downloads/Detailed_B4S_Colorado_Camp_Export.csv",stringsAsFactors = FALSE,header=TRUE)
 test <- test[order(test$session_id),]
 reschool_programs$first_start_time <- test$first_session_start_time
-reschool_programs$last_start_time <- test$first_session_end_time
+reschool_programs$first_end_time <- test$first_session_end_time
 reschool_programs$Posfirst_start_time <- strptime(reschool_programs$first_start_time, "%I:%M:%S %p")
-reschool_programs$Poslast_start_time <- strptime(reschool_programs$last_start_time, "%I:%M:%S %p")
-reschool_programs$Hours_Day <- (reschool_programs$Poslast_start_time - reschool_programs$Posfirst_start_time)/(60*60) #differences are stored numerically in seconds, counting up from a static date. Thus we do last minus first for the difference in seconds, divide by 60*60 for to convert to hours
+reschool_programs$Posfirst_end_time <- strptime(reschool_programs$first_end_time, "%I:%M:%S %p")
+reschool_programs$Hours_Day <- (reschool_programs$Posfirst_end_time - reschool_programs$Posfirst_start_time)/(60*60) #differences are stored numerically in seconds, counting up from a static date. Thus we do last minus first for the difference in seconds, divide by 60*60 for to convert to hours
 ```
 
 ###Spot Checking
@@ -84,17 +84,6 @@ dbWriteTable(con,
              row.names = FALSE,
              overwrite = TRUE  # overwrite an existing table
 )
-
-data <- transit_index  # must be already loaded in your environment
-schemaName <- "clean"
-tableName <- "reschool_programs"
-
-dbWriteTable(con,
-             c(schemaName, tableName),
-             value = data,
-             row.names = FALSE,
-             overwrite = TRUE)
-
 
 dbListTables(con) #check both are saved
 
