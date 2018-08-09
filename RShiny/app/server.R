@@ -214,7 +214,7 @@ shinyServer(
               marker = list(size = 15),
               alpha = 0.5,
               height = 100,
-              hoverInfo = 'text'
+              hoverinfo = 'text'
               ) %>%
         layout( xaxis = list(title = "", range = c(0,NULL)),
                 title = "Median HH Income ($)",
@@ -372,14 +372,14 @@ shinyServer(
                        y = 1:nrow(dat),
                        yend = 1:nrow(dat),
                        text = ~session_name,
-                       hoverInfo = 'text',
+                       hoverinfo = 'text',
                        name = "Middle of Program"
           ) %>%
           add_markers(x = c(dat$session_date_start, dat$session_date_end),
                       y = rep(1:nrow(dat),2),
                       color = I("grey"),
                       text = rep(dat$session_name,2),
-                      hoverInfo = 'text',
+                      hoverinfo = 'text',
                       name = "Start/End Dates"
           ) %>%
           layout(xaxis = list(title = ""),
@@ -927,7 +927,7 @@ shinyServer(
               marker = list(size = 15),
               alpha = 0.5,
               height = 100,
-              hoverInfo = 'text'
+              hoverinfo = 'text'
       ) %>%
         layout( xaxis = list(title = "", range = c(0,NULL)),
                 title = "Median HH Income ($)",
