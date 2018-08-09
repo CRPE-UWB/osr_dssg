@@ -54,7 +54,11 @@ shinyUI(
                                                                         "has_drama","has_music",
                                                                         "has_nature", "has_sports",
                                                                         "has_stem"),
-                                                       selected = "has_academic",
+                                                       selected = c("has_academic", "has_arts", 
+                                                                    "has_cooking", "has_dance", 
+                                                                    "has_drama","has_music",
+                                                                    "has_nature", "has_sports",
+                                                                    "has_stem"),
                                                        inline = TRUE
                                                        )
                                   ),
