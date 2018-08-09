@@ -38,7 +38,7 @@ transit_index_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_nbhd")
 transit_index_disability_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_disability_nbhd")
 
 # Open resource stuff
-sfields = dbGetQuery(con, "SELECT * from shiny.fields")
+fields = dbGetQuery(con, "SELECT * from shiny.fields")
 museums = dbGetQuery(con, "SELECT * from shiny.museums")
 libraries = dbGetQuery(con, "SELECT * from shiny.libraries")
 playgrounds = dbGetQuery(con, "SELECT * from shiny.playgrounds")
