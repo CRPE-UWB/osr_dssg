@@ -153,7 +153,7 @@ for(program_col_name in program_col_names){
   j = j+1
 }
 
-category = colnames(reschool_summer_program)[program_col_names]
+category = program_col_names #colnames(reschool_summer_program)[program_col_names]
 
 session_numberby_category = data.frame(number_of_sessions, category, stringsAsFactors=FALSE)
 
