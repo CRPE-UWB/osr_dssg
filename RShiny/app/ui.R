@@ -413,15 +413,19 @@ shinyUI(
                                             tabPanel("Data",
                                                      br(),
                                                      DT::dataTableOutput("datatable_access"),
-                                                     downloadButton("download_access_data", "Download Data"),
-                                                     br(), br()
+                                                     downloadButton("download_access_data", "Download Blockgroup Data"),
+                                                     br(),
+                                                     DT::dataTableOutput("datatable_access_nbhd"),
+                                                     downloadButton("download_access_data_nbhd", "Download Neighborhood Data")
                                             ),
                                             tabPanel("Summary Analysis",
                                                      conditionalPanel(condition = "input.specific_access_questions == 'lorenz'",
-                                                                      plotOutput("lorenz")
+                                                                      plotOutput("lorenz"),
+                                                                      br()
                                                      ),
                                                      conditionalPanel(condition = "input.specific_access_questions == 'scatter'",
-                                                                      plotOutput("access_scatter")
+                                                                      br(),
+                                                                      plotlyOutput("access_scatter")
                                                      ),
                                                      conditionalPanel(condition = "input.specific_access_questions == 'demog'",
                                                                       plotlyOutput("access_demog")
