@@ -29,7 +29,7 @@ shinyUI(
   includeCSS("style.css"),
   
   navbarPage("Denver Out-of-School Resources",
-             selected = "Other Resources",
+             selected = "B4S Programs",
                    
 ########################## Blueprint4Summer Programs Tab ###########################################
 
@@ -222,7 +222,7 @@ shinyUI(
                                                      br(),
                                                      uiOutput("dt")),
                                             tabPanel("Summary Analysis",
-                                                     br(), br(),
+                                                     br(),
                                                      uiOutput("summary_title_other"),
                                                      br(),
                                                      plotlyOutput('other_resources_summary', height = "200px"),
