@@ -226,7 +226,7 @@ shinyServer(
     
     output$nbhd_student_demog_summary <- renderUI({
       # subset to the selected neighborhoods
-      if (input$neighborhoods == "No neighborhood selected"){
+      if ("No neighborhood selected" %in% input$neighborhoods){
         summary_data_student <- aggregate_dps_student_nbhds
       }
       else{
@@ -396,7 +396,7 @@ shinyServer(
         all_dates <- mapply(get_all_dates, dat$session_date_start, dat$session_date_end)
         p2 <- plot_ly(x = all_dates, 
                       type = "histogram", 
-                      name = "Total Programs on This Day",
+                      name = "Total Programs<br>On This Day",
                       color = "grey") %>%
           layout(xaxis = list(title = ""),
                  yaxis = list(title = "No. Programs"),
@@ -879,7 +879,7 @@ shinyServer(
     
     output$nbhd_student_demog_summary_other <- renderUI({
       # subset to the selected neighborhoods
-      if (input$neighborhoods == "No neighborhood selected"){
+      if ("No neighborhood selected" %in% input$neighborhoods){
         summary_data_student <- aggregate_dps_student_nbhds
       }
       else{

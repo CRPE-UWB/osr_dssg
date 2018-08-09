@@ -108,11 +108,11 @@ shinyUI(
                                   conditionalPanel(condition = "input.program_panel == 'Summary Analysis'",
                                                    radioButtons("program_analysis", 
                                                                 "In these neighborhoods, what is the distribution of program", 
-                                                                choiceNames = c("costs?",
-                                                                                "categories?",
+                                                                choiceNames = c("categories?",
+                                                                                "costs?",
                                                                                 "dates?"),
-                                                                choiceValues = c("cost_question",
-                                                                                 "category_question",
+                                                                choiceValues = c("category_question",
+                                                                                 "cost_question",
                                                                                  "date_question"),
                                                                 selected = "category_question"
                                                    )

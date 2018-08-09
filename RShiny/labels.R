@@ -83,42 +83,42 @@ shape_census@data$racial_dist_html <- mapply(
 
 ###################### Construct tooltip/popup text for hovering over neighborhoods ######################
 
-get_access_label <- function(index_val) {
-  sprintf(
-    "<b>Access index: %.2f</b><br/>",
-    # No. children 5-17 yrs old = %i <br/>
-    # Median Household Income = $%i <br/>
-    # %% Hispanic Population = %g%% <br/>
-    # %% White population = %g%% <br/>
-    # %% Students with disability = %g%%"
-    index_val
-    # shape_census_block@data$
-    # round(shape_census@data$MED_HH_),
-    # shape_census@data$PCT_HIS,
-    # shape_census@data$perc_with_transport_students,
-    # shape_census@data$perc_disable_students,
-    # shape_census_block
-  ) %>% lapply(htmltools::HTML)
-}
+# get_access_label <- function(index_val) {
+#   sprintf(
+#     "<b>Access index: %.2f</b><br/>",
+#     # No. children 5-17 yrs old = %i <br/>
+#     # Median Household Income = $%i <br/>
+#     # %% Hispanic Population = %g%% <br/>
+#     # %% White population = %g%% <br/>
+#     # %% Students with disability = %g%%"
+#     index_val
+#     # shape_census_block@data$
+#     # round(shape_census@data$MED_HH_),
+#     # shape_census@data$PCT_HIS,
+#     # shape_census@data$perc_with_transport_students,
+#     # shape_census@data$perc_disable_students,
+#     # shape_census_block
+#   ) %>% lapply(htmltools::HTML)
+# }
 
 get_nbhd_census_labels <- function(val=NULL) {
     if (is.null(val)) {
       str_num_programs = ""
     } else {
-      str_num_programs = paste("No. program sessions = ", val,"<br/>")
+      str_num_programs = paste("No. Program Sessions = ", val,"<br>")
     }
     return(sprintf(
-      "<b>%s</b><br/>
-      %s 
-      <i>Census level data:</i><br/>
-      No. children 5-17 yrs old = %s <br/>
+      "<p><b>%s</b><br/>
+      %s </p>
+      <i>Census Level Data:</i><br/>
+      No. Children 5-17 yrs old = %s <br/>
       Median Household Income = $%s <br/>
-      < HS degree (%% Over 25) = %.1f%% <br/>
+      < HS Degree (%% over 25) = %.1f%% <br/>
       College Graduates (%% over 25) = %.1f%% <br/>
       %% Language Besides English Spoken = %.1f%% <br/>
       %% Hispanic Population = %.1f%% <br/>
-      %% White population = %.1f%% <br/>
-      %% Black population = %.1f%% <br/>",
+      %% White Population = %.1f%% <br/>
+      %% Black Population = %.1f%% <br/>",
       shape_census@data$NBHD_NA,
       str_num_programs,
       format(shape_census@data$AGE_5_T, big.mark = ","),
@@ -137,17 +137,17 @@ get_nbhd_student_labels <- function(val=NULL) {
   if (is.null(val)) {
     str_num_programs = ""
   } else {
-    str_num_programs = paste("No. program sessions = ", val,"<br/>")
+    str_num_programs = paste("No. Program Sessions = ", val,"<br/>")
   }
   return(sprintf(
-    "<b>%s</b><br/>
-    %s
-    <i>Student level data:</i><br/>
-    %% English student learners = %g%% <br/>
-    %% Students with disability = %g%% <br/>
-    %% Hispanic students = %g%% <br/>
-    %% White students = %g%% <br/>
-    %% Black students = %g%% <br/>
+    "<p><b>%s</b><br/>
+    %s </p>
+    <i>Student Level Data:</i><br/>
+    %% English Student Learners = %g%% <br/>
+    %% Students with Disability = %g%% <br/>
+    %% Hispanic Students = %g%% <br/>
+    %% White Students = %g%% <br/>
+    %% Black Students = %g%% <br/>
     <i><font size=1>(Note: sample size = %g)</font></i>",
     shape_census@data$NBHD_NA,
     str_num_programs,
@@ -163,16 +163,17 @@ get_nbhd_student_labels <- function(val=NULL) {
 
 get_block_census_labels <- function(val) {
   return(sprintf(
-    "Access index: <b>%.2f</b><br/>
-      No. children 5-17 yrs old = %i <br/>
-      Median Household Income = $%i <br/>
-      < HS degree (%% over 25) = %.2f%% <br/>
-      %% Hispanic Population = %.2f%% <br/>
-      %% White population = %.2f%% <br/>
-      %% Black population = %.2f%% <br/>",
+    "<p><b>Access Index: %.2f</b></p>
+      <i>Census Level Data:</i><br>
+      No. Children 5-17 yrs old = %s <br/>
+      Median Household Income = $%s <br/>
+      < HS Degree (%% over 25) = %.1f%% <br/>
+      %% Hispanic Population = %.1f%% <br/>
+      %% White Population = %.1f%% <br/>
+      %% Black Population = %.1f%% <br/>",
     val,
-    shape_census_block@data$Ag_L_18-shape_census_block@data$Ag_Ls_5,
-    shape_census_block@data$Mdn_HH_,
+    format( (shape_census_block@data$Ag_L_18 - shape_census_block@data$Ag_Ls_5), big.mark = ","),
+    format(shape_census_block@data$Mdn_HH_, big.mark = ","),
     100*shape_census_block$LESS_TH/shape_census_block@data$TTL_ppl,
     shape_census_block@data$PCT_Hsp,
     shape_census_block@data$PCT_Wht,
@@ -204,27 +205,27 @@ legend_titles_demographic <- list(MED_HH_ = "Median HH Income",
 # Options to show in the UI for filtering by demographics
 # (feel free to change these for better appearances)
 demog_names <- list("None",
-                    "Number of 5-17 year olds",
-                    "Median household income ($)", 
-                    "Less than high school degree (% over 25 years)",
-                    "College graduates (% over 25 years)",
-                    "Language other than English spoken (%)",
+                    "Children 5-17 years old (#)",
+                    "Median Household Income ($)", 
+                    "Less than High School Degree (% over 25 yrs old)",
+                    "College Graduates (% over 25 yrs old)",
+                    "Language Other than English Spoken (%)",
                     # HTML("Language other than English spoken (%)
                     #      <br><br>
                     #      <i>Race/Ethnicity Variables</i>"
                     #      ),
-                    "Hispanic population (%)", 
-                    "Black population (%)",
-                    "White population (%)",
-                    "Most common race + breakdown"
+                    "Hispanic Population (%)", 
+                    "Black Population (%)",
+                    "White Population (%)",
+                    "Most Common Race + Breakdown"
 )
 
-demog_student_names <- list("None selected",
-                            "English learner student population (%)",
-                            "Student with disability population (%)",
-                            "Hispanic student population (%)",
-                            "White student population (%)",
-                            "Black student population (%)")
+demog_student_names <- list("None",
+                            "English Learner Student Population (%)",
+                            "Students with Disabilities Population (%)",
+                            "Hispanic Student Population (%)",
+                            "White Student Population (%)",
+                            "Black Student Population (%)")
 
 # Internal values for demographic filtering options (correspond to demog_names above)
 # (don't change these, it will make your life difficult)
@@ -298,28 +299,23 @@ get_nbhd_census_summary <- function(nbhd_list) {
     census_summary_data <- NA
   } else {
     census_summary_data <- shape_census@data["NBHD_NA"]
-    
-    
-    
-    
-    
-    
   }
   
   return(sprintf(
-    "<b>%s</b><br/>
-    %s 
-    <i>Census level data:</i><br/>
-    No. children 5-17 yrs old = %i <br/>
-    Median Household Income = $%i <br/>
-    < HS desgree (%% over 25) = %.2f%% <br/>
-    %% Hispanic Population = %g%% <br/>
-    %% White population = %g%% <br/>
-    %% Black population = %g%% <br/>",
+    "<p>
+    <b>%s</b><br/>
+    %s </p>
+    <i>Census Level Data:</i><br/>
+    No. Children 5-17 yrs old = %s <br/>
+    Median Household Income = $%s <br/>
+    < HS Degree (%% over 25 yrs old) = %.1f%% <br/>
+    %% Hispanic Population = %.1f%% <br/>
+    %% White Population = %.1f%% <br/>
+    %% Black Population = %.1f%% <br/>",
     shape_census@data$NBHD_NA,
     str_num_programs,
-    shape_census@data$AGE_5_T,
-    round(shape_census@data$MED_HH_),
+    format(shape_census@data$AGE_5_T, big.mark = ","),
+    format(round(shape_census@data$MED_HH_), big.mark = ","),
     shape_census$PCT_NON,
     shape_census@data$PCT_HIS,
     shape_census@data$PCT_WHI,
