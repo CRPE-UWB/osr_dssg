@@ -366,7 +366,7 @@ shinyServer(
         }
         
         # make the plot
-        plot_ly(data = dat) %>%
+        p1 <- plot_ly(data = dat) %>%
           add_segments(x = ~session_date_start,
                        xend = ~session_date_end,
                        y = 1:nrow(dat),
@@ -375,18 +375,35 @@ shinyServer(
                        hoverInfo = 'text',
                        name = "Middle of Program"
           ) %>%
-          add_markers(x = c(dat$session_date_start, dat$session_date_end), 
-                      y = rep(1:nrow(dat),2), 
+          add_markers(x = c(dat$session_date_start, dat$session_date_end),
+                      y = rep(1:nrow(dat),2),
                       color = I("grey"),
                       text = rep(dat$session_name,2),
                       hoverInfo = 'text',
                       name = "Start/End Dates"
           ) %>%
-          layout(xaxis = list(title = ""), 
-                 yaxis = list(title = "", showticklabels = FALSE),  
+          layout(xaxis = list(title = ""),
+                 yaxis = list(title = "", showticklabels = FALSE),
                  title = "Programs by Date",
                  showLegend = FALSE
           )
+        
+        # different kind of plot
+        get_all_dates <- function(start_date, end_date) {
+          seq.Date(start_date, end_date, by = "days")
+        }
+        
+        all_dates <- mapply(get_all_dates, dat$session_date_start, dat$session_date_end)
+        p2 <- plot_ly(x = all_dates, 
+                      type = "histogram", 
+                      name = "Total Programs on This Day",
+                      color = "grey") %>%
+          layout(xaxis = list(title = ""),
+                 yaxis = list(title = "No. Programs"),
+                 title = "Number of Programs Happening Over Time"
+                 )
+        
+        output_plot <- subplot(p1, p2, nrows = 2, shareX = TRUE)
 
       }
       
