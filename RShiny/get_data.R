@@ -37,19 +37,8 @@ transit_index_disability = dbGetQuery(con, "SELECT * from clean.transit_index_di
 transit_index_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_nbhd")
 transit_index_disability_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_disability_nbhd")
 
-# Open resource stuff
-fields = dbGetQuery(con, "SELECT * from shiny.fields")
-museums = dbGetQuery(con, "SELECT * from shiny.museums")
-libraries = dbGetQuery(con, "SELECT * from shiny.libraries")
-playgrounds = dbGetQuery(con, "SELECT * from shiny.playgrounds")
-rec_centers = dbGetQuery(con, "SELECT * from shiny.rec_centers")
-parks = dbGetQuery(con, "SELECT * from shiny.parks")
-
-# when you're done, close the connection and unload the driver 
-
 #####################################################
 
-# get the required tables from the sql database
 reschool_summer_program_clean = dbGetQuery(con, "SELECT * from clean.reschool_summer_programs")
 reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
@@ -60,8 +49,22 @@ google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
 relevant_zip_codes = readOGR(dsn="../data/zip_codes")
 total_denver_zipcodes = read.csv("../data/denver_zip_codes.csv")
 
+# when you're done, close the connection and unload the driver 
 dbDisconnect(con) 
 dbUnloadDriver(drv)
+
+###############################################################
+# Other Resources (Open Data)
+
+data_folder <- file.path('..', 'data', 'shiny_tables')
+
+fields = read.csv( file.path(data_folder, 'fields.csv') )
+museums = read.csv( file.path(data_folder, 'museums.csv') )
+libraries = read.csv( file.path(data_folder, 'libraries.csv') )
+playgrounds = read.csv( file.path(data_folder, 'playgrounds.csv') )
+rec_centers = read.csv( file.path(data_folder, 'rec_centers.csv') )
+parks = read.csv( file.path(data_folder, 'parks.csv') )
+
 ##################### Getting shape files to plot block groups, nbhds on the map ##########################
 
 # Get block group shape file (for access index stuff)
