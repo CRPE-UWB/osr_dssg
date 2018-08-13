@@ -97,8 +97,7 @@ relatively near proximity to a large number of sessions having an Access Index s
 </p>
 
 <p>
-We have a different access index, A, for each block group and each program type, and for each transit 
-mode (driving or public transport). The calculation is as follows: 
+For more details about the calculation of the access index, check the report that accompanies this dashboard. 
 </p>
 
 
