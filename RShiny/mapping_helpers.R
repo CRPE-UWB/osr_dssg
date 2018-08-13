@@ -15,7 +15,7 @@ make_base_map <- function() {
 }
 
 # Function to add a "blank" map, with no demographic information but still showing the nbhds
-add_blank_map <- function(map, spdf=shape_census, id_col_name=NULL, my_labels=nbhd_labels) {
+add_blank_map <- function(map, spdf=shape_census, id_col_name=NULL, my_labels=get_nbhd_census_labels()) {
   
   layer_id=NULL
   

@@ -74,6 +74,9 @@ subset_for_cost <- function(df, min_cost, max_cost) {
 
 # Subsetting the data for the type of the program selected
 subset_for_category <- function(df, col) {
+  if(is.null(df) || nrow(df)==0) {
+    return(NULL)
+  }
   return(df[apply(as.data.frame(df[,col])==1,1,any),])
 }
 
