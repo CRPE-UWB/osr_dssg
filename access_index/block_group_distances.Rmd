@@ -119,7 +119,7 @@ for (i in 1:length(unique(block_distance$blockID))){
     key = google_api_key)
     distance_transit.x <- google_distance(origin=c(lat.i,long.i),
     destination = c(lat.x,long.x),
-    mode="driving",
+    mode="transit",
     arrival_time = as.POSIXct("2018-07-12 07:00:00 MT"),
     key = google_api_key)
     

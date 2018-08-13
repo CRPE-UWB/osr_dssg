@@ -74,7 +74,7 @@ con <- dbConnect(drv, dbname = "dssg2018uw",
 # specify data and schema and table names
 data <- reschool_programs  # must be already loaded in your environment
 schemaName <- "clean"
-tableName <- "reschool_programs"
+tableName <- "reschool_summer_programs"
 
 dbWriteTable(con,
              c(schemaName, tableName),

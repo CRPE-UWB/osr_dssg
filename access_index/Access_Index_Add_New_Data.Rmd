@@ -31,9 +31,9 @@ Assuming it has been preprocessed to match the blue print for summer data used i
 #here we make a new test session with a new address to verify that our code works
 new_reschool_programs <- reschool_programs
 new_reschool_programs <- rbind(new_reschool_programs[nrow(new_reschool_programs),],new_reschool_programs) #we add a duplicate to the last program here
-new_reschool_programs[nrow(new_reschool_programs),"long"] <- -104.9652
-new_reschool_programs[nrow(new_reschool_programs),"lat"] <- 39.73351
-new_reschool_programs[nrow(new_reschool_programs),"session_address_1"] <- "cheeseman park, denver, co"
+new_reschool_programs[nrow(new_reschool_programs),"long"] <- -104.931324
+new_reschool_programs[nrow(new_reschool_programs),"lat"] <- 39.715399
+new_reschool_programs[nrow(new_reschool_programs),"session_address_1"] <- "50 S Dahlia St"
 new_reschool_programs[nrow(new_reschool_programs),"session_name"] <- "Test_Session"
 
 #then we aggregate to new addresses
@@ -43,16 +43,277 @@ length(unique(new_reschool_addresses$session_address_1)) #note we have one new a
 length(unique(reschool_addresses$session_address_1))
 ```
 
-###Merge New Addresses with old to find travel times
-Because we've only added one new address, all other programs in our list should merge with the precomputed travel times. We can verify this by checking the is.na summary for driving times.
+###Find New Programs
+We run a quick loop here to identify new programs so that we can compute new distances as needed. 
 ```{r}
-block_distance_mover <- block_distance[,c("session_address_1","lat","long","driving_morning","walking_morning","transit_morning","block_lat","block_long","AI")]
-block_distance_mover <- merge(new_reschool_addresses,block_distance_mover,by=c("session_address_1","lat","long"),all=TRUE)
-summary(is.na(block_distance_mover$driving_morning))
+#Make empty vectors to store new addresses
+address_vector <- c()
+lat_vector <- c()
+long_vector <- c()
+
+#loop for new addresses
+for (i in 1:nrow(new_reschool_addresses)){
+  test_address <- new_reschool_addresses$session_address_1[i] #define each addresses / lat/long
+  test_lat <- new_reschool_addresses$lat[i]
+  test_long <- new_reschool_addresses$long[i]
+  if(any(reschool_programs$session_address_1==test_address)==FALSE){ #check if matches any precomputed
+    address_vector <- append(address_vector,test_address) #append accordingly
+    lat_vector <- append(lat_vector, test_lat)
+    long_vector <- append(long_vector, test_long)
+  }
+  if (i %% 100 == 0){
+    print(paste(i,"working..."))
+  }
+}
+
+#put new programs into a dataframe
+new_programs <- data.frame(address_vector,lat_vector,long_vector)
+colnames(new_programs) <- c("session_address_1","lat","long")
+head(new_programs)
+```
+
+###Calculate Distances For New Programs
+This is identical to the final loop we use in the block group distances markdown, though we change the name of "block_distance" to "new_block_distnace" to account for how we're now only running for the new programs, a much shorter list. 
+```{r}
+library(googleway)
+new_block_distance <- new_programs
+arrival_time <- as.POSIXct(paste((Sys.Date()+1),"07:00:00")) #we need to set this to always be greater than the start date or the call for transit time breaks. 
+
+#for ease of testing
+new_block_distance$blockID <- 0
+new_block_distance$driving_morning <- 0
+new_block_distance$walking_morning <- 0
+new_block_distance$transit_morning <- 0
+new_block_distance$kilometers <- 0
+
+system.time(for (i in 1:nrow(census_centroids)){  
+  #to be replaced length(census_centroids), i.e, read every unique block centroid
+  blockgroup.i <- census_centroids$blockID[i] #read arbitrary block ID
+  lat.i <- census_centroids$lat[i] #get coordinates
+  long.i <- census_centroids$long[i]
+  lat.long <- c(lat.i,long.i) #combine blockgroup coordinates for mapdist function
+  lat.long <- paste(lat.long,collapse=" ") #see above
+  block_mover <- subset(new_block_distance,new_block_distance$blockID==0) #make a new subset that is original length
+  for (x in 1:nrow(block_mover)){
+    #setting up block subset
+    block_mover$blockID <- blockgroup.i
+    lat.x <- block_mover$lat[x] #get coordinates for OSRs
+    long.x <- block_mover$lon[x] 
+    block_mover$blockID <- blockgroup.i #set ID blockgroup ID
+    lat.long.x <- c(lat.x,long.x) #combine OSR coordinates for use in mapdist
+    lat.long.x <- paste(lat.long.x,collapse=" ")
+    #distance calculations with arrival time = 08:00am on a weekday
+    distance.x <- google_distance(origin=c(lat.i,long.i),
+    destination = c(lat.x,long.x),
+    mode="driving",
+    arrival_time = arrival_time, #autocorrect to PST, so we adjust for the dif from MST to MT
+    key = google_api_key)
+    distance_walking.x <- google_distance(origin=c(lat.i,long.i),
+    destination = c(lat.x,long.x),
+    mode="walking",
+    arrival_time = arrival_time,
+    key = google_api_key)
+    distance_transit.x <- google_distance(origin=c(lat.i,long.i),
+    destination = c(lat.x,long.x),
+    mode="transit",
+    arrival_time = arrival_time,
+    key = google_api_key)
+    #grabbing our dataframe list items
+    distance.x <- as.data.frame(distance.x$rows$elements)
+    distance_walking.x <- as.data.frame(distance_walking.x$rows$elements)
+    distance_transit.x <- as.data.frame(distance_transit.x$rows$elements)
+    if(distance_transit.x$status!="ZERO_RESULTS"){
+      block_mover$transit_morning[x] <- as.numeric(distance_transit.x$duration[2]/60)}
+    #indexing the piece of the dataframes we need
+    block_mover$driving_morning[x] <- as.numeric(distance.x$duration[2]/60) #paste drive time, etc, in minutes
+    block_mover$walking_morning[x] <- as.numeric(distance_walking.x$duration[2]/60)
+    block_mover$kilometers[x] <- distance.x$distance[[1]]
+    if(i %% 50 == 0){
+      print(paste("working...",x,i))
+      print(nrow(new_block_distance))#print iterations to note breaks in case something goes wrong with the maps api 
+    }
+}
+  new_block_distance <- rbind(new_block_distance,block_mover) #merge new distance into the base dataframe
+  })
+
+new_block_distance <- subset(new_block_distance,new_block_distance$blockID!=0)
+colnames(new_block_distance)[colnames(new_block_distance)=="blockID"] <- "Id2"
+```
+
+###Clean New Distances
+Quick validator to ensure there's no duplicates, that 0s are NAs, and that kilometeres are numeric. 
+```{r}
+library(stringr)
+new_block_distance <- unique(new_block_distance) #remove any duplicates in case we had to start and stop a few block ID choices in the loop
+new_block_distance$meters <- grepl(" m",new_block_distance$kilometers) #identify which are no kms for use in function
+new_block_distance$distance <- 0 #empty dataframe to store new distances
+
+#for loop to remove distance characters, cus the hell with sapply
+for (x in 1:nrow(new_block_distance)){
+  if(new_block_distance$meters[x]==FALSE){
+    km <- as.numeric(str_split_fixed(new_block_distance$kilometers[x]," ",2)[,1])
+    new_block_distance$distance[x] <- km}
+  if(new_block_distance$meters[x]==TRUE){
+    m <- as.numeric(str_split_fixed(new_block_distance$kilometers[x]," ",2)[,1])/1000
+    new_block_distance$distance[x] <- m
+  }
+  if(x %% 100 == 0 ){
+    print(paste("working....",x))
+  }
+}
+
+#convert distance to numeric and remove placeholder columns
+new_block_distance$distance <- as.numeric(new_block_distance$distance)
+new_block_distance$kilometers <- new_block_distance$distance
+new_block_distance$distance <- NULL
+new_block_distance$meters <- NULL
+
+#convert transit time = 0 to NA as it should be 
+new_block_distance$transit_morning[new_block_distance$transit_morning == 0] <- NA
+```
+
+###Merge new distances with old
+```{r}
+nrow(block_distance) #we check this number to make sure it increases after we merge
+block_distance <- merge(new_block_distance,block_distance,by=c("Id2","session_address_1","driving_morning","walking_morning","transit_morning","lat","long"),all=TRUE)
+nrow(block_distance) #just to make sure our key is correct for this merge
+```
+
+
+###Set cost thresholds for new reschool programs
+Identical to the old cost thresholds, but applicable to the new data. 
+```{r}
+new_reschool_programs$academic <- new_reschool_programs$has_academic==TRUE | new_reschool_programs$has_stem==TRUE
+
+new_reschool_programs$art <- new_reschool_programs$has_arts==TRUE | new_reschool_programs$has_cooking==TRUE | new_reschool_programs$has_dance==TRUE | new_reschool_programs$has_drama==TRUE | new_reschool_programs$has_music==TRUE
+
+#cost thresolds, to be updated w/ time data from selam
+new_reschool_programs$free <- new_reschool_programs$session_cost==0
+new_reschool_programs$lowcost <- new_reschool_programs$cost_per_day<=50
+new_reschool_programs$anycost <- TRUE
+
+#establishing "1" per row for use in aggergation
+new_reschool_programs$n <- 1 
+```
+
+###Re-Calculate Access Index
+Using the primarily predefined functions we already used to precompute the existing index. Note that we save these as new indecies primarily for validation, in practice you may prefer to over write the old index with the news. First, we need to update one function, the "Merge Set" function, to use the new block distances. 
+```{r}
+Merge_Set_New <- function(dataframe){
+ #here we're cutting duplicate program_addresses, and other antiquated info (previous aggregations, PCT vhcl ownership) that was use in previous calculations
+  temp <- merge(block_distance,dataframe,all.y=TRUE)
+  temp$n[is.na(temp$n)==TRUE] <- 0
+  return(temp)
+}
 ```
 
 
 ```{r}
+#Create driving frame
+new_driving_index <- base_frame
 
+#Creating categories list for loop
+
+categories <- c("academic","art","has_sports","has_nature")
+
+#Creating cost list for loop
+
+costs <- c("free","lowcost","anycost")
+
+#Loop for all categories and costs
+
+for (i in 1:length(categories)){
+  type <- categories[i]
+  for (x in 1:length(costs)){
+    cost <- costs[x]
+    user_set <- Make_Subset(new_reschool_programs,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set_New(agg_set)
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive") 
+    summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) 
+    max_access <- max(summary_index_user$AccessIndex)
+    #update colnames for merge
+    summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_access)
+    colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",type,cost,sep = "_") #flexible name writing for loop
+    summary_index_user$Id2 <- as.numeric(summary_index_user$Id2) #matching str to baseframe 
+    new_driving_index <- merge(summary_index_user,new_driving_index,by=c("Id2"))
+  }
+  print(paste(i,"working"))
+  if(length(new_driving_index)>11){
+    print(colnames(new_driving_index))
+  }
+}
+
+#Create an overall average by category with no cost
+
+new_driving_index$AI_overall <- rowMeans(new_driving_index[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
+new_driving_index$AI_overall_free <- rowMeans(new_driving_index[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
+
+#Create driving frame
+new_transit_index <- base_frame
+
+#Creating categories list for loop
+
+categories <- c("academic","art","has_sports","has_nature")
+
+#Creating cost list for loop
+
+costs <- c("free","lowcost","anycost")
+
+#Loop for all categories and costs
+
+for (i in 1:length(categories)){
+  type <- categories[i]
+  for (x in 1:length(costs)){
+    cost <- costs[x]
+    user_set <- Make_Subset(new_reschool_programs,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set_New(agg_set)
+    
+    #replace na and 0 transit times with wallking times
+    merged_set <- subset(merged_set,is.na(merged_set$walking_morning)==FALSE)
+    merged_set$transit_morning[is.na(merged_set$transit_morning)] <- merged_set$walking_morning[is.na(merged_set$transit_morning)] #there shouldn't be NAs or 0s
+    merged_set$transit_morning[merged_set$transit_morning==0] <- merged_set$walking_morning[merged_set$transit_morning==0] #but if there is, as sometimes occurs with the API calls,        here we replace non-existant transit times with walking times, under the assumption the purpose of this index is to view access for individuals without a car
+    
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"transit") 
+    merged_set$CarAccess <- decay_fxn_softGravity(merged_set,"drive")
+    
+    summary_index_user_transit_graphic <- aggregate(CarAccess ~ Id2,data=merged_set,FUN=sum)
+    summary_index_user_transit <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+
+    #normalize, note here we make two columns, one to compare to driving, one for visual rep
+    max_access <- max(summary_index_user_transit_graphic$CarAccess)
+    summary_index_user_transit$AccessIndex <- normalize(summary_index_user_transit$AccessIndex,max_access)
+    
+    #update colnames for merge
+    colnames(summary_index_user_transit)[colnames(summary_index_user_transit)=="AccessIndex"] <- paste("AI",type,cost,sep = "_") #flexible name writing for loop
+    summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2) #matching str to baseframe 
+    new_transit_index <- merge(summary_index_user_transit,new_transit_index,by=c("Id2"))
+  }
+  print(paste(i,"working"))
+  if(length(new_transit_index)>11){
+    print(colnames(new_transit_index))
+  }
+}
+
+#Create an overall average by category with no cost
+new_transit_index$AI_overall <- rowMeans(new_transit_index[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
+new_transit_index$AI_overall_free <- rowMeans(new_transit_index[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
+```
+
+###Verify that we've updated indecies
+Here we do a quick identical check to ensure the new driving & transit indecies are correct. In both cases identical should == false. 
+```{r}
+identical(driving_index,new_driving_index)
+identical(transit_index,new_transit_index)
+```
+
+###Overwrite existing index
+And/or write to a csv.
+```{r}
+driving_index <- new_driving_index
+transit_index <- new_transit_index
+#write.csv("driving_index","location",row.names = FALSE) #replace "location" with an actual location on your computer
+#write.csv("transit_index","location",row.names = FALSE)
 ```
 
