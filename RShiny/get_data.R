@@ -38,16 +38,12 @@ transit_index_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_nbhd")
 transit_index_disability_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_disability_nbhd")
 
 # Open resource stuff
-sfields = dbGetQuery(con, "SELECT * from shiny.fields")
+fields = dbGetQuery(con, "SELECT * from shiny.fields")
 museums = dbGetQuery(con, "SELECT * from shiny.museums")
 libraries = dbGetQuery(con, "SELECT * from shiny.libraries")
 playgrounds = dbGetQuery(con, "SELECT * from shiny.playgrounds")
 rec_centers = dbGetQuery(con, "SELECT * from shiny.rec_centers")
 parks = dbGetQuery(con, "SELECT * from shiny.parks")
-
-# when you're done, close the connection and unload the driver 
-
-#####################################################
 
 # get the required tables from the sql database
 reschool_summer_program_clean = dbGetQuery(con, "SELECT * from clean.reschool_summer_programs")
@@ -55,13 +51,16 @@ reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
 aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
 
-all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
+#all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
 google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
 relevant_zip_codes = readOGR(dsn="../data/zip_codes")
 total_denver_zipcodes = read.csv("../data/denver_zip_codes.csv")
 
+# when you're done, close the connection and unload the driver 
 dbDisconnect(con) 
 dbUnloadDriver(drv)
+#####################################################
+
 ##################### Getting shape files to plot block groups, nbhds on the map ##########################
 
 # Get block group shape file (for access index stuff)
@@ -142,14 +141,19 @@ search_programtype_summary = google_analytics %>% select(category, users) %>%
 #Now we will be comparing the percentage of searches by category to the percentage of programs existing by category
 #Getting the percentage of programs by category from reschool search data 
 number_of_sessions = numeric()
+
+program_col_names <- c("has_special_needs_offerings", "has_scholarships", "has_academic", 
+                       "has_arts", "has_cooking", "has_dance", "has_drama", "has_music", 
+                       "has_nature", "has_sports", "has_stem")
+
 j =1
-for(i in 13:21){
-  a = subset(reschool_summer_program, reschool_summer_program[,i] == TRUE )
+for(program_col_name in program_col_names){
+  a = subset(reschool_summer_program, reschool_summer_program[,program_col_name] == TRUE )
   number_of_sessions[j] = nrow(a)
   j = j+1
 }
 
-category = colnames(reschool_summer_program)[13:21]
+category = program_col_names #colnames(reschool_summer_program)[program_col_names]
 
 session_numberby_category = data.frame(number_of_sessions, category, stringsAsFactors=FALSE)
 
@@ -217,15 +221,12 @@ subset_denver_zipcodes = reschool_summer_program_clean[reschool_summer_program_c
 subset_denver_zipcodes = relevant_zip_codes[relevant_zip_codes$GEOID10 %in% c(subset_denver_zipcodes$session_zip), ]
 
 
-
 ############################ Creating racial distributions variables ##################################
 
 # Creating majority (really most common) race variables for each neighborhood
 shape_census@data$majority_race <- max.col(as.matrix(
-          shape_census@data[ ,c("PCT_HIS", "PCT_WHI", "PCT_BLA","PCT_NAT","PCT_ASI")]
+          shape_census@data[ ,c("PCT_HIS", "PCT_WHI", "PCT_BLA")]
                      ))
 shape_census@data$majority_race <- gsub(1, "Hispanic", shape_census@data$majority_race)
 shape_census@data$majority_race <- gsub(2, "White", shape_census@data$majority_race)
 shape_census@data$majority_race <- gsub(3, "Black", shape_census@data$majority_race)
-shape_census@data$majority_race <- gsub(4, "Native", shape_census@data$majority_race)
-shape_census@data$majority_race <- gsub(5, "Asian", shape_census@data$majority_race)

@@ -169,7 +169,7 @@ We care about the following indices, AI for overall programs for driving and tra
 ```{r}
 full_index <- merge(driving_index, transit_index, by = "Id2")
 selected_index <- full_index %>% 
-  dplyr::select(Id2, AI_overall.x, AI_overall_free.x, AI_overall.y, AI_overall_free.y) %>% # x driving, y transit 
+  dplyr::select(Id2, AI_overall.x, AI_overall_free.x, AI_overall.y, AI_overall_free.y) %>% # x driving, y transit
   merge(bg_nbhd, by = "Id2")
 
 index_agg <- selected_index %>%
@@ -195,7 +195,7 @@ apply(index_agg1, 2, FUN =  plotLC) #plot
             ggplot( aes(student_age_a, df[,var1])) +
             geom_point(aes(color= df[,var2]>66)) +
             scale_color_manual(values = c("black", "red")) +
-            geom_text(aes(label=ifelse(df[,var2]>66,as.character(nbhd_name),'')),hjust=0.7,vjust=1, size=2) +
+            geom_text(aes(label=ifelse(df[,var2]>66,as.character(nbhd_name),'')),hjust=0.7,vjust=1, size=3.5) +
             xlab("Number of students in each neighborhood") +
             ylab("Access Index score") +
             theme_bw() +
@@ -267,16 +267,20 @@ data <- merge(selected_index, acs_demographics, by = "Id2") %>%
 # look at AI_overall for driving first 
 summary(data$AI_overall.x)
 
+Quantile1_d <- quantile(data$AI_overall.x)[2]
+Median_d <- median(data$AI_overall.x)
+Quantile3_d <- quantile(data$AI_overall.x)[4]
+
 data <- data %>%
   mutate( pct_lhs = less_than_hs_diploma *100/ttpop_25plus_edu,
           pct_hs = hsgread_or_equiv_edu *100/ttpop_25plus_edu,
           pct_sc = somecollege_or_aa_edu*100/ttpop_25plus_edu,
           pct_ab = bachelors_or_higher_edu*100/ttpop_25plus_edu,
           pct_native = native/ttl_population,
-          mnb1stQ = ifelse(AI_overall.x < 58.57,1,0), #Below_1st_Quantile
-          mnbmedian = ifelse(AI_overall.x < 64.01,1,0), #Below_Median
-          mnamedian = ifelse(AI_overall.x > 64.01,1,0), #Above_Median
-          mna4stQ =  ifelse(AI_overall.x > 68.99,1,0)) #Above_3rd_Quantile
+          mnb1stQ = ifelse(AI_overall.x < Quantile1_d,1,0), #Below_1st_Quantile
+          mnbmedian = ifelse(AI_overall.x < Median_d,1,0), #Below_Median
+          mnamedian = ifelse(AI_overall.x > Median_d,1,0), #Above_Median
+          mna4stQ =  ifelse(AI_overall.x > Quantile3_d,1,0)) #Above_3rd_Quantile
 
 col = c('median_hh_income','pct_hispanic','pct_white','pct_white','poverty_pct_hh','pct_lhs', 'pct_hs', 'pct_sc',
         'pct_ab', 'pct_native', 'pct_vehicle_own')
@@ -293,28 +297,28 @@ sample_comparison =
     summarise_at(vars(col),funs( mean = mean(.,na.rm=T))) %>%
     filter(mnb1stQ == 1) %>%
     select(-mnb1stQ) %>%
-    mutate(sample = 'Low Access'),
+    mutate(sample = 'Bottom 25 Percent'),
     
     df %>%
     group_by(mnbmedian) %>%
     summarise_at(vars(col),funs( mean = mean(.,na.rm=T))) %>%
     filter(mnbmedian == 1) %>%
     select(-mnbmedian) %>%
-    mutate(sample = 'Below Median'),
+    mutate(sample = 'Bottom 50 Percent'),
     
     df %>%
     group_by(mnamedian) %>%
     summarise_at(vars(col),funs( mean = mean(.,na.rm=T))) %>%
     filter(mnamedian == 1) %>%
     select(-mnamedian) %>%
-    mutate(sample = 'Above Median'),
+    mutate(sample = 'Top 50 Percent'),
     
     df %>%
     group_by(mna4stQ) %>%
     summarise_at(vars(col),funs( mean = mean(.,na.rm=T))) %>%
     filter(mna4stQ == 1) %>%
     select(-mna4stQ) %>%
-    mutate(sample = 'High Access')
+    mutate(sample = 'Top 25 Percent')
 )
 
     return(sample_comparison)
@@ -324,7 +328,7 @@ sample_comparison <- create_samples(data)
 
 sample_comparison$sample <- 
   factor(sample_comparison$sample, 
-         levels = c("Low Access", "Below Median", "Above Median", "High Access"))
+         levels = c("Bottom 25 Percent", "Bottom 50 Percent", "Top 50 Percent", "Top 25 Percent"))
 ```
 
 Graphics
@@ -332,9 +336,10 @@ Graphics
 # graph for median household income 
 plot_MHI <- ggplot(sample_comparison, aes(sample, median_hh_income_mean)) +
   geom_bar(stat = "identity", fill = "#2166ac")  +
-  xlab("")+
+  xlab("Access Index Quantiles")+
   ylab("Median Household Income") +
-  ggtitle("Median Household Income for Areas with Different Access Levels") +
+  ggtitle("Median Household Income for Areas with Different Access Levels", 
+          subtitle = "Driving Index for Overall Programs") +
   theme_tufte()
 
 plot_MHI
@@ -387,7 +392,7 @@ sample_compare_edu$edu <-
 plot_edu <- 
   ggplot(sample_compare_edu) +
   geom_bar(aes(sample, value, fill = edu), stat = "identity", position = "dodge") +
-  xlab("") +
+  xlab("Access Index Quantiles") +
   ylab("Percentages") +
   ggtitle("Education Attainments for Areas with Different Levels of Access to OSR") +
   scale_fill_manual(labels = c("Less Than High School", "High School and Equivalent", "Some College", "Bachelor's Degree and Above"), values=c("#2b8cbe", "#fb6a4a", "#fecc5c", "#78c679")) +
@@ -409,8 +414,6 @@ plot_native <- ggplot(sample_comparison, aes(sample, pct_native_mean)) +
 
 plot_native
 ```
-
-
 
 Mann-Whitney U Tests
 ```{r}
@@ -444,7 +447,7 @@ wilcox.test(subset1$poverty_pct_hh, subset2$poverty_pct_hh) #couldn't reject nul
 
 How is access correlated with student characteristics? 
 
-RACE
+Tidy data. 
 ```{r}
 head(student_bg) # number of students in each block group 
 head(student_new) # each row being a student
@@ -462,35 +465,104 @@ student_DPS_bg$perc_otheraces_students <- ifelse(
 
 colnames(student_DPS_bg)[1] <- "Id2"
 student_DPS_bg <- merge(student_DPS_bg, selected_index, by = "Id2") 
-student_DPS_bg <- student_DPS_bg %>%
-  mutate( mnb1stQ = ifelse(AI_overall.x < 58.57,1,0), #Below_1st_Quantile
-          mnbmedian = ifelse(AI_overall.x < 64.01,1,0), #Below_Median
-          mnamedian = ifelse(AI_overall.x > 64.01,1,0), #Above_Median
-          mna4stQ =  ifelse(AI_overall.x > 68.99,1,0)) #Above_3rd_Quantile
-col = colnames(student_DPS_bg)[2:8]
+student_DPS_bg_drive <- student_DPS_bg %>%
+  dplyr::mutate( mnb1stQ = ifelse(AI_overall.x < Quantile1_d,1,0), #Below_1st_Quantile
+          mnbmedian = ifelse(AI_overall.x < Median_d,1,0), #Below_Median
+          mnamedian = ifelse(AI_overall.x > Median_d,1,0), #Above_Median
+          mna4stQ =  ifelse(AI_overall.x > Quantile3_d,1,0)) #Above_3rd_Quantile
 
-student_comparison <- create_samples(student_DPS_bg)
+col = colnames(student_DPS_bg_drive)[2:8]
+student_comparison <- create_samples(student_DPS_bg_drive)
 
 student_comparison$sample <- factor(student_comparison$sample, 
-                                       levels = c("Low Access", "Below Median", "Above Median", "High Access"))
+                                       levels = c("Bottom 25 Percent", "Bottom 50 Percent", "Top 50 Percent", "Top 25 Percent"))
+```
 
+Graphs 
+``` {r}
+# On Race first
 # transform the dataset 
 plotdata <- student_comparison %>% 
+  select(sample, perc_black_students_mean, perc_otheraces_students_mean, perc_hispanic_students_mean,
+         perc_white_students_mean) %>%
   gather(Race, value, -sample) 
 plotdata$Race <- factor(plotdata$Race, 
-                        levels = c("Hispanic", "White", "Black", "Others"))
+                        levels = c("perc_hispanic_students_mean", "perc_white_students_mean", "perc_black_students_mean", "perc_otheraces_students_mean"))
 
 # make the graph 
 ggplot(plotdata, aes(sample, value, fill = Race)) +
   geom_bar(stat = "identity", position = "dodge") +
-  xlab(" ") +
+  xlab("Access Index Quantiles") +
   ylab("Percentages") +
-  ggtitle("Racial Compostion for Areas with Different Levels of Access to OSR") +
+  ggtitle("Student Racial Compostion for Areas with Different Levels of Access to OSR") +
   scale_fill_discrete(name="Race and Ethnicity") +
-  scale_fill_manual(values=c("#2b8cbe", "#fb6a4a", "#fecc5c", "#78c679")) +
-  theme_tufte()
+  scale_fill_manual(labels = c("Hispanic", "White", "Black", "Others"), values=c("#2b8cbe", "#fb6a4a", "#fecc5c", "#78c679")) +
+  theme_tufte() 
+```
+
+Race and break down of the indices
+```{r}
+selected_index2  <- full_index %>% select(Id2, AI_overall.x, AI_overall_free.x, AI_has_nature_anycost.x, AI_has_sports_anycost.x, AI_art_anycost.x, AI_academic_anycost.x, AI_overall.y)
+
+# I need the row number of students races from DPS 
+DPS_race <- dbGetQuery(con, "select * from public.dps_student_aggregate_bgs")
+colnames(DPS_race)[1] <- "Id2"
+
+DPS_race <- merge(DPS_race, selected_index2, by = "Id2")
+DPS_race$Others <- DPS_race$unique_students - DPS_race$hispanic_students - DPS_race$black_students - DPS_race$white_students
+
+indices <- DPS_race[,9:15]
+colnames(DPS_race)[4:6] <- c("Hispanic", "Black", "White")
+
+get_race_access_means <- function(access_inds){
+  race_col_names <- c("Hispanic","White","Black", "Others")
+  race_names <- c("Hispanic", "White", "Black", "Others")
+  race_access_list <- list()
+  for(i in 1:length(race_col_names)){
+    race_pops <- DPS_race[,race_col_names[i]]
+    tot_race_pop <- sum(DPS_race[,race_col_names[i]])
+    race_access_list[race_names[i]] <- sum(access_inds*(race_pops/tot_race_pop))
+  }
+  return(as.vector(race_access_list))
+}
+
+result <- sapply(indices, get_race_access_means)
+
+test <- as.data.frame(result)
+result1 <- test %>% mutate(race = c("Hispanic", "White", "Black", "Others"))
+
+result1
+```
+
+
+```{r}
+# non_english_speakers
+ggplot(student_comparison, aes(sample, perc_nonenglish_students_mean)) +
+  geom_bar(stat = "identity", fill = "#2166ac") +
+  xlab("Access Index Quantiles") +
+  ylab("Percentages") +
+  ggtitle("Students as English Learners for Areas with Different Levels of Access to OSR") +
+  theme_tufte() 
+```
+
+
+```{r}
+student_DPS_bg_raw <- dbGetQuery(con, "select * from public.dps_student_aggregate_bgs")
+colnames(student_DPS_bg_raw)[1] <- "Id2"
+student_AIscores <- merge(student_DPS_bg_raw, selected_index, by = "Id2")
+```
+
+
+Other stuff that could be of potential interest
+```{r}
+# ses and free programs 
+
+
+# 
+
 
 ```
+
 
 On car ownership. Not super insightful. 
 ``` {r}
@@ -529,16 +601,6 @@ plot_car1 <- ggplot(sample_comparison, aes(sample, PCT_CarOwn)) +
   score2 <- mean(data[data$pct_vehicle_own > 98.37, ]$AI_overall.y, na.rm = TRUE)
 ```
 
-Other stuff that could be of potential interest
-```{r}
-# ses and free programs 
-
-
-# or just averaging the index score for different groups? 
- # first aggregate the number of students to a block group level 
-
-
-```
 
 
 ## Close the link when you are done.

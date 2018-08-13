@@ -54,7 +54,11 @@ shinyUI(
                                                                         "has_drama","has_music",
                                                                         "has_nature", "has_sports",
                                                                         "has_stem"),
-                                                       selected = "has_academic",
+                                                       selected = c("has_academic", "has_arts", 
+                                                                    "has_cooking", "has_dance", 
+                                                                    "has_drama","has_music",
+                                                                    "has_nature", "has_sports",
+                                                                    "has_stem"),
                                                        inline = TRUE
                                                        )
                                   ),
@@ -108,11 +112,11 @@ shinyUI(
                                   conditionalPanel(condition = "input.program_panel == 'Summary Analysis'",
                                                    radioButtons("program_analysis", 
                                                                 "In these neighborhoods, what is the distribution of program", 
-                                                                choiceNames = c("costs?",
-                                                                                "categories?",
+                                                                choiceNames = c("categories?",
+                                                                                "costs?",
                                                                                 "dates?"),
-                                                                choiceValues = c("cost_question",
-                                                                                 "category_question",
+                                                                choiceValues = c("category_question",
+                                                                                 "cost_question",
                                                                                  "date_question"),
                                                                 selected = "category_question"
                                                    )
@@ -165,15 +169,17 @@ shinyUI(
                             fluidPage(sidebarLayout(
                               
                               sidebarPanel(
-                                checkboxGroupInput("program_other", 
-                                                   "Select one or more resource types:", 
-                                                   choices = c("Parks", "Playgrounds", 
-                                                               "Rec Centers", "Libraries", 
-                                                               "Museums", "Fields"), 
-                                                   selected = "Parks", 
-                                                   inline = TRUE
-                                                   ),
-                                br(),
+                                conditionalPanel(condition = "input.program_other_panel != 'Summary Analysis'",
+                                                checkboxGroupInput("program_other", 
+                                                                   "Select one or more resource types:", 
+                                                                   choices = c("Parks", "Playgrounds", 
+                                                                               "Rec Centers", "Libraries", 
+                                                                               "Museums", "Fields"), 
+                                                                   selected = "Parks", 
+                                                                   inline = TRUE
+                                                                   ),
+                                                br()
+                                                ),
                                 conditionalPanel(condition = "input.program_other_panel == 'Map'",
                                                 radioButtons("school_or_census_other", "Select a data source for demographic data:",
                                                              choiceNames = c("Census (General Population)","DPS (Student Data)"),
@@ -219,7 +225,20 @@ shinyUI(
                                             tabPanel("Data",
                                                      br(),
                                                      uiOutput("dt")),
-                                            tabPanel("Summary Analysis"),
+                                            tabPanel("Summary Analysis",
+                                                     br(),
+                                                     uiOutput("summary_title_other"),
+                                                     br(),
+                                                     plotlyOutput('other_resources_summary', height = "200px"),
+                                                     br(), br(),
+                                                     fluidRow(
+                                                       column(6, uiOutput('nbhd_census_demog_summary_other')),
+                                                       column(6, uiOutput('nbhd_student_demog_summary_other'))
+                                                     ),
+                                                     br(),
+                                                     plotlyOutput("med_income_summary_other", height = "80px", width = 300),
+                                                     br()
+                                                     ),
                                             id = "program_other_panel"
                                 )
                               )  # end mainPanel of open data tab
@@ -413,15 +432,19 @@ shinyUI(
                                             tabPanel("Data",
                                                      br(),
                                                      DT::dataTableOutput("datatable_access"),
-                                                     downloadButton("download_access_data", "Download Data"),
-                                                     br(), br()
+                                                     downloadButton("download_access_data", "Download Blockgroup Data"),
+                                                     br(),
+                                                     DT::dataTableOutput("datatable_access_nbhd"),
+                                                     downloadButton("download_access_data_nbhd", "Download Neighborhood Data")
                                             ),
                                             tabPanel("Summary Analysis",
                                                      conditionalPanel(condition = "input.specific_access_questions == 'lorenz'",
-                                                                      plotOutput("lorenz")
+                                                                      plotOutput("lorenz"),
+                                                                      br()
                                                      ),
                                                      conditionalPanel(condition = "input.specific_access_questions == 'scatter'",
-                                                                      plotOutput("access_scatter")
+                                                                      br(),
+                                                                      plotlyOutput("access_scatter")
                                                      ),
                                                      conditionalPanel(condition = "input.specific_access_questions == 'demog'",
                                                                       plotlyOutput("access_demog")
