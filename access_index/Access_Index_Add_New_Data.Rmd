@@ -1,0 +1,58 @@
+---
+title: "Access_Index_Add_New_Data"
+author: "Andrew Taylor"
+date: "8/13/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Intro
+This markdown defines how to add new to program data to the access index so it can continue to be used for future analysis. This assumes that new programs will be not uniquely identified, and instead the user will read a new export of blueprint for summer data, with the same formatting as the data originally used in this project. To add new data under this assumption, we complete the following steps: 1.) Read required data (new and old) 2.) Match & merge new data to old block group distances 3.) For programs with new addresses, find new travel times for all block groups 4.) 
+
+###RDS Pull Prior Data
+```{r}
+block_distance <- dbGetQuery(con, "select * from clean.block_distance") #for pre computed travel times
+reschool_programs <- dbGetQuery(con, "select * from clean.reschool_programs") #for getting unique program addresses
+reschool_addresses <- reschool_programs[,c("session_address_1","lat","long")] #subset to what we need
+reschool_addresses <- unique(reschool_addresses) #just in case there's any duplicates
+rownames(reschool_addresses) <- NULL
+```
+
+###Read New Data
+Assuming it has been preprocessed to match the blue print for summer data used in this project, see the preprocessing markdown for more. **NOTE** we don't actually have any new data, so here we make some up. 
+```{r}
+#We would do this if we were reading a csv
+
+#new_reschool_programs <- read.csv("location.csv",header=TRUE,stringsAsFactors = FALSE) #replace with a real location obvs
+
+#here we make a new test session with a new address to verify that our code works
+new_reschool_programs <- reschool_programs
+new_reschool_programs <- rbind(new_reschool_programs[nrow(new_reschool_programs),],new_reschool_programs) #we add a duplicate to the last program here
+new_reschool_programs[nrow(new_reschool_programs),"long"] <- -104.9652
+new_reschool_programs[nrow(new_reschool_programs),"lat"] <- 39.73351
+new_reschool_programs[nrow(new_reschool_programs),"session_address_1"] <- "cheeseman park, denver, co"
+new_reschool_programs[nrow(new_reschool_programs),"session_name"] <- "Test_Session"
+
+#then we aggregate to new addresses
+new_reschool_addresses <- new_reschool_programs[,c("session_address_1","lat","long")] #subset to what we need
+new_reschool_addresses <- unique(new_reschool_addresses)
+length(unique(new_reschool_addresses$session_address_1)) #note we have one new address now
+length(unique(reschool_addresses$session_address_1))
+```
+
+###Merge New Addresses with old to find travel times
+Because we've only added one new address, all other programs in our list should merge with the precomputed travel times. We can verify this by checking the is.na summary for driving times.
+```{r}
+block_distance_mover <- block_distance[,c("session_address_1","lat","long","driving_morning","walking_morning","transit_morning","block_lat","block_long","AI")]
+block_distance_mover <- merge(new_reschool_addresses,block_distance_mover,by=c("session_address_1","lat","long"),all=TRUE)
+summary(is.na(block_distance_mover$driving_morning))
+```
+
+
+```{r}
+
+```
+

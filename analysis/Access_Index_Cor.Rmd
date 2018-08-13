@@ -52,6 +52,13 @@ colnames(acs_demographics)[colnames(acs_demographics)=="id2"] <- "Id2"
 
 #some variable modififcation for analysis
 acs_demographics$singleparent_hh <- acs_demographics$singledad_hh + acs_demographics$singlemom_hh
+acs_demographics$somecollege_or_aa_edu <- acs_demographics$somecollege_or_aa_edu/acs_demographics$ttpop_25plus_edu
+acs_demographics$hsgread_or_equiv_edu <- acs_demographics$hsgread_or_equiv_edu/acs_demographics$ttpop_25plus_edu
+acs_demographics$bachelors_or_higher_edu <- acs_demographics$bachelors_or_higher_edu/acs_demographics$ttpop_25plus_edu
+acs_demographics$singleparent_hh <- acs_demographics$singleparent_hh/acs_demographics$ttpop_25plus_edu
+acs_demographics$less_than_hs_diploma <- acs_demographics$less_than_hs_diploma/acs_demographics$ttpop_25plus_edu
+
+acs_demographics$hsgread_or_less <- acs_demographics$hsgread_or_equiv_edu+acs_demographics$less_than_hs_diploma
 
 #merge access index with census block data
 acs_driving_AI <- merge(driving_index,acs_demographics,by="Id2")
@@ -62,7 +69,7 @@ acs_transit_disabAI <- merge(transit_index_disabillity,acs_demographics,by="Id2"
 
 ###Census Correlations Loop for Driving
 ```{r}
-cor_tests <-  colnames(acs_driving_AI)[c(46:84)]#prepare dataframe
+cor_tests <-  colnames(acs_driving_AI)[c(46:85)]#prepare dataframe
 index_tests <-  colnames(acs_driving_AI)[c(2:18)]#prepare things we want to loop
 cor_table <- data.frame(cor_tests)
 
@@ -121,11 +128,49 @@ cor_transit_acs <- cor_table
 
 ```
 
-
 ###Census Loop Plots
+####Race 
 ```{r}
-
+library(ggplot2)
+plot_list_t <- list()
+cor_race_acs <- cor_driving_acs[c(1:7,9),]
+for (i in 1:length(index_tests)){
+  test <- index_tests[i]
+  p <- ggplot(cor_race_acs, aes(y=cor_race_acs[,test],x=cor_tests)) +
+         geom_errorbar(data=cor_race_acs,aes(ymin=cor_race_acs[,(paste0("lower_",test))],ymax=cor_race_acs[,(paste0("upper_",test))]),width=.1,color="blue3",alpha=.5) + 
+         geom_point(color="blue3")+
+         labs(title=paste("Student Correlations",test)) + 
+  geom_hline(yintercept = 0,color="grey3") +
+  ylab("Overall Driving Access Index") + 
+  xlab("Percent of Students in Block Group") +
+    ylim(-0.75,0.75)
+  plot_list_t[[i]] <- p
+  print(p)
+  print(paste(i,"working..."))
+}
 ```
+
+####Education / Income
+```{r}
+library(ggplot2)
+plot_list_t <- list()
+cor_inc_acs <- cor_driving_acs[c(11:15,32),]
+for (i in 1:length(index_tests)){
+  test <- index_tests[i]
+  p <- ggplot(cor_inc_acs, aes(y=cor_inc_acs[,test],x=cor_tests)) +
+         geom_errorbar(data=cor_inc_acs,aes(ymin=cor_inc_acs[,(paste0("lower_",test))],ymax=cor_inc_acs[,(paste0("upper_",test))]),width=.1,color="blue3",alpha=.5) + 
+         geom_point(color="blue3")+
+         labs(title=paste("Student Correlations",test)) + 
+  geom_hline(yintercept = 0,color="grey3") +
+  ylab("Overall Driving Access Index") + 
+  xlab("Percent of Students in Block Group") +
+    ylim(-0.75,0.75)
+  plot_list_t[[i]] <- p
+  print(p)
+  print(paste(i,"working..."))
+}
+```
+
 
 ##DPS demographics
 ###Merging block groups to DPS demographic data
@@ -407,6 +452,8 @@ Text24 <- element_text(size = 24)
 
 ###For Export - Race
 ```{r}
+library(ggthemes)
+library(ggplot2)
 plot_list_t <- list()
 race_cor <- cor_table[3:6,] #subset for only the variables we care about
 race_cor$cor_tests <- as.character(race_cor$cor_tests)
@@ -416,11 +463,11 @@ for (i in 1:length(index_tests)){
   race <- ggplot(race_cor, aes(y=race_cor[,test],x=race_cor$cor_tests)) +
          geom_errorbar(data=race_cor,aes(ymin=race_cor[,(paste0("lower_",test))],ymax=race_cor[,(paste0("upper_",test))]),width=.1,color="blue3",alpha=.5) + 
          geom_point(color="blue3",size=3)+
-         labs(title=paste("Student Correlations",test)) + 
+         labs(title=paste(test)) + 
   geom_hline(yintercept = 0,color="grey3") +
   ylab("Driving Access Index") + 
   xlab("Percent of Students in Block Group") +
-    ylim(-0.75,0.75)
+    ylim(-0.75,0.75) + theme_tufte()
   plot_list_t[[i]] <- race
   print(race + theme(axis.text.x = Text12, axis.text.y = Text12, axis.title.x = Text16, axis.title.y = Text16,title = Text24))
   print(paste(i,"working..."))
@@ -430,7 +477,7 @@ for (i in 1:length(index_tests)){
 ###For Export - Disabillity
 ```{r}
 plot_list_t <- list()
-disab_cor <- cor_table[c(10:14),]
+disab_cor <- cor_table[c(7:13),]
 disab_cor$cor_tests <- as.character(disab_cor$cor_tests)
 disab_cor$cor_tests <- capwords(disab_cor$cor_tests)
 for (i in 1:length(index_tests)){
@@ -448,3 +495,86 @@ for (i in 1:length(index_tests)){
   print(paste(i,"working..."))
 }
 ```
+
+
+###Avearge Access to Free Programs by Median HH Income
+For quantiles of access, average median hh income. Also we drop block groups without students. 
+```{r}
+library(ggplot2)
+#subset for students only
+acs_driving_AI$students <- acs_driving_AI$age_less_18 - acs_driving_AI$age_less_5
+acs_driving_AI <- subset(acs_driving_AI,acs_driving_AI$students>0)
+
+#get access quantiles
+access_1st <- quantile(acs_driving_AI$AI_overall_free)[[2]]
+access_2nd <- quantile(acs_driving_AI$AI_overall_free)[[3]]
+access_3rd <- quantile(acs_driving_AI$AI_overall_free)[[4]]
+
+#create a frame to plot
+AccessQuantiles <- c("Bottom 25%","Bottom 50%","Top 50%","Top 25%")
+
+plot_frame$AccessQuantiles <- factor(plot_frame$AccessQuantiles, levels=c("Bottom 25%","Bottom 50%","Top 50%","Top 25%"),ordered = TRUE)
+plot_frame <- data.frame(AccessQuantiles)
+plot_frame$MedianHHIncome <- 0
+
+#we probably should have done this in a loop, but because there's not many 
+subset_1st <- subset(acs_driving_AI,acs_driving_AI$AI_overall_free<access_1st)
+
+subset_belowm <- subset(acs_driving_AI,acs_driving_AI$AI_overall_free>access_1st & acs_driving_AI$AI_overall_free<access_2nd)
+
+subset_abovem <- subset(acs_driving_AI,acs_driving_AI$AI_overall_free>access_2nd & acs_driving_AI$AI_overall_free<access_3rd)
+
+subset_3rd <- subset(acs_driving_AI,acs_driving_AI$AI_overall_free>access_3rd)
+
+#finishing plot frames
+plot_frame[1,2] <- mean(subset_1st$median_hh_income,na.rm=TRUE)
+plot_frame[2,2] <- mean(subset_belowm$median_hh_income,na.rm=TRUE)
+plot_frame[3,2] <- mean(subset_abovem$median_hh_income,na.rm=TRUE)
+plot_frame[4,2] <- mean(subset_3rd$median_hh_income,na.rm=TRUE)
+
+#plot for access to free programs
+ggplot(plot_frame, aes(plot_frame$AccessQuantiles,MedianHHIncome)) + geom_bar(stat = "identity",fill="#2166ac") + ylab("Median Household Income") + xlab("Access Index Quantiles") + theme_tufte() + ggtitle("Mean Household Income per Access Quantile")
+```
+
+###Datatable for average access index
+###Creating logical columns for quantiles of hhincome
+```{r}
+median_hh_income <- median(acs_driving_AI$median_hh_income,na.rm = TRUE)
+hh_1st <- quantile(acs_driving_AI$median_hh_income,na.rm=TRUE)[[2]]
+hh_2nd <- quantile(acs_driving_AI$median_hh_income,na.rm=TRUE)[[3]]
+hh_3rd <- quantile(acs_driving_AI$median_hh_income,na.rm=TRUE)[[4]]
+
+acs_driving_AI$below_1st <- acs_driving_AI$median_hh_income<hh_1st
+
+acs_driving_AI$lower_middle <- acs_driving_AI$median_hh_income>hh_1st & acs_driving_AI$median_hh_income<hh_3rd
+
+acs_driving_AI$upper_middle <- acs_driving_AI$median_hh_income>hh_2nd & acs_driving_AI$median_hh_income<hh_3rd
+
+acs_driving_AI$above_3rd <- acs_driving_AI$median_hh_income>hh_3rd
+```
+
+###Creating a summary access index table by hhincome quantiles
+```{r}
+#index_tests <- c("AI_overall","AI_overall_free","AI_art_anycost","AI_has_nature_anycost","AI_has_sports_anycost","AI_academic_anycost")
+index_tests <- colnames(driving_index)[2:length(colnames(driving_index))]
+
+summary_table <- data.frame(index_tests)
+summary_table$below_1st <- 0
+summary_table$lower_middle <- 0
+summary_table$upper_middle <- 0
+summary_table$above_3rd <- 0
+
+for (i in 1:(length(index_tests))){
+  index.i <- index_tests[i]
+  subset_below1st <- subset(acs_driving_AI,acs_driving_AI$below_1st==TRUE)
+  subset_lower_middle <- subset(acs_driving_AI,acs_driving_AI$lower_middle==TRUE)
+  subset_upper_middle <- subset(acs_driving_AI,acs_driving_AI$upper_middle==TRUE)
+  subset_above3rd <- subset(acs_driving_AI,acs_driving_AI$above_3rd==TRUE)
+  summary_table[i,2] <- mean(subset_below1st[,index.i])
+  summary_table[i,3] <- mean(subset_middle[,index.i])
+  summary_table[i,4] <- mean(subset_above3rd[,index.i])
+  summary_table[i,5] <- mean(subset_upper_middle[,index.i])
+  print(paste(i,"working"))
+}
+```
+

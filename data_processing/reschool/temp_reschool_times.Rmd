@@ -57,8 +57,6 @@ summary(reschool_programs$days)
 Still waiting on days of week to refine calculation. But here we go for now.
 ```{r}
 reschool_programs$cost_per_day <- reschool_programs$session_cost/reschool_programs$days
-qplot(reschool_programs$cost_per_day,bins=200)
-qplot(reschool_programs$session_cost,bins=200)
 ```
 
 ###RDS Push
@@ -90,4 +88,5 @@ dbListTables(con) #check both are saved
 dbDisconnect(con) 
 dbUnloadDriver(drv)
 ```
+
 
