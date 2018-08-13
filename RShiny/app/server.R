@@ -7,18 +7,23 @@ library(DT)
 library(leaflet)
 library(sp)
 library(mapview)
+library(ineq) # inequality: for creating the Lorenz curve
 
 shinyServer(
   function(input, output, session) {
     
-    #############################
+    ############################################################################################################
     # Reschool Programs Tab
-    #############################
+    ############################################################################################################
     
     ####### RESCHOOL PROGRAMS SUBSETTING BY COST AND TYPE #######
     
     program_category_data <- reactive({
-      return(subset_for_category(reschool_summer_program, input$program))
+      cat_dat <- subset_for_category(reschool_summer_program, input$program)
+      if ( !is.null(input$special_needs) ) {
+        cat_dat <- subset_for_special_needs(cat_dat)
+      }
+      return(cat_dat)
     })
     
     program_cost_and_type_data <- reactive({
@@ -59,21 +64,42 @@ shinyServer(
                     
       ) %>%
         formatStyle(colnames(data_table1[,-c(5,6,7)]),
-                    backgroundColor = 'lightyellow'
+                    backgroundColor = '#c6dbef'
         )
                     
     })
+    
+    output$download_reschool_data <- downloadHandler(
+      filename = "b4s_programs.csv",
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        write.csv(neighborhood_data(), file, row.names = FALSE)
+      }
+    )
     
     ####### RESCHOOL PROGRAMS MAP #######
     
     reschool_mapdata <- reactiveValues(dat = 0)
     
-    nbhd_labels_reactive <- reactive({get_nbhd_census_labels(sum(summary_data()[, "total_scholarships"]))})
-    nbhd_labels_student_reactive <- reactive({get_nbhd_student_labels(sum(summary_data()[, "total_special_needs"]))})
+    programs_per_nbhd <- reactive({
+      if (nrow(program_cost_and_type_data())==0) {return(rep(0, nrow(shape_census)))}
+      program_frequencies <- table(program_cost_and_type_data()[,"nbhd_name"])
+      tmp <- data.frame("nbhd_name"=names(program_frequencies), "freq"=as.vector(program_frequencies))
+      tmp <- merge(tmp, data.frame("nbhd_name"=shape_census@data[,"NBHD_NA"]), by="nbhd_name", all.y=TRUE)
+      tmp <- tmp[order(as.character(tmp$nbhd_name)),]
+      tmp$freq[is.na(tmp$freq)] <- 0
+      return(tmp$freq)
+    })
+    
+    nbhd_labels_reactive <- reactive({get_nbhd_census_labels(programs_per_nbhd())})
+    nbhd_labels_student_reactive <- reactive({get_nbhd_student_labels(programs_per_nbhd())})
     
     output$mymap <- renderLeaflet({
-      nbhd_labels <- nbhd_labels_reactive() #aggregate(program_cost_and_type_data(),nbhd_name~)
-      #nbhd_labels <- nbhd_labels_reactive()
+      nbhd_labels <- nbhd_labels_reactive() 
       nbhd_labels_student <- nbhd_labels_student_reactive()
       # Subset to data for only this neighborhood
       neighborhood_data1 <- neighborhood_data()
@@ -130,7 +156,7 @@ shinyServer(
       }
     )
     
-    ####### MAKE THE RESCHOOL PROGRAMS SUMMARY ANALYSIS #######
+    ####### MAKE THE RESCHOOL PROGRAMS Summary Analysis #######
 
     output$summary_title <- renderUI({
       summary_nbhds <- summary_data()[, "nbhd_name"]
@@ -143,91 +169,279 @@ shinyServer(
       ) %>% lapply(htmltools::HTML)
     })
     
-    output$program_type_summary <- renderPlot(
-      {
-        data_names <- c("academic", "arts", "cooking", "dance", "drama",
-                        "music", "nature", "sports", "stem")
-        relevant_colnames <- c("total_academic", "total_arts", "total_cooking", "total_dance", "total_drama",
-                               "total_music", "total_nature", "total_sports", "total_stem")
+    output$nbhd_census_demog_summary <- renderUI({
+      # subset to the selected neighborhoods
+      summary_data <- subset_for_neighborhoods(shape_census@data, input$neighborhoods)
+      
+      # aggregate the demographics over all selected neighborhoods
+      # dummy transformations for now
+      summary_AGE_5_T <- sum(summary_data$AGE_5_T)
+      summary_MED_HH_ <- summary_data$MED_HH_
+      summary_PCT_LES <- sum(summary_data$PCT_LES * summary_data$POP_EDU) / sum(summary_data$POP_EDU)
+      summary_PCT_COL <- sum(summary_data$PCT_COL * summary_data$POP_EDU) / sum(summary_data$POP_EDU)
+      summary_PCT_NON <- sum(summary_data$PCT_NON * summary_data$POP_LAN) / sum(summary_data$POP_LAN)
+      summary_PCT_HIS <- sum(summary_data$PCT_HIS * summary_data$POP_RAC) / sum(summary_data$POP_RAC)
+      summary_PCT_WHI <- sum(summary_data$PCT_WHI * summary_data$POP_RAC) / sum(summary_data$POP_RAC)
+      summary_PCT_BLA <- sum(summary_data$PCT_BLA * summary_data$POP_RAC) / sum(summary_data$POP_RAC)
+      
+      sprintf("<h4>Census Demographics</h4> 
+              No. children 5-17 yrs old = %s <br>
+              < HS Degree (%% Over 25) = %.1f%% <br>
+              College Graduates (%% Over 25) = %.1f%% <br>
+              %% Language Besides English Spoken = %.1f%% <br>
+              %% Hispanic Population = %.1f%% <br>
+              %% White population = %.1f%% <br>
+              %% Black population = %.1f%%<br>",
+              format(summary_AGE_5_T, big.mark = ","),
+              summary_PCT_LES,
+              summary_PCT_COL,
+              summary_PCT_NON,
+              summary_PCT_HIS,
+              summary_PCT_WHI,
+              summary_PCT_BLA #,
+              #format(min(summary_MED_HH_), big.mark = ","), 
+              #format(max(summary_MED_HH_), big.mark = ",")
+      ) %>% lapply(htmltools::HTML)
+    })
+    
+    output$med_income_summary <- renderPlotly({
+      summary_data <- subset_for_neighborhoods(shape_census@data, input$neighborhoods)
+      plot_ly(data = summary_data, 
+              x = ~MED_HH_,
+              y = "",
+              text = as.character(summary_data$nbhd_name),
+              type = "scatter",
+              marker = list(size = 15),
+              alpha = 0.5,
+              height = 100,
+              hoverinfo = 'text'
+              ) %>%
+        layout( xaxis = list(title = "", range = c(0,NULL)),
+                title = "Median HH Income ($)",
+                titlefont = list(size = 12),
+                margin = list(l = 0)
+                ) %>%
+        config(displayModeBar = FALSE)
+    })
+    
+    output$nbhd_student_demog_summary <- renderUI({
+      # subset to the selected neighborhoods
+      if ("No neighborhood selected" %in% input$neighborhoods){
+        summary_data_student <- aggregate_dps_student_nbhds
+      }
+      else{
+        summary_data_student <- subset_for_neighborhoods(aggregate_dps_student_nbhds, input$neighborhoods)
+      }
+      
+      # aggregate the demographics over all selected neighborhoods
+      total_nbhd_students <- sum(summary_data_student$total_students, na.rm = TRUE)
+      summary_perc_nonenglish_students <- sum(summary_data_student$perc_nonenglish_students * summary_data_student$total_students, 
+                                              na.rm = TRUE) / total_nbhd_students
+      summary_perc_disable_students <- sum(summary_data_student$perc_disable_students * summary_data_student$total_students, 
+                                           na.rm = TRUE) / total_nbhd_students
+      summary_perc_hispanic_students <- sum(summary_data_student$perc_hispanic_students * summary_data_student$total_students, 
+                                            na.rm = TRUE) / total_nbhd_students
+      summary_perc_white_students <- sum(summary_data_student$perc_white_students * summary_data_student$total_students, 
+                                         na.rm = TRUE) / total_nbhd_students
+      summary_perc_black_students <- sum(summary_data_student$perc_black_students * summary_data_student$total_students, 
+                                         na.rm = TRUE) / total_nbhd_students
+      
+      # Print it!
+      sprintf(
+        "<h4>Student Demographics</h4>
+        %% English student learners = %.1f%% <br>
+        %% Students with disability = %.1f%% <br>
+        %% Hispanic students = %.1f%% <br>
+        %% White students = %.1f%% <br>
+        %% Black students = %.1f%% <br><br>
+        <i>Sample size = %s students</i>",
+        summary_perc_nonenglish_students,
+        summary_perc_disable_students,
+        summary_perc_hispanic_students,
+        summary_perc_white_students,
+        summary_perc_black_students,
+        format(total_nbhd_students, big.mark = ",")
+      ) %>% lapply(htmltools::HTML)
+    })
+    
+    output$program_summary_plot <- renderPlotly({
+      
+      ###########################
+      # Case 1: Category Analysis
+      ###########################
+      if (input$program_analysis == "category_question"){
         
+        # get data
+        data_names <- c("academic", "arts", "cooking", "dance", "drama",
+                        "music", "nature", "sports", "stem", "scholarships", "special_needs")
+        relevant_colnames <- c("total_academic", "total_arts", "total_cooking", "total_dance", "total_drama",
+                               "total_music", "total_nature", "total_sports", "total_stem", "total_scholarships",
+                               "total_special_needs")
         if (nrow(summary_data())==0) {
-          dat <- rep(0,9)
+          dat <- rep(0,length(data_names))
         } else {
           dat <- colSums(summary_data()[,relevant_colnames])
           dat <- unlist(dat)
         }
-        
         names(dat) <- data_names
         
-        par(mar = c(5.1, 5.1, 2.1, 2.1))  # make left margin larger to fit names(data)
-        barplot(rev(dat),  # reverse so that reads top - bottom alphabetically
-                main = "Program Types",
-                col = c(mygreen2, mypurple3, myblue2, 
-                        mygreen, myblue, mygreen3,
-                        mypurple2, myblue3, mypurple),
-                horiz = TRUE,
-                xlab = "# programs",
-                las = 1
-                )
+        # make the plot
+        plot_ly(x = sort(data_names, decreasing = TRUE),
+                y = dat[sort(data_names, decreasing = TRUE)],
+                type = "bar"
+        ) %>%
+          layout(xaxis = list(title = "Category"), 
+                 yaxis = list(title = "No. Programs"),  
+                 title = "Programs by Category",
+                 margin = list(b=100),
+                 annotations = list(x  = 0, 
+                                    y = 0,
+                                    text = paste("<i>Programs w/ Scholarships:", 
+                                                 sum(summary_data()[, "total_scholarships"]),
+                                                 "<br>Programs for Special Needs:",
+                                                 sum(summary_data()[, "total_special_needs"]),
+                                                 "</i>"
+                                                 ),
+                                    showarrow = FALSE,
+                                    xref = "paper",
+                                    yref = "paper",
+                                    xshift = -10,
+                                    yshift = -100
+                                    )
+          )
       }
-    )
-    
-    output$program_special_cats <- renderUI({
-      if (nrow(summary_data())==0) {
-        sprintf("No programs in this neighborhood.") %>% lapply(htmltools::HTML)
-      } else {
-        sprintf("Programs with Scholarships: %i <br/> 
-                Programs Accommodating Special Needs: %i <br/><br/>",
-                sum(summary_data()[, "total_scholarships"]),
-                sum(summary_data()[, "total_special_needs"])
-        ) %>% lapply(htmltools::HTML)
+      #######################
+      # Case 2: Cost Analysis
+      #######################
+      else if (input$program_analysis == "cost_question"){
+        
+        # get the data
+        nbhd_cost_data <- subset_for_neighborhoods(reschool_summer_program, input$neighborhoods)
+        nbhd_cost_data <- nbhd_cost_data[,"session_cost"]
+        
+        # make the plot - if at least one not-free program
+        if (sum(nbhd_cost_data > 0) > 0 ){
+          plot_ly(x = ~nbhd_cost_data[nbhd_cost_data > 0],
+                  type = "histogram",
+                  name = "Not Free"
+          ) %>%
+            layout(xaxis = list(title = "Total Cost ($)"), 
+                   yaxis = list(title = "No. Programs"), 
+                   title = "Programs by Cost"
+            ) %>%
+            add_bars(x = 0,
+                     y = sum(nbhd_cost_data == 0),
+                     name = "Free"
+            )
+        }
+        # make the plot - if all programs are free
+        else{
+          plot_ly(y = sum(nbhd_cost_data == 0),
+                  x = 0,
+                  type = "bar",
+                  color = "orange"
+          ) %>%
+            layout(xaxis = list(title = "Total Cost ($)"), 
+                   yaxis = list(title = "No. Programs"), 
+                   title = "Programs by Cost"
+            )
+        }
       }
-    })
-    
-    output$program_cost_summary <- renderPlot({
-      nbhd_cost_data <- subset_for_neighborhoods(reschool_summer_program, input$neighborhoods)
-      nbhd_cost_data <- nbhd_cost_data[,"session_cost"]
-      
-        par(mar = c(5.1, 5.1, 2.1, 2.1))  # set margins
-        hist(nbhd_cost_data,
-             main = "Program Costs",
-             breaks = seq(from=0, to=1400, by=10),
-             xlim = c(0, max(10, max(nbhd_cost_data))),
-             xlab = "cost ($)",
-             ylab = "# programs"
-             )
-    })
-    
-    output$nbhd_summary <- renderDataTable({
-      datatable(summary_data(), 
-                    options = list(pageLength = 3, 
-                                   scrollX = TRUE,
-                                   searching = FALSE,
-                                   paging = FALSE,
-                                   ordering = FALSE,
-                                   lengthChange = FALSE,
-                                   info = FALSE,
-                                   initComplete = JS(
-                                     "function(settings, json) {",
-                                     "$(this.api().table().header()).css(
-                                      {'background-color': '#000', 'color': '#fff'}
-                                      );",
-                                     "}")),
-                    # caption = htmltools::tags$caption(
-                    #   style = 'caption-side: top; text-align: left; color: black ;',
-                    #   htmltools::h3("caption")
-                    # ),
-                    width = 300,
-                    style = "bootstrap",
-                    class = 'cell-border stripe',
-                    rownames = FALSE
-                    
-      ) %>%
-        formatStyle(colnames(summary_data),
-                    backgroundColor = 'lightblue'
-        )
+      #######################
+      # Case 3: Date Analysis
+      #######################
+      else {
+        
+        # get the data
+        dat <- subset_for_neighborhoods(reschool_summer_program, input$neighborhoods)
+        relevant_colnames <- c("session_date_start", "session_date_end", "session_name")
+        if (nrow(dat)==0) {
+          dat <- rep(0,length(relevant_colnames))
+          colnames(dat) <- relevant_colnames
+        } else {
+          dat <- dat[,relevant_colnames]
+          dat$session_date_start <- as.Date(dat$session_date_start)
+          dat$session_date_end <- as.Date(dat$session_date_end)
+          dat <- dat[ do.call(order, dat), ]
+        }
+        
+        # make the plot
+        p1 <- plot_ly(data = dat) %>%
+          add_segments(x = ~session_date_start,
+                       xend = ~session_date_end,
+                       y = 1:nrow(dat),
+                       yend = 1:nrow(dat),
+                       text = ~session_name,
+                       hoverinfo = 'text',
+                       name = "Middle of Program"
+          ) %>%
+          add_markers(x = c(dat$session_date_start, dat$session_date_end),
+                      y = rep(1:nrow(dat),2),
+                      color = I("grey"),
+                      text = rep(dat$session_name,2),
+                      hoverinfo = 'text',
+                      name = "Start/End Dates"
+          ) %>%
+          layout(xaxis = list(title = ""),
+                 yaxis = list(title = "", showticklabels = FALSE),
+                 title = "Programs by Date",
+                 showLegend = FALSE
+          )
+        
+        # different kind of plot
+        get_all_dates <- function(start_date, end_date) {
+          seq.Date(start_date, end_date, by = "days")
+        }
+        
+        all_dates <- mapply(get_all_dates, dat$session_date_start, dat$session_date_end)
+        p2 <- plot_ly(x = all_dates, 
+                      type = "histogram", 
+                      name = "Total Programs<br>On This Day",
+                      color = "grey") %>%
+          layout(xaxis = list(title = ""),
+                 yaxis = list(title = "No. Programs"),
+                 title = "Number of Programs Happening Over Time"
+                 )
+        
+        output_plot <- subplot(p1, p2, nrows = 2, shareX = TRUE)
 
+      }
+      
+      # end cases for analysis questions
+      
     })
+    
+    # Data table for nbhd summary - deprecated
+    # output$nbhd_summary <- renderDataTable({
+    #   datatable(summary_data(), 
+    #                 options = list(pageLength = 3, 
+    #                                scrollX = TRUE,
+    #                                searching = FALSE,
+    #                                paging = FALSE,
+    #                                ordering = FALSE,
+    #                                lengthChange = FALSE,
+    #                                info = FALSE,
+    #                                initComplete = JS(
+    #                                  "function(settings, json) {",
+    #                                  "$(this.api().table().header()).css(
+    #                                   {'background-color': '#000', 'color': '#fff'}
+    #                                   );",
+    #                                  "}")),
+    #                 # caption = htmltools::tags$caption(
+    #                 #   style = 'caption-side: top; text-align: left; color: black ;',
+    #                 #   htmltools::h3("caption")
+    #                 # ),
+    #                 width = 300,
+    #                 style = "bootstrap",
+    #                 class = 'cell-border stripe',
+    #                 rownames = FALSE
+    #                 
+    #   ) %>%
+    #     formatStyle(colnames(summary_data),
+    #                 backgroundColor = '#c6dbef'
+    #     )
+    # 
+    # })
     
   
     #### Other out of school resources tab ####
@@ -247,6 +461,9 @@ shinyServer(
     # Create the map
     other_mapdata <- reactiveValues(dat = 0)
     
+    nbhd_labels_reactive_other <- reactive({get_nbhd_census_labels()})
+    nbhd_labels_student_reactive_other <- reactive({get_nbhd_student_labels()})
+    
     output$mymap_other = renderLeaflet({
         
         # Get the data
@@ -259,7 +476,8 @@ shinyServer(
         
         ##### ACTUALLY DRAW THE OTHER RESOURCES MAP #####
         
-        open_resource_map <- create_demographic_map(input$school_or_census_other, input$demographics_other, input$student_demographics_other, nbhd_labels_reactive(), nbhd_labels_student_reactive())
+        open_resource_map <- create_demographic_map(input$school_or_census_other, input$demographics_other, input$student_demographics_other, 
+                                                    nbhd_labels_reactive_other(), nbhd_labels_student_reactive_other())
         
         # Loop over selected resources types, plotting the locations of each
         for (col in input$program_other){
@@ -407,12 +625,15 @@ shinyServer(
     output$dt <- renderUI({
       lapply(as.list(seq_len(length(as.list(input$program_other)))), function(i) {
         id <- paste0("dt", i)
-        DT::dataTableOutput(id)
+        return(list(DT::dataTableOutput(id), 
+                    downloadButton(paste0("download_", id), label = "Download Data"),
+                    br(), br()
+                    ))
       })
     })
     
     # Function to get datatables for each resources. Has a bunch of aesthetics
-    data_table_function = function(checkbox_input, data, column_names){
+    data_table_function <- function(checkbox_input, data, column_names){
       
       datatable(data,
                 options = list(pageLength = 3, 
@@ -434,13 +655,14 @@ shinyServer(
                 colnames = column_names
       ) %>%
         formatStyle(colnames(data),
-                    backgroundColor = 'lightblue'
+                    backgroundColor = '#c6dbef'
         )
     }
     
     observe(
       for (i in seq_len(length(input$program_other))) {
         id <- paste0("dt", i)
+        download_id <- paste0("download_", id)
         
         if(input$program_other[i] == "Parks"){
           output[[id]] <- DT::renderDataTable({
@@ -450,7 +672,21 @@ shinyServer(
                                          "Has biking", "Sqft", "Nbhd name")
                                        )
             return(dat)    
-          })}
+          })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "parks.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(parks_data(), file, row.names = FALSE)
+            }
+          )
+          
+          }
         else if(input$program_other[i] == "Libraries"){
           output[[id]] <- DT::renderDataTable({
             dat <- data_table_function("Libraries", 
@@ -459,6 +695,19 @@ shinyServer(
                                          "Circulation Vol", "Sqft", "Nbhd name"))
             return(dat)    
           })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "libraries.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(libraries_data(), file, row.names = FALSE)
+            }
+          )
+          
         }
        
         else if(input$program_other[i] == "Rec Centers"){
@@ -473,6 +722,19 @@ shinyServer(
                                        )
             return(dat)    
           })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "rec_centers.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(rec_centers_data(), file, row.names = FALSE)
+            }
+          )
+          
         }
         else if(input$program_other[i] == "Museums"){
           output[[id]] <- DT::renderDataTable({
@@ -480,6 +742,19 @@ shinyServer(
                                        c("Museum name", "Address", "Nbhd name"))
             return(dat)    
           })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "museums.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(museums_data(), file, row.names = FALSE)
+            }
+          )
+          
         }
         else if(input$program_other[i] == "Fields"){
           output[[id]] <- DT::renderDataTable({
@@ -489,6 +764,19 @@ shinyServer(
                                          "Class", "Sqft", "Nbhd name"))
             return(dat)    
           })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "fields.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(fields_data(), file, row.names = FALSE)
+            }
+          )
+          
         }
         else if(input$program_other[i] == "Playgrounds"){
           output[[id]] <-DT::renderDataTable({
@@ -498,142 +786,264 @@ shinyServer(
                                          "Sqft", "Nbhd name"))
             return(dat)    
           })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "playgrounds.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(playgrounds_data(), file, row.names = FALSE)
+            }
+          )
+          
         }
         
       })
     
+    #######################################
+    # Summary analysis for other resources
+    #######################################
+    
+    output$summary_title_other <- renderUI({
+      summary_nbhds <- input$neighborhoods_other
+      if ("All neighborhoods" %in% summary_nbhds){
+        summary_nbhds <- "All Neighborhoods"
+      }
+      
+      sprintf('<h3>Summary for %s</h3>',
+              toString(summary_nbhds)
+      ) %>% lapply(htmltools::HTML)
+    })
+    
+    # make the plot - number of each resource type
+    output$other_resources_summary <- renderPlotly({
+      
+      num_parks <- nrow(parks_data())
+      num_playgrounds <- nrow(playgrounds_data())
+      num_rec_centers <- nrow(rec_centers_data())
+      num_libraries <- nrow(libraries_data())
+      num_museums <- nrow(museums_data())
+      num_fields <- nrow(fields_data())
+      
+      plot_ly(x = c("Parks", "Playgrounds", "Rec Centers", "Libraries", "Museums", "Fields"),
+              y = c(num_parks, num_playgrounds, num_rec_centers, num_libraries, num_museums, num_fields),
+              type = "bar"
+              ) %>%
+        layout(xaxis = list(title = "Resource Type"),
+               yaxis = list(title = "No. Resources"),
+               title = "Number of Other Resources by Type"
+               )
+      
+    })
+    
+    ########################################################
+    # add demographics for the selected neighborhoods
+    ########################################################
+    output$nbhd_census_demog_summary_other <- renderUI({
+      # subset to the selected neighborhoods
+      summary_data <- subset_for_neighborhoods(shape_census@data, input$neighborhoods_other)
+      
+      # aggregate the demographics over all selected neighborhoods
+      # dummy transformations for now
+      summary_AGE_5_T <- sum(summary_data$AGE_5_T)
+      summary_MED_HH_ <- summary_data$MED_HH_
+      summary_PCT_LES <- sum(summary_data$PCT_LES * summary_data$POP_EDU) / sum(summary_data$POP_EDU)
+      summary_PCT_COL <- sum(summary_data$PCT_COL * summary_data$POP_EDU) / sum(summary_data$POP_EDU)
+      summary_PCT_NON <- sum(summary_data$PCT_NON * summary_data$POP_LAN) / sum(summary_data$POP_LAN)
+      summary_PCT_HIS <- sum(summary_data$PCT_HIS * summary_data$POP_RAC) / sum(summary_data$POP_RAC)
+      summary_PCT_WHI <- sum(summary_data$PCT_WHI * summary_data$POP_RAC) / sum(summary_data$POP_RAC)
+      summary_PCT_BLA <- sum(summary_data$PCT_BLA * summary_data$POP_RAC) / sum(summary_data$POP_RAC)
+      
+      sprintf("<h4>Census Demographics</h4> 
+              No. children 5-17 yrs old = %s <br>
+              < HS Degree (%% Over 25) = %.1f%% <br>
+              College Graduates (%% Over 25) = %.1f%% <br>
+              %% Language Besides English Spoken = %.1f%% <br>
+              %% Hispanic Population = %.1f%% <br>
+              %% White population = %.1f%% <br>
+              %% Black population = %.1f%%<br>",
+              format(summary_AGE_5_T, big.mark = ","),
+              summary_PCT_LES,
+              summary_PCT_COL,
+              summary_PCT_NON,
+              summary_PCT_HIS,
+              summary_PCT_WHI,
+              summary_PCT_BLA #,
+              #format(min(summary_MED_HH_), big.mark = ","), 
+              #format(max(summary_MED_HH_), big.mark = ",")
+      ) %>% lapply(htmltools::HTML)
+    })
+    
+    output$nbhd_student_demog_summary_other <- renderUI({
+      # subset to the selected neighborhoods
+      if ("No neighborhood selected" %in% input$neighborhoods){
+        summary_data_student <- aggregate_dps_student_nbhds
+      }
+      else{
+        summary_data_student <- subset_for_neighborhoods(aggregate_dps_student_nbhds, input$neighborhoods_other)
+      }
+      
+      # aggregate the demographics over all selected neighborhoods
+      total_nbhd_students <- sum(summary_data_student$total_students, na.rm = TRUE)
+      summary_perc_nonenglish_students <- sum(summary_data_student$perc_nonenglish_students * summary_data_student$total_students, 
+                                              na.rm = TRUE) / total_nbhd_students
+      summary_perc_disable_students <- sum(summary_data_student$perc_disable_students * summary_data_student$total_students, 
+                                           na.rm = TRUE) / total_nbhd_students
+      summary_perc_hispanic_students <- sum(summary_data_student$perc_hispanic_students * summary_data_student$total_students, 
+                                            na.rm = TRUE) / total_nbhd_students
+      summary_perc_white_students <- sum(summary_data_student$perc_white_students * summary_data_student$total_students, 
+                                         na.rm = TRUE) / total_nbhd_students
+      summary_perc_black_students <- sum(summary_data_student$perc_black_students * summary_data_student$total_students, 
+                                         na.rm = TRUE) / total_nbhd_students
+      
+      # Print it!
+      sprintf(
+        "<h4>Student Demographics</h4>
+        %% English student learners = %.1f%% <br>
+        %% Students with disability = %.1f%% <br>
+        %% Hispanic students = %.1f%% <br>
+        %% White students = %.1f%% <br>
+        %% Black students = %.1f%% <br><br>
+        <i>Sample size = %s students</i>",
+        summary_perc_nonenglish_students,
+        summary_perc_disable_students,
+        summary_perc_hispanic_students,
+        summary_perc_white_students,
+        summary_perc_black_students,
+        format(total_nbhd_students, big.mark = ",")
+      ) %>% lapply(htmltools::HTML)
+    })
+    
+    output$med_income_summary_other <- renderPlotly({
+      summary_data <- subset_for_neighborhoods(shape_census@data, input$neighborhoods_other)
+      plot_ly(data = summary_data, 
+              x = ~MED_HH_,
+              y = "",
+              text = as.character(summary_data$nbhd_name),
+              type = "scatter",
+              marker = list(size = 15),
+              alpha = 0.5,
+              height = 100,
+              hoverinfo = 'text'
+      ) %>%
+        layout( xaxis = list(title = "", range = c(0,NULL)),
+                title = "Median HH Income ($)",
+                titlefont = list(size = 12),
+                margin = list(l = 0)
+        ) %>%
+        config(displayModeBar = FALSE)
+    })
     
     
-    #############################
+    
+    
+    
+    
+    ###################################################################################################################
     # Search Data Tab
-    #############################
-    #Subset the search data depending on the slider input and the zipcode slected in the sidebar panel
+    ###################################################################################################################
+    # Subset the search data depending on the slider input and the zipcode selected in the sidebar panel
     # Getting column numbers depending on the type of the program selected. 
     # (used to subset the data in the next step)
     colm_search <- reactive({
       input$program_search
     })
     
-    #Subsetting the data depending on the various selections made in the sidebar panel 
+    # Subsetting the data depending on the various selections made in the sidebar panel 
     subset_search_data = reactive({
       
       if(input$minprice_search != ""){
         mincost_search_data = google_analytics[which(google_analytics$mincost  >= as.numeric(input$minprice_search)),]
-        
-      }else{
+      }
+      else {
         mincost_search_data = google_analytics
       }
       
-
       if(input$maxprice_search != ""){
         maxcost_search_data = mincost_search_data[which(mincost_search_data$maxcost  <= as.numeric(input$maxprice_search)),]
-        
-      }else{
+      }
+      else {
         maxcost_search_data = mincost_search_data
       }
       
-
-      
       if(input$minage_search != ""){
         minage_search_data = maxcost_search_data[which(maxcost_search_data$minage  >= as.numeric(input$minage_search)),]
-        
-      }else{
+      }
+      else{
         minage_search_data = maxcost_search_data
       }
       
-      
       if(input$maxage_search != ""){
         maxage_search_data = minage_search_data[which(minage_search_data$maxage  <= as.numeric(input$maxage_search)),]
-        
-      }else{
+      }
+      else{
         maxage_search_data = minage_search_data
       }
       
-
-      
-      if(input$zipcode_searchprog != "No zipcode selected" ) {
+      if(input$zipcode_searchprog != "N/A" ) {
         zipcode_search_data <- subset(maxage_search_data, 
                                       maxage_search_data$location == input$zipcode_searchprog)
       }
       else {
         zipcode_search_data <- maxage_search_data
-        
       }
       
-      
-      if(input$sessiontimes_searchprog != "No session time selected" ) {
+      if(input$sessiontimes_searchprog != "N/A" ) {
         sessiontime_search_data <- subset(zipcode_search_data, 
                                           zipcode_search_data$sessiontimes == input$sessiontimes_searchprog)
       }
       else {
         sessiontime_search_data <- zipcode_search_data
-        
       }
       
-      
       if(length(colm_search()) != 0){
-        
         data_list = list()
-        
         for(i in 1:length(colm_search())){
           data_list[[i]] = sessiontime_search_data[which(sessiontime_search_data$category == colm_search()[i]),]
         }
-        
         category_search_data = as.data.frame(data.table::rbindlist(data_list))
-       
-        
       }
-      
       else {
-        
         category_search_data = sessiontime_search_data
       }
-      
       
       if(input$specialneeds_search == "Special needs students" ) {
         final_search_data <- subset(category_search_data, 
                                     category_search_data$specialneeds  == "specialNeedsStudent")
       }
-      
       else if(input$specialneeds_search == "Scholarships Available" ) {
         final_search_data <- subset(category_search_data, 
                                     category_search_data$scholarships  == "scholarshipsAvailable")
       }
-      
       else {
         final_search_data <- category_search_data
-        
       }
       
       return(final_search_data) 
       
-      
     })
-    
 
-    
-
-    #Display the total number of searches made with this combination selected in the side bar panel
+    # Display the total number of searches made with this combination selected in the side bar panel
     output$totalsearches <- renderText({
       
       sprintf(
-        
-        "<b><i> Number of searches made in this combination </i><br/><font size=\"+3\"> %s </b>",
+        "<b><i> Number of searches with these filters:</i><br/><font size=\"+3\"> %s </b>",
         sum(subset_search_data()[,"users"])
       ) 
     })
   
-    #Display the total percentage of searches made with this combination selected in the side bar panel
+    # Display the total percentage of searches made with this combination selected in the side bar panel
     output$percentagesearches <- renderText({
       
       sprintf(
-         "<b><i> Percentage searches </i><br/><font size=\"+3\"> %s%% </b>",
+         "<b><i> Percentage of searches with these filters:</i><br/><font size=\"+3\"> %s%% </b>",
          round(((sum(subset_search_data()[,"users"])*100)/sum(google_analytics$users)), 2)
       ) 
     })
   
-    
-    
     # Output the relevant data in the data tab based on the search data tab
     output$datatable_search <- DT::renderDataTable({
       data_table1 <- subset_search_data()
@@ -647,50 +1057,62 @@ shinyServer(
                                    );",
                                      "}")),
                     caption = htmltools::tags$caption(
-                      style = 'caption-side: top; text-align: center; color: black ;',
+                      style = 'caption-side: top; text-align: left; color: black;',
                       htmltools::h3("Search Data")
-                    ), 
+                    ),
                     style = "bootstrap",
                     class = 'cell-border stripe',
                     rownames = FALSE
                     
       ) %>%
         formatStyle(colnames(data_table1),
-                    backgroundColor = 'lightblue'
+                    backgroundColor = '#c6dbef'
         )
       
     })
     
+    output$download_search_data <- downloadHandler(
+      filename = "b4s_searches.csv",
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        write.csv(subset_search_data(), file, row.names = FALSE)
+      }
+    )
+    
 
-    #Rendering plots for visualization tab in the search data tab
-    #'Sort by' variable graph
+    #################### Rendering plots for visualization tab in the search data tab #################################
+    # 'Sort by' variable graph
     output$search_sort_plot <- renderPlotly({
-      validate(need(input$specific_search_questions=="Number of searches made by different variables", message=FALSE))
+      validate(need(input$specific_search_questions=="What distances and session times do people search for, and how do they sort their results?", message=FALSE))
       search_sort_summary %>%
         plot_ly(labels = ~sort, values = ~total_searches) %>%
         add_pie(hole = 0.6) %>%
-        layout(title = "Most 'sorted by' in the searches",  showlegend = T,
+        layout(title = "Search Results Most 'Sorted By'",  showlegend = T,
                xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE),
                yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE))
       
     })
     
-    #sessiontimes variable graph
+    # Sessiontimes variable graph
     output$search_sessiontimes_plot = renderPlotly({
-      validate(need(input$specific_search_questions=="Number of searches made by different variables", message=FALSE))
+      validate(need(input$specific_search_questions=="What distances and session times do people search for, and how do they sort their results?", message=FALSE))
       
       search_sessiontimes_summary %>%
         plot_ly(labels = ~sessiontimes, values = ~total_searches) %>%
         add_pie(hole = 0.6) %>%
-        layout(title = "Searches by Session time",  showlegend = T,
+        layout(title = "Searches by Session Time",  showlegend = T,
                xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE),
                yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE))
       
     })
     
-    #Distance graph
+    # Distance graph
     output$search_distance_plot <- renderPlotly({
-      validate(need(input$specific_search_questions=="Number of searches made by different variables", message=FALSE))
+      validate(need(input$specific_search_questions=="What distances and session times do people search for, and how do they sort their results?", message=FALSE))
       
       xform <- list(categoryorder = "array",
                     categoryarray = c(search_distance_summary$distance))
@@ -698,17 +1120,16 @@ shinyServer(
               x = ~distance,
               y = ~total_searches,
               type = "bar" ) %>%
-        layout(xaxis = list(title = "Distance in miles"), 
-               yaxis = list(title = "Number of searches"), 
-               title = "Number of searches by distance") %>% 
+        layout(xaxis = list(title = "Maximum Distance in Miles"), 
+               yaxis = list(title = "No. Searches"), 
+               title = "Searches by Distance") %>% 
         layout(xaxis = xform)
-      
       
     })
     
-    #Zipcode graph
+    #Zipcode searches graph
     output$search_zipcode_plot <- renderPlotly({
-      validate(need(input$specific_search_questions=="Number of searches made by zipcode", message=FALSE))
+      validate(need(input$specific_search_questions=="What locations are people searching for?", message=FALSE))
       
       xform <- list(categoryorder = "array",
                     categoryarray = c(search_zipcode_summary$location))
@@ -724,18 +1145,38 @@ shinyServer(
       
     })
     
-    
-    #Bubble graph for copmaring programs
-    output$search_compare_prog_category = renderPlotly({
-      validate(need(input$specific_search_questions=="Insights about the number of searches made by program category", message=FALSE))
+    #Zipcode sessions graph
+    output$search_programs_zipcode_plot <- renderPlotly({
+      validate(need(input$specific_search_questions=="What locations are people searching for?", message=FALSE))
       
-      p = ggplot(programs_sessions, aes(x= `Percentage of searches`, y= `Percentage of programs`, size= `Percentage gap`, color = category)) + 
-        geom_point() + 
+      xform <- list(categoryorder = "array",
+                    categoryarray = c(final_zipcode_searches_programs$location))
+      
+      plot_ly(final_zipcode_searches_programs, x = ~location, y = ~total_sessions, type = 'bar', 
+              name = 'No. Searches', color = I("dark orange"))%>%
+        layout(yaxis = list(title = 'Count'), barmode = 'group', title = 'Number of programs by zipcode' ) %>% 
+        layout(xaxis = xform)
+
+    })
+    
+    # Bubble graph for comparing programs
+    output$search_compare_prog_category = renderPlotly({
+      validate(need(input$specific_search_questions=="What program categories do people search for the most?", message=FALSE))
+      
+      p = ggplot(programs_sessions, aes(x= `Percentage of searches`, 
+                                        y= `Percentage of programs`, 
+                                        #size = 0.5, 
+                                        color = category)
+                 ) + 
+        geom_abline(slope = 1, intercept = 0, color = "lightgray") +
+        geom_point(size = 4.0) + 
+        xlim(0,NA) + ylim(0,NA) +
         theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
         stat_smooth(method="lm", se=FALSE) + 
-        theme(legend.title=element_blank()) + ggtitle("Compare % of searches and % of ReSchool programs by category")
+        theme(legend.title=element_blank()) + 
+        ggtitle("Prevalence of Searches vs. Programs, by Category")
       
-      #Converting this plot into a ggplotly output
+      # Converting this plot into a ggplotly output
       p <- p + guides(size=FALSE)
       p <- p + scale_size_continuous(guide=FALSE) 
       ggplotly(p) 
@@ -743,36 +1184,69 @@ shinyServer(
       
     })
     
-    #Number of searches by program category graph
+    # Number of searches by program category graph
     output$search_prog_category = renderPlotly({
-      validate(need(input$specific_search_questions=="Insights about the number of searches made by program category", message=FALSE))
+      validate(need(input$specific_search_questions=="What program categories do people search for the most?", message=FALSE))
       
       plot_ly(data = search_programtype_summary,
               x = ~category,
               y = ~total_searches,
-              name = "Number of searches by program type",
+              name = "Searches by Program Category",
               type = "bar" ) %>%
-        layout(xaxis = list(title = "Program categories"), 
-               yaxis = list(title = "Number of searches"), 
-               title = "Number of searches made by program category")
+        layout(xaxis = list(title = "Program Categories"), 
+               yaxis = list(title = "No. Searches"), 
+               title = "Searches by Program Category")
       
     })
     
-    #############################
+    output$search_mymap <- renderLeaflet({
+      validate(need(input$specific_search_questions=="What locations are people searching for? - spatial analysis", message=FALSE))
+      
+      pal_search = colorBin("YlOrRd", domain = search_map_data@data$total_searches, bins = 5)
+      labels_search = sprintf(
+        "<strong>zipcode</strong>: %s<br/><strong>Number of searches</strong>: %s",
+        search_map_data@data$GEOID10, search_map_data@data$total_searches) %>% lapply(htmltools::HTML)
+      leaflet()  %>% 
+        setView(lng = -104.901531, lat = 39.722043, zoom = 11) %>% 
+        addProviderTiles(providers$CartoDB.Positron) %>%
+        addPolygons(data = subset_denver_zipcodes, color = "#777",
+                    weight = 1,
+                    smoothFactor = 0.5,
+                    opacity = 1.0) %>%
+        addPolygons(data = search_map_data, color = "#444444", weight = 1, smoothFactor = 0.5,
+                    opacity = 1.0, fillOpacity = 0.5,
+                    fillColor = ~pal_search(total_searches),
+                    highlight = highlightOptions(
+                      bringToFront = FALSE,
+                      weight = 5,
+                      color = "#666"
+                    ),
+                    label = labels_search,
+                    labelOptions = labelOptions(
+                      style = list("font-weight" = "normal", padding = "3px 8px"),
+                      textsize = "15px",
+                      direction = "auto")) %>%
+        addLegend(pal = pal_search, values = search_map_data$total_searches, opacity = 0.7, title = NULL,
+                  position = "bottomright")
+      
+      
+    })
+    
+    ###################################################################################################################
     # Access Index Tab
-    #############################
+    ###################################################################################################################
     
     # first calculate the aggregated access index based on user input
-    index <- reactive({calculate_aggregated_index(input$drive_or_transit,input$type_access,input$cost_access)})
+    index <- reactive({calculate_aggregated_index(input$drive_or_transit,input$type_access,input$cost_access, input$disability)})
+    index_nbhd <- reactive({calculate_aggregated_index(input$drive_or_transit,input$type_access,input$cost_access, input$disability, block=FALSE)})
     # Bins and color palettes for demographic variables in leaflet map
-    pal_access <- reactive({colorBin("Blues", domain = index())})
+    pal_access <- reactive({
+      if (input$drive_or_transit=="drive") {return(colorBin("Blues", domain = index()))}
+      else {return(colorBin("Greens", domain = index()))}
+      })
     
     # Create labels and stuff
-    access_label <- reactive({sprintf(
-      "<b>Access index: %.2f</b><br/>",
-      index()
-      ) %>% lapply(htmltools::HTML)
-    })
+    access_label <- reactive({get_block_census_labels(index())})
     
     ####### PROGRAM SUBSETTING BY COST AND TYPE #######
     
@@ -782,8 +1256,10 @@ shinyServer(
                          "nature"=c("has_nature"))
 
     program_category_data_access <- reactive({
-      return(subset_for_category(reschool_summer_program,
-                                 unlist(program_list[input$type_access], use.names=F)))
+      df <- subset_for_category(reschool_summer_program,
+                                 unlist(program_list[input$type_access], use.names=F))
+      if (input$disability==TRUE) {df <- subset_for_special_needs(df)}
+      return(df)
     })
 
     program_cost_data_access <- reactive({
@@ -842,6 +1318,123 @@ shinyServer(
         mapshot(access_mapdata$dat, file = file, cliprect = "viewport")
       }
     )
+    
+    df_access <- reactive(data.frame("block_group"=shape_census_block@data$Id2, 
+                                     "access_index"=round(index(),2), 
+                                     "num_children_5_to_17"=shape_census_block@data$Ag_L_18-shape_census_block@data$Ag_Ls_5,
+                                     "median_household_income"=shape_census_block@data$Mdn_HH_,
+                                     "less_than_hs_percent"=round(100*shape_census_block$LESS_TH/shape_census_block@data$TTL_ppl,2),
+                                     "hispanic_percent"=round(shape_census_block@data$PCT_Hsp,2),
+                                     "white_percent"=round(shape_census_block@data$PCT_Wht,2),
+                                     "black_percent"=round(shape_census_block@data$PCT_Afr,2)))
+    
+    df_access_nbhd <- reactive(data.frame("neighborhood"=shape_census@data$NBHD_NA, 
+                                     "access_index"=round(index_nbhd(),2), 
+                                     "num_children_5_to_17"=shape_census@data$AGE_5_T,
+                                     "median_household_income"=shape_census@data$MED_HH_,
+                                     "less_than_hs_percent"=round(shape_census$PCT_LES,2),
+                                     "hispanic_percent"=round(shape_census@data$PCT_HIS,2),
+                                     "white_percent"=round(shape_census@data$PCT_WHI,2),
+                                     "black_percent"=round(shape_census@data$PCT_BLA,2)))
+    
+    # Output the relevant data in the data tab based on the selections
+    output$datatable_access <- DT::renderDataTable({
+      DT::datatable(df_access(), 
+                    options = list(pageLength = 5, 
+                                   scrollX = TRUE,
+                                   initComplete = JS(
+                                     "function(settings, json) {",
+                                     "$(this.api().table().header()).css(
+                                     {'background-color': '#000', 'color': '#fff'}
+                                   );",
+                                     "}")),
+                    caption = htmltools::tags$caption(
+                      style = 'caption-side: top; text-align: left; color: black ;',
+                      htmltools::h3("Access Index by Block Group")
+                    ),
+                    width = 300,
+                    style = "bootstrap",
+                    class = 'cell-border stripe',
+                    rownames = FALSE
+                    
+                    ) %>%
+        formatStyle(colnames(df_access()),
+                    backgroundColor = '#c6dbef'
+        )
+  })
+    
+    output$download_access_data <- downloadHandler(
+      filename = "access_index.csv",
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        write.csv(df_access(), file, row.names = FALSE)
+      }
+    )
+    
+    # Output the relevant data in the data tab based on the selections
+    output$datatable_access_nbhd <- DT::renderDataTable({
+      DT::datatable(df_access_nbhd(), 
+                    options = list(pageLength = 5, 
+                                   scrollX = TRUE,
+                                   initComplete = JS(
+                                     "function(settings, json) {",
+                                     "$(this.api().table().header()).css(
+                                     {'background-color': '#000', 'color': '#fff'}
+                                   );",
+                                     "}")),
+                    caption = htmltools::tags$caption(
+                      style = 'caption-side: top; text-align: left; color: black ;',
+                      htmltools::h3("Access Index by Neighborhood")
+                    ),
+                    width = 300,
+                    style = "bootstrap",
+                    class = 'cell-border stripe',
+                    rownames = FALSE
+                    
+                    ) %>%
+        formatStyle(colnames(df_access_nbhd()),
+                    backgroundColor = '#c6dbef'
+        )
+  })
+    
+    output$download_access_data_nbhd <- downloadHandler(
+      filename = "access_index.csv",
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        write.csv(df_access(), file, row.names = FALSE)
+      }
+    )
+    
+    output$lorenz <- renderPlot({
+      tot_young_pop <- shape_census_block$Ag_L_18-shape_census_block$Ag_Ls_5
+      plot(Lc(index()*tot_young_pop, tot_young_pop),
+           col="darkred",lwd=2, xlab = "Percentage of Students", ylab = "Cumulative Share of Access*") 
+    })
+    
+    output$access_scatter <- renderPlotly({
+      plot_ly(x = shape_census@data$AGE_5_T, y = index_nbhd(), text=shape_census@data$NBHD_NA, 
+              type='scatter', mode='markers') %>%
+        layout(title = "Neighborhoods with low access and high student age population",
+               xaxis = list(title="Number of students in each neighborhood"), #showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE),
+               yaxis = list(title = "Access Index score")) #showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE))
+    })
+    
+    race_access_means <- reactive({get_race_access_means(index())})
+
+    output$access_demog <- renderPlotly({
+      access_race_list <- race_access_means()
+      access_race_names <- names(access_race_list)
+      access_race_vals <- unlist(access_race_list)
+      plot_ly(x=access_race_names, y=access_race_vals, type="bar")
+    })
     
   })  
 

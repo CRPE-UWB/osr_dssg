@@ -6,11 +6,37 @@
 # Access Index Helpers
 ############################################################################################
 
-calculate_aggregated_index <- function(transport_mode, types, cost) {
+get_race_access_means <- function(access_inds){
+  race_col_names <- c("Hispanc","White","Black")
+  race_names <- c("Hispanic", "White", "Black")
+  race_access_list <- list()
+  for(i in 1:length(race_col_names)){
+    race_pops <- shape_census_block@data[,race_col_names[i]]
+    tot_race_pop <- sum(shape_census_block@data[,race_col_names[i]])
+    race_access_list[race_names[i]] <- sum(access_inds*(race_pops/tot_race_pop))
+  }
+  return(race_access_list)
+}
+
+calculate_aggregated_index <- function(transport_mode, types, cost, disability, block=TRUE) {
   if (transport_mode=="drive") {
-    df <- driving_index
+    if (disability) {
+      if (block) {df <- driving_index_disability}
+      else {df <- driving_index_disability_nbhd}
+      }
+    else {
+      if (block) {df <- driving_index}
+      else {df <- driving_index_nbhd}
+      }
   } else {
-    df <- transit_index
+    if (disability) {
+      if (block) {df <- transit_index_disability}
+      else {df <- transit_index_disability_nbhd}
+      }
+    else {
+      if (block) {df <- transit_index}
+      else {df <- transit_index_nbhd}
+      }
   }
   # look for the intersection of indices containing the words in the string-vector "types"
   # and the string "cost"
@@ -49,4 +75,9 @@ subset_for_cost <- function(df, min_cost, max_cost) {
 # Subsetting the data for the type of the program selected
 subset_for_category <- function(df, col) {
   return(df[apply(as.data.frame(df[,col])==1,1,any),])
+}
+
+# Subsetting for programs that allow special needs
+subset_for_special_needs <- function(df) {
+  return(df[df[,"has_special_needs_offerings"],])
 }

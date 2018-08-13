@@ -17,29 +17,31 @@ require("RColorBrewer")
 ```{r}
 mypath <- dirname(rstudioapi::getActiveDocumentContext()$path)
 setwd(mypath)
+source(file.path('..', 'connect_to_database.R'), chdir = TRUE)
 
-# loads the PostgreSQL driver
-drv <- dbDriver("PostgreSQL")
-
-# make a file called "cred.txt" of the form
-#
-# user: "YOUR_AWS_USERNAME"
-# password: "YOUR_AWS_PASSWORD"
-#
-# in the directory above the osr_dssg2018 folder
-
-source(file.path(dirname(dirname(mypath)),"cred.txt"))
-
-# creates a connection to the postgres database
-# note that "con" will be used later in each connection to the database
-con <- dbConnect(drv, dbname = "dssg2018uw",
-                 host = "localhost", port =9000,
-                 user = user, password = password)
+# mypath <- dirname(rstudioapi::getActiveDocumentContext()$path)
+# setwd(mypath)
+# 
+# # loads the PostgreSQL driver
+# drv <- dbDriver("PostgreSQL")
+# 
+# # make a file called "cred.txt" of the form
+# #
+# # user: "YOUR_AWS_USERNAME"
+# # password: "YOUR_AWS_PASSWORD"
+# #
+# # in the directory above the osr_dssg2018 folder
+# 
+# source(file.path(dirname(dirname(mypath)),"../cred.txt"))
+# 
+# # creates a connection to the postgres database
+# # note that "con" will be used later in each connection to the database
+# con <- dbConnect(drv, dbname = "dssg2018uw",
+#                  host = "localhost", port =9000,
+#                  user = user, password = password)
 ```
 
 ```{r}
-google_analytics <- dbGetQuery(con, "select * from clean.google_analytics")
-programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs")
 museums <- dbGetQuery(con, "select * from clean.museums")
 libraries <- dbGetQuery(con, "select * from clean.libraries")
 fields <- dbGetQuery(con, "select * from clean.fields")
@@ -369,15 +371,22 @@ print(tmp_df)
 barplot(t(tmp_df),beside=TRUE,main="Census vs Student Choice Demographics",cex.names=.5,las=2,legend.text = TRUE)
 ```
 
+### BLUEPRINT4SUMMER ###
+
 Now we'll move on to analyzing Blueprint4Summer search data, which includes the zip code searched for. 
 
-We'll get shape files for all zip codes from 
+```{r}
+google_analytics <- dbGetQuery(con, "select * from clean.google_analytics")
+programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs")
+```
+
+We'll get shape files for all zip codes from online. 
 
 ```{r}
 library("rgdal")
 
 # Read shapefile into SpatialPointsDataFrame.
-spdf <- readOGR(dsn = "~/Documents/Experiences/Applications/UWashington/Project/osr_dssg2018/data/zip_codes", "cb_2017_us_zcta510_500k")
+spdf <- readOGR(dsn = "../data/zip_codes", "cb_2017_us_zcta510_500k")
 
 spdf@data$GEOID10 <- as.character(spdf@data$GEOID10)
 ```
@@ -390,13 +399,13 @@ searches_with_locations <- google_analytics[grep("80\\d{3}",google_analytics$loc
 unique_search_locations <- unique(searches_with_locations$location)
 ```
 
-The zip codes we care to save are those in the search data and those in Denver generally:
+The zip codes we care to save are those in the search data and those in Denver generally. After running for the first time, you can simply use the zip_codes in the future. 
 
 ```{r}
 relevant_zip_codes <- spdf[spdf@data$GEOID10 %in% unique_search_locations,]
 # create a shapefile so we don't have to push such a large dataset
 writeOGR(relevant_zip_codes,"../data/zip_codes","zip_codes", driver="ESRI Shapefile")
-onion <- readOGR(dsn="../data/zip_codes")
+relevant_zip_codes <- readOGR(dsn="../data/zip_codes")
 ```
 
 Oddly enough, 3 of the searched zip codes don't exist:

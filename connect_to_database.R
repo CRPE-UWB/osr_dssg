@@ -1,5 +1,5 @@
 require("RPostgreSQL")
-mypath <- dirname(rstudioapi::getActiveDocumentContext()$path)
+# mypath <- dirname(rstudioapi::getActiveDocumentContext()$path)
 
 # loads the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
@@ -11,7 +11,8 @@ drv <- dbDriver("PostgreSQL")
 #
 # in the directory above the osr_dssg2018 folder
 
-source(file.path(dirname(mypath),"cred.txt"))
+# source(file.path(dirname(mypath),"Rshiny","cred.txt"))
+source(file.path("Rshiny","cred.txt"))
 
 # creates a connection to the postgres database
 # note that "con" will be used later in each connection to the database

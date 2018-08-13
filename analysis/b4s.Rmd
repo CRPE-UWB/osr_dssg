@@ -1,0 +1,86 @@
+---
+title: "b4s"
+author: "Joe"
+date: "8/7/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+require("RPostgreSQL")
+require("tidyverse")
+require("leaflet")
+require("leaflet.extras")
+require("rgdal")
+require("RColorBrewer")
+```
+
+```{r}
+mypath <- dirname(rstudioapi::getActiveDocumentContext()$path)
+setwd(mypath)
+source(file.path('..', 'connect_to_database.R'), chdir = TRUE)
+```
+
+```{r}
+google_analytics <- dbGetQuery(con, "select * from clean.google_analytics")
+programs <- dbGetQuery(con, "select * from clean.reschool_summer_programs")
+```
+
+We'll get shape files for all zip codes from online. 
+
+```{r}
+# Read shapefile into SpatialPointsDataFrame.
+relevant_zip_codes <- readOGR(dsn="../data/zip_codes")
+
+relevant_zip_codes@data$GEOID10 <- as.character(spdf@data$GEOID10)
+```
+
+Consider all zip codes included in the search data (some of which are outside of Denver, and some are missing from the set of Denver zip codes).
+
+```{r}
+google_analytics$location <- gsub(".*(80\\d{3}).*","\\1",google_analytics$location)
+searches_with_locations <- google_analytics[grep("80\\d{3}",google_analytics$location),]
+unique_search_locations <- unique(searches_with_locations$location)
+```
+
+Oddly enough, 3 of the searched zip codes don't exist:
+
+```{r}
+unique_search_locations[!unique_search_locations %in% relevant_zip_codes@data$GEOID10]
+```
+
+Let's check out the frequencies of searches by zip code:
+
+```{r}
+table(searches_with_locations$location)
+```
+
+We'll be excluding 2+3+7=12 zip codes, but for now let's just forget them and move on (we'll still have 3,000 searches total):
+
+```{r}
+searches_with_locations <- searches_with_locations[searches_with_locations$location %in% unique_search_locations[unique_search_locations %in% relevant_zip_codes@data$GEOID10],]
+
+table(searches_with_locations$location)
+```
+
+ 
+```{r}
+search_frequencies <- as.vector(table(searches_with_locations$location))
+leaflet() %>% 
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    data = relevant_zip_codes,
+    fillColor = ~colorQuantile("YlOrRd",search_frequencies)(search_frequencies),
+    popup = as.character(search_frequencies)
+    ) %>%
+  # addCircleMarkers(
+  #   data=programs,
+  #   radius=5,
+  #   popup = programs$camp_name
+  # ) %>%
+  addScaleBar() %>%
+  setView(lat=39.7,lng=-104.9,zoom=10)
+```

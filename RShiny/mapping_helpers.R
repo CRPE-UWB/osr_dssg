@@ -66,7 +66,7 @@ add_colored_polygon_map <- function(map, spdf, pal_type, label_type,
               opacity = 1,
               color = "#777",
               dashArray = "",
-              fillOpacity = 0.4,
+              fillOpacity = 0.65,
               highlight = highlightOptions(
                 weight = 5,
                 color = "#666",
@@ -124,7 +124,8 @@ create_demographic_map <- function(school_or_census, demographics, student_demog
     if(student_demographics == "none"){
       curr_map <- make_demographic_map(NULL,NULL, my_labels=student_labels)
     } else {
-      curr_map <- make_demographic_map(pal_black, student_demographics, labFormat = labelFormat(suffix = " %"), my_labels=student_labels)
+      curr_map <- make_demographic_map(pal_list_student[[student_demographics]], student_demographics, labFormat = lab_format_list_student[[student_demographics]], 
+                                       my_labels=student_labels)
     }
   }
 }
@@ -187,5 +188,5 @@ add_outline <- function(map, nbhd_list=NULL) {
     relevant_nbhds <- subset(shape_census, NBHD_NA %in% nbhd_list)
   }
   addPolygons(map, data = unionSpatialPolygons(relevant_nbhds, IDs=rep(0,nrow(relevant_nbhds))),
-              fill = FALSE, weight=5, color = "#777", opacity = 1)
+              fill = FALSE, weight=4, color = "#777", opacity = 1)
 }

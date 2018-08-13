@@ -48,13 +48,12 @@ nav {
 
 
 /* text families: headers, body text, etc.  */
-h1 {
-  font-weight: 500;
-  line-height: 1.1;
-  color: #ad1d28;
-}
-
 body {
   background-color: #fff;
   /* font-family: 'Arial'; */
+}
+
+h3{
+  margin-top: 0;
+  padding-top: 0;
 }

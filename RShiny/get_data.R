@@ -9,6 +9,8 @@ library(tigris)
 
 ################## Getting data from the database e#############################################
 
+####### WILL TAKE OUT ONCE MOVED TO GITHUB ##########
+
 # load the PostgreSQL driver
 drv <- dbDriver("PostgreSQL")
 
@@ -22,27 +24,42 @@ con <- dbConnect(drv, dbname = dbname,
                  host = host, port = port,
                  user = user, password = password)
 
-# get the required tables from the sql database 
-reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
-aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
-aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
+# Summary of total number of programs in each neighborhood
+nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summary")
+
+# Access index stuff
+driving_index = dbGetQuery(con, "SELECT * from clean.driving_index")
+driving_index_disability = dbGetQuery(con, "SELECT * from clean.driving_index_disability")
+driving_index_nbhd = dbGetQuery(con, "SELECT * from clean.driving_index_nbhd")
+driving_index_disability_nbhd = dbGetQuery(con, "SELECT * from clean.driving_index_disability_nbhd")
+transit_index = dbGetQuery(con, "SELECT * from clean.transit_index")
+transit_index_disability = dbGetQuery(con, "SELECT * from clean.transit_index_disability")
+transit_index_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_nbhd")
+transit_index_disability_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_disability_nbhd")
+
+# Open resource stuff
 fields = dbGetQuery(con, "SELECT * from shiny.fields")
 museums = dbGetQuery(con, "SELECT * from shiny.museums")
 libraries = dbGetQuery(con, "SELECT * from shiny.libraries")
 playgrounds = dbGetQuery(con, "SELECT * from shiny.playgrounds")
 rec_centers = dbGetQuery(con, "SELECT * from shiny.rec_centers")
 parks = dbGetQuery(con, "SELECT * from shiny.parks")
-all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
+
+# get the required tables from the sql database
+reschool_summer_program_clean = dbGetQuery(con, "SELECT * from clean.reschool_summer_programs")
+reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
+aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
+aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
+
+#all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
 google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
-
-nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summary")
-
-driving_index = dbGetQuery(con, "SELECT * from clean.driving_index")
-transit_index = dbGetQuery(con, "SELECT * from clean.transit_index")
+relevant_zip_codes = readOGR(dsn="../data/zip_codes")
+total_denver_zipcodes = read.csv("../data/denver_zip_codes.csv")
 
 # when you're done, close the connection and unload the driver 
 dbDisconnect(con) 
 dbUnloadDriver(drv)
+#####################################################
 
 ##################### Getting shape files to plot block groups, nbhds on the map ##########################
 
@@ -61,6 +78,7 @@ shape_census <- geo_join(shape_census, aggregate_session_nbhds,
 # Join the aggregate dps students information to the census shape file
 shape_census <- geo_join(shape_census, aggregate_dps_student_nbhds, 
                          "NBHD_NA", "nbhd_name", how = "left")
+shape_census <- shape_census[order(as.character(shape_census@data$NBHD_NA)),]
 
 ######################## Creating filter variables for the sidebar panels ############################
 
@@ -71,7 +89,7 @@ minprice_reschoolprograms = min(reschool_summer_program$session_cost)
 maxprice_reschoolprograms = max(reschool_summer_program$session_cost)
 
 # Filter variables for 'other resources' tab
-neighborhoods_other = unique(all_neighbourhoods$nbhd_name)
+neighborhoods_other = shape_census@data$NBHD_NA #unique(all_neighbourhoods$nbhd_name)
 
 demographic_filters = c("Median Income", "Percent below poverty level")
 
@@ -115,14 +133,6 @@ search_distance_summary = google_analytics %>%
 
 search_distance_summary$distance = as.character(search_distance_summary$distance)
 
-# search_distance_summary$distance = paste(search_distance_summary$distance, " mi")
-# search_distance_summary$text = paste("distance: ",search_distance_summary$distance, "\n", 
-#                                    "Number of searches:", search_distance_summary$total_searches)
-# 
-# packing <- circleProgressiveLayout(search_distance_summary$total_searches, sizetype='area')
-# search_distance_summary = cbind(search_distance_summary, packing)
-# search_distance_summary.gg <- circleLayoutVertices(packing, npoints=50)
-
 #Creating the number of searches by program category
 search_programtype_summary = google_analytics %>% select(category, users) %>% 
   filter(category != '') %>% group_by(category) %>% 
@@ -131,14 +141,19 @@ search_programtype_summary = google_analytics %>% select(category, users) %>%
 #Now we will be comparing the percentage of searches by category to the percentage of programs existing by category
 #Getting the percentage of programs by category from reschool search data 
 number_of_sessions = numeric()
+
+program_col_names <- c("has_special_needs_offerings", "has_scholarships", "has_academic", 
+                       "has_arts", "has_cooking", "has_dance", "has_drama", "has_music", 
+                       "has_nature", "has_sports", "has_stem")
+
 j =1
-for(i in 13:21){
-  a = subset(reschool_summer_program, reschool_summer_program[,i] == TRUE )
+for(program_col_name in program_col_names){
+  a = subset(reschool_summer_program, reschool_summer_program[,program_col_name] == TRUE )
   number_of_sessions[j] = nrow(a)
   j = j+1
 }
 
-category = colnames(reschool_summer_program)[13:21]
+category = program_col_names #colnames(reschool_summer_program)[program_col_names]
 
 session_numberby_category = data.frame(number_of_sessions, category, stringsAsFactors=FALSE)
 
@@ -168,19 +183,50 @@ search_zipcode_summary = google_analytics %>%
   filter(location != '') %>% 
   group_by(location) %>% 
   summarize(total_searches = sum(users)) %>% 
-  arrange(total_searches, location)
+  arrange(total_searches, location) %>% top_n(n = 20)
 
 search_zipcode_summary$location = as.character(search_zipcode_summary$location)
+
+#Summary daat of searches and programs by zipcode
+reschool_summer_program_clean$session_zip = as.character(reschool_summer_program_clean$session_zip)
+zipcode_programs = reschool_summer_program_clean %>% 
+  select(session_zip) %>% 
+  filter(session_zip != '') %>% 
+  group_by(session_zip) %>% 
+  summarize(total_sessions = n()) %>% filter(session_zip %in% c(search_zipcode_summary$location))
+colnames(zipcode_programs) = c("location", "total_sessions")
+
+final_zipcode_searches_programs = merge(search_zipcode_summary, zipcode_programs, all.x = TRUE)
+
+
+target <- c(search_zipcode_summary$location)
+final_zipcode_searches_programs = final_zipcode_searches_programs[match(target, final_zipcode_searches_programs$location),]
+final_zipcode_searches_programs = final_zipcode_searches_programs %>% filter(is.na(location) == FALSE)
+
+
+#Search data map by zipcode
+#Aggregate the searches by zipcode
+search_zipcode_summary_map = google_analytics %>% 
+  select(location, users) %>% 
+  filter(location != '') %>% 
+  group_by(location) %>% 
+  summarize(total_searches = sum(users)) %>% 
+  arrange(total_searches, location) %>% filter(location %in% total_denver_zipcodes$zipcode)
+
+search_map_data <- geo_join(relevant_zip_codes, search_zipcode_summary_map, 
+                            "GEOID10", "location", how = "inner")
+
+#Get the exhaustive zipcodes from the reschool dataset from the clean schema 
+subset_denver_zipcodes = reschool_summer_program_clean[reschool_summer_program_clean$session_city == 'Denver',]
+subset_denver_zipcodes = relevant_zip_codes[relevant_zip_codes$GEOID10 %in% c(subset_denver_zipcodes$session_zip), ]
 
 
 ############################ Creating racial distributions variables ##################################
 
 # Creating majority (really most common) race variables for each neighborhood
 shape_census@data$majority_race <- max.col(as.matrix(
-          shape_census@data[ ,c("PCT_HIS", "PCT_WHI", "PCT_BLA","PCT_NAT","PCT_ASI")]
+          shape_census@data[ ,c("PCT_HIS", "PCT_WHI", "PCT_BLA")]
                      ))
 shape_census@data$majority_race <- gsub(1, "Hispanic", shape_census@data$majority_race)
 shape_census@data$majority_race <- gsub(2, "White", shape_census@data$majority_race)
 shape_census@data$majority_race <- gsub(3, "Black", shape_census@data$majority_race)
-shape_census@data$majority_race <- gsub(4, "Native", shape_census@data$majority_race)
-shape_census@data$majority_race <- gsub(5, "Asian", shape_census@data$majority_race)
