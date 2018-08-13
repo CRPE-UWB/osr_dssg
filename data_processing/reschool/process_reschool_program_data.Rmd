@@ -19,7 +19,7 @@ library(rgeos)
 Read in the Blueprint4Summer program data from a local csv.
 
 ```{r}
-programdata = read.csv(file = "/Users/kelliemacphee/Desktop/dssg2018/Data/Blueprint4Summer.csv", na.strings = "")
+programdata = read.csv(file = "C:/Users/Sreekanth/Desktop/DSSG Project/programdata.csv", na.strings = "")
 ```
 
 Fix the types of the columns so that everything is loaded properly into the database later. Do this first thing in case any other code below might be affected, too.

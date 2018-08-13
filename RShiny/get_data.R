@@ -51,6 +51,8 @@ reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
 aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
 
+aggregate_dps_student_nbhds[aggregate_dps_student_nbhds$total_students<10,-c(1,2)] = NA
+
 #all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
 google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
 relevant_zip_codes = readOGR(dsn="../data/zip_codes")
