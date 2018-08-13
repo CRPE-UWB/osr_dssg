@@ -13,6 +13,7 @@ First we install the necessary packages
 install.packages("aws.s3", repos = c("cloudyr" = "http://cloudyr.github.io/drat"))
 install.packages('tidyverse')
 install.packages('gridExtra')
+install.packages('ggmap')
 ```
 
 and load these packages.
@@ -31,7 +32,8 @@ secret_key: 'YOUR_SECRET_KEY'
 where you need the single quotes around your keys. 
 
 ```{r message=FALSE}
-source('/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/cred.txt')
+
+source('../Rshiny/cred.txt')
 
 Sys.setenv("AWS_ACCESS_KEY_ID" = access_key,
            "AWS_SECRET_ACCESS_KEY" = secret_key,
@@ -117,8 +119,6 @@ discipline <- discipline %>% arrange(StudentNumber)
 
 discipline <- as.data.frame(discipline)
 head(discipline)
-
-write.csv(discipline, file="discipline.csv", row.names=FALSE)
 ```
 
 ##ELA Test##
@@ -310,41 +310,51 @@ head(STARreading,6)
 ```
 
 ##Enrollment##
+Enrollment has a lot of info.
 ```{r}
 enrollment <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_Enrollment_1112-1718.csv")
+```
 
+Before we do anything, there's a weird, non-UTF name for one of the school locations. This is something we just have to set straight manually. 
+
+```{r}
+enrollment$SchoolName <- as.character(enrollment$SchoolName)
+enrollment$SchoolName[enrollment$SchoolNum==490] <- "Colorado High School Charter GES"
+```
+
+```{r}
 head(enrollment)
 summary(enrollment)
 ```
 
-We want locations rather than just school names, so we use the Google maps API. This takes 5-10 minutes. We also want to ultimately separate out student from school information in the RDS, so we will have school information as one dataframe and student enrollment information in another. 
+We want locations rather than just school names, so we use the Google maps API. This takes 5-10 minutes. Note that you can simply add in rows for new schools and manually input lat and lon. We also want to ultimately separate out student from school information in the RDS, so we will have school information as one dataframe and student enrollment information in another. 
+
+```{r}
+unique_indices <- order(enrollment$SchoolName)[!duplicated(sort(enrollment$SchoolName))]
+school_locations = data.frame("SchoolName"=enrollment$SchoolName[unique_indices], 
+                              "SchoolNum"=enrollment$SchoolNum[unique_indices])
+```
 
 ```{r eval=FALSE}
 library(ggmap)
-school_locations = data.frame(unique(enrollment$SchoolName))
-colnames(school_locations) <- c("SchoolName")
-school_locations$SchoolName = paste(school_locations$SchoolName, "denver", "colorado", sep=", ")
-
 for(i in 1:nrow(school_locations)) {
-  result <- geocode(school_locations$SchoolName[i], output="latlona", source="google")
+  result <- geocode(paste(school_locations$SchoolName[i], "denver", "colorado", sep=", "), output="latlona", source="google")
   school_locations$lon[i] <- as.numeric(result[1])
   school_locations$lat[i] <- as.numeric(result[2])
   Sys.sleep(1)
-  print(i)
+  print(school_locations$SchoolName[i])
 }
-unique_indices <- order(enrollment$SchoolName)[!duplicated(sort(enrollment$SchoolName))]
-school_locations$SchoolName <- enrollment$SchoolName[unique_indices]
-school_locations$SchoolNum <- enrollment$SchoolNum[unique_indices]
-write.csv(school_locations, file="school_locations.csv", row.names=FALSE)
 ```
 
-This is just so we don't have to rerun the above code. 
-
-### School Locations ###
-
+Geocoding is finicky. Run the below code a couple of times to get whatever geocoding might have missed (there's no harm in running the below code - it just checks geocoding's work. 
 ```{r}
-school_locations <- read.csv(file="school_locations.csv")
-unique(school_locations$lon)
+for(name in school_locations$SchoolName[which(is.na(school_locations$lon))]) {
+  result <- geocode(school_locations$SchoolName[school_locations$SchoolName==name], output="latlona", source="google")
+  school_locations$lon[school_locations$SchoolName==name] <- as.numeric(result[1])
+  school_locations$lat[school_locations$SchoolName==name] <- as.numeric(result[2])
+  Sys.sleep(1)
+  print(name)
+}
 ```
 
 Looks like we have some NA values.
@@ -353,11 +363,11 @@ Looks like we have some NA values.
 school_locations$SchoolName[which(is.na(school_locations$lon))]
 ```
 
-We'll just manually fix that by typing into Google maps. STRIVE-Federal is at (39.67819,-105.0209) and DS Innovation & Sustainable Design is at (39.7377,-104.9793).
+We'll just manually fix that by typing into Google maps. DS Innovation & Sustainable Design is at (39.7377,-104.9793).
 
 ```{r}
-school_locations[which(is.na(school_locations$lon)),]$lat <- c(39.67819,39.7377)
-school_locations[which(is.na(school_locations$lon)),]$lon <- c(-105.0209,-104.9793)
+school_locations[school_locations$SchoolName=="DS Innovation & Sustainable Design","lat"] <- 39.7377
+school_locations[school_locations$SchoolName=="DS Innovation & Sustainable Design","lon"] <- -104.9793
 ```
 
 Let's look at these locations to make sure nothing insane is going on. 
@@ -373,13 +383,10 @@ leaflet(school_locations) %>%
   )
 ```
 
-Scrolling over the sites outside of Denver and checking their names against the GreatSchools website, it looks like google mis-geocoded "DELTA HS" (the extremely southwestern point). "Satellite Program" and "Ridge View Academy Charter School" are also outside of Denver. Delta HS is alright, but Satellite Program and Ridge View Academy Charter School are outside of Denver limits so we will drop those. 
+Satellite Program and Ridge View Academy Charter School are outside of Denver limits so we will drop those. 
 
 ```{r}
-school_locations[school_locations$SchoolName=="DELTA HS",]$lat <- 39.6866
-school_locations[school_locations$SchoolName=="DELTA HS",]$lon <- -104.9565
 school_locations <- school_locations %>% filter(!SchoolName %in% c("Satellite Program", "Ridge View Academy Charter School"))
-enrollment$SchoolName <- as.character(enrollment$SchoolName)
 enrollment <- enrollment %>% filter(!SchoolName %in% c("Satellite Program", "Ridge View Academy Charter School"))
 ```
 
@@ -425,10 +432,10 @@ After rearranging columns and eliminating the unnecessary ones:
 enrollment <- enrollment[,c(4,1,3,2,5,6,7,8,9,10,11)]
 # School name is in the school information dataframe, so we can remove it
 enrollment$SchoolName <- NULL
-# Whether student has disability is contained in PrimaryDisability as "No Disability" for 0 and 1 otherwise.
+# Whether student has disability is contained in PrimaryDisability as "No Disability" for 0, and 1 otherwise.
 enrollment$SwD <- NULL
 enrollment <- enrollment %>% arrange(StudentNumber)
-colnames(enrollment)[2] <- "SpringYear"
+colnames(enrollment)[colnames(enrollment)=="SchoolYear"] <- "SpringYear"
 head(enrollment,6)
 ```
 
@@ -482,7 +489,10 @@ nrow(attendance[apply(attendance, 1, function(x) sum(is.na(x))) > 6,])
 ```{r}
 always_absent_students <- attendance[apply(attendance, 1, function(x) sum(is.na(x))) > 6,]$StudentNumber
 always_absent_student_info <- enrollment %>% filter(StudentNumber %in% always_absent_students)
-sort(table((enrollment %>% filter(StudentNumber %in% always_absent_students))[,"SchoolName"]))
+absent_school_numbers <- (enrollment %>% filter(StudentNumber %in% always_absent_students))[,"SchoolNum"]
+sort(table(sapply(absent_school_numbers,
+                  FUN=function(x){return(school_locations$SchoolName[school_locations$SchoolNum==x])})))
+#sort(table(school_locations$SchoolName[school_locations$SchoolName==absent_school_numbers]))
 ```
 
 Googling these schools, it looks like most are just errors, or perhaps students left the school system mid-year. However, ASCENT (upon googling) is a transitional program for students that need just a few more credits to graduate. So it's not too surprising that we have missing attendance here. So we'll delete these in the attendance record (when we merge with other datasets later, they will be refilled with all NAs anyway).
@@ -721,33 +731,23 @@ colnames(school_locations)[colnames(school_locations)=="lon"] <- "long"
 student_locations <- student_locations[,c("student_number","block","geoid_num")]
 ```
 
-Also, we later found that one of the school names has a non-UTF-8 character in it:
+We can save them by uncommenting the block below. Since the rest is sensitive, we'll just save school locations.
 
 ```{r}
-school_locations[school_locations$school_num==490,]
-```
-
-So we'll just change that manually to "Colorado High School Charter GES":
-
-```{r}
-school_locations$school_name[school_locations$school_num==490] <- "Colorado High School Charter GES"
-```
-
-
-And finally let's save them.
-
-```{r}
-write.csv(discipline, file="discipline.csv", row.names=FALSE, na="")
-write.csv(ela, file="ela.csv", row.names=FALSE, na="")
-write.csv(math, file="math.csv", row.names=FALSE, na="")
-write.csv(graduation, file="graduation.csv", row.names=FALSE, na="")
-write.csv(transportation, file="transportation.csv", row.names=FALSE, na="")
-write.csv(STARreading, file="star_reading.csv", row.names=FALSE, na="")
-write.csv(enrollment, file="enrollment.csv", row.names=FALSE, na="")
 write.csv(school_locations, file="school_locations.csv", row.names=FALSE, na="")
-write.csv(attendance, file="attendance.csv", row.names=FALSE, na="")
-write.csv(cmas, file="cmas.csv", row.names=FALSE, na="")
-write.csv(student_locations, file="student_locations.csv", row.names=FALSE, na="")
-write.csv(lang, file="lang.csv", row.names=FALSE, na="")
-write.csv(choice, file="choice.csv", row.names=FALSE, na="")
+# write.csv(discipline, file="discipline.csv", row.names=FALSE, na="")
+# write.csv(ela, file="ela.csv", row.names=FALSE, na="")
+# write.csv(math, file="math.csv", row.names=FALSE, na="")
+# write.csv(graduation, file="graduation.csv", row.names=FALSE, na="")
+# write.csv(transportation, file="transportation.csv", row.names=FALSE, na="")
+# write.csv(STARreading, file="star_reading.csv", row.names=FALSE, na="")
+# write.csv(enrollment, file="enrollment.csv", row.names=FALSE, na="")
+# write.csv(attendance, file="attendance.csv", row.names=FALSE, na="")
+# write.csv(cmas, file="cmas.csv", row.names=FALSE, na="")
+# write.csv(student_locations, file="student_locations.csv", row.names=FALSE, na="")
+# write.csv(lang, file="lang.csv", row.names=FALSE, na="")
+# write.csv(choice, file="choice.csv", row.names=FALSE, na="")
 ```
+
+So now we get to use the squeaky clean data for our Shiny app. 
+
