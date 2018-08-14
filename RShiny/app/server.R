@@ -1129,7 +1129,7 @@ shinyServer(
     
     #Zipcode searches graph
     output$search_zipcode_plot <- renderPlotly({
-      validate(need(input$specific_search_questions=="What locations are people searching for?", message=FALSE))
+      validate(need(input$specific_search_questions=="What locations are people searching for? (Charts)", message=FALSE))
       
       xform <- list(categoryorder = "array",
                     categoryarray = c(search_zipcode_summary$location))
@@ -1147,7 +1147,7 @@ shinyServer(
     
     #Zipcode sessions graph
     output$search_programs_zipcode_plot <- renderPlotly({
-      validate(need(input$specific_search_questions=="What locations are people searching for?", message=FALSE))
+      validate(need(input$specific_search_questions=="What locations are people searching for? (Charts)", message=FALSE))
       
       xform <- list(categoryorder = "array",
                     categoryarray = c(final_zipcode_searches_programs$location))
@@ -1199,38 +1199,62 @@ shinyServer(
       
     })
     
+    search_mapdata <- reactiveValues(dat = 0)
+    
     output$search_mymap <- renderLeaflet({
-      validate(need(input$specific_search_questions=="What locations are people searching for? - spatial analysis", message=FALSE))
+      validate(need(input$specific_search_questions=="What locations are people searching for? (Map)", message=FALSE))
       
       pal_search = colorBin("YlOrRd", domain = search_map_data@data$total_searches, bins = 5)
       labels_search = sprintf(
-        "<strong>zipcode</strong>: %s<br/><strong>Number of searches</strong>: %s",
+        "<strong>Zipcode</strong>: %s<br/><strong>Number of Searches</strong>: %s",
         search_map_data@data$GEOID10, search_map_data@data$total_searches) %>% lapply(htmltools::HTML)
-      leaflet()  %>% 
-        setView(lng = -104.901531, lat = 39.722043, zoom = 11) %>% 
-        addProviderTiles(providers$CartoDB.Positron) %>%
-        addPolygons(data = subset_denver_zipcodes, color = "#777",
-                    weight = 1,
-                    smoothFactor = 0.5,
-                    opacity = 1.0) %>%
-        addPolygons(data = search_map_data, color = "#444444", weight = 1, smoothFactor = 0.5,
-                    opacity = 1.0, fillOpacity = 0.5,
-                    fillColor = ~pal_search(total_searches),
-                    highlight = highlightOptions(
-                      bringToFront = FALSE,
-                      weight = 5,
-                      color = "#666"
-                    ),
-                    label = labels_search,
-                    labelOptions = labelOptions(
-                      style = list("font-weight" = "normal", padding = "3px 8px"),
-                      textsize = "15px",
-                      direction = "auto")) %>%
-        addLegend(pal = pal_search, values = search_map_data$total_searches, opacity = 0.7, title = NULL,
-                  position = "bottomright")
-      
+      search_mapdata$dat <- leaflet()  %>% 
+                              setView(lng = -104.901531, lat = 39.722043, zoom = 11) %>% 
+                              addProviderTiles(providers$CartoDB.Positron) %>%
+                              addPolygons(data = subset_denver_zipcodes, color = "#777",
+                                          weight = 1,
+                                          smoothFactor = 0.5,
+                                          opacity = 1.0) %>%
+                              addPolygons(data = search_map_data, color = "#444444", weight = 1, smoothFactor = 0.5,
+                                          opacity = 1.0, fillOpacity = 0.5,
+                                          fillColor = ~pal_search(total_searches),
+                                          highlight = highlightOptions(
+                                            bringToFront = FALSE,
+                                            weight = 5,
+                                            color = "#666"
+                                          ),
+                                          label = labels_search,
+                                          labelOptions = labelOptions(
+                                            style = list("font-weight" = "normal", padding = "3px 8px"),
+                                            textsize = "15px",
+                                            direction = "auto")) %>%
+                              addLegend(pal = pal_search, 
+                                        values = search_map_data$total_searches, 
+                                        opacity = 0.7, 
+                                        title = "Number of Searches",
+                                        position = "bottomright")
       
     })
+    
+    ####### MAKE THE DOWNLOAD FEATURE FOR THE SEARCHES MAP #######
+    output$search_map_down <- downloadHandler(
+      filename = 'b4s_search_map.jpeg',
+      content = function(file) {
+        # temporarily switch to the temp dir, in case you do not have write
+        # permission to the current working directory
+        owd <- setwd(tempdir())
+        on.exit(setwd(owd))
+        
+        # set the zoom and pan based on current status of map
+        access_mapdata$dat <-setView(search_mapdata$dat,
+                                     lat = input$search_mymap_center$lat,
+                                     lng = input$search_mymap_center$lng,
+                                     zoom = input$search_mymap_zoom
+        )
+        
+        mapshot(access_mapdata$dat, file = file, cliprect = "viewport")
+      }
+    )
     
     ###################################################################################################################
     # Access Index Tab

@@ -301,8 +301,8 @@ shinyUI(
                                            radioButtons("specific_search_questions", "Choose a question about the Blueprint4Summer Search Data to investigate:", 
                                                        choices = c("What program categories do people search for the most?",
                                                                    "What distances and session times do people search for, and how do they sort their results?",
-                                                                   "What locations are people searching for?",
-                                                                   "What locations are people searching for? - spatial analysis")))
+                                                                   "What locations are people searching for? (Charts)",
+                                                                   "What locations are people searching for? (Map)")))
                           ),
 
                         
@@ -348,17 +348,20 @@ shinyUI(
                                                                div(plotlyOutput("search_compare_prog_category", height = "350px")),
                                                                br()
                                                                ) ,
-                                              conditionalPanel('input.specific_search_questions=="What locations are people searching for?"',
+                                              conditionalPanel('input.specific_search_questions=="What locations are people searching for? (Charts)"',
                                                                br(),
                                                                div(plotlyOutput("search_zipcode_plot", height = "200px")), 
                                                                br(),
                                                                div(plotlyOutput("search_programs_zipcode_plot", height = "200px"))
                  
                                               ),
-                                              conditionalPanel('input.specific_search_questions=="What locations are people searching for? - spatial analysis"',
+                                              conditionalPanel('input.specific_search_questions=="What locations are people searching for? (Map)"',
                                                                leafletOutput("search_mymap", height = 520),
-                                                               HTML("<i>Note: Only top 20 zipcodes in terms of the number of searches are shown.</i>")
-                                                               
+                                                               HTML("<i>Note: Only top 20 zipcodes in terms of the number of searches are shown.</i>"),
+                                                               br(),
+                                                               br(),
+                                                               downloadButton('search_map_down', label = "Download Map (Takes About 10 Seconds)"),
+                                                               br(), br()
                                               )
                                               ),
                                       id = "conditionedPanels"
