@@ -235,16 +235,26 @@ shinyServer(
       
       # aggregate the demographics over all selected neighborhoods
       total_nbhd_students <- sum(summary_data_student$total_students, na.rm = TRUE)
-      summary_perc_nonenglish_students <- sum(summary_data_student$perc_nonenglish_students * summary_data_student$total_students, 
+      
+      if (total_nbhd_students < 10){
+        summary_perc_nonenglish_students <- NA
+        summary_perc_disable_students <- NA
+        summary_perc_hispanic_students <- NA
+        summary_perc_white_students <- NA
+        summary_perc_black_students <- NA
+      }
+      else{
+        summary_perc_nonenglish_students <- sum(summary_data_student$perc_nonenglish_students * summary_data_student$total_students, 
+                                                na.rm = TRUE) / total_nbhd_students
+        summary_perc_disable_students <- sum(summary_data_student$perc_disable_students * summary_data_student$total_students, 
+                                             na.rm = TRUE) / total_nbhd_students
+        summary_perc_hispanic_students <- sum(summary_data_student$perc_hispanic_students * summary_data_student$total_students, 
                                               na.rm = TRUE) / total_nbhd_students
-      summary_perc_disable_students <- sum(summary_data_student$perc_disable_students * summary_data_student$total_students, 
+        summary_perc_white_students <- sum(summary_data_student$perc_white_students * summary_data_student$total_students, 
                                            na.rm = TRUE) / total_nbhd_students
-      summary_perc_hispanic_students <- sum(summary_data_student$perc_hispanic_students * summary_data_student$total_students, 
-                                            na.rm = TRUE) / total_nbhd_students
-      summary_perc_white_students <- sum(summary_data_student$perc_white_students * summary_data_student$total_students, 
-                                         na.rm = TRUE) / total_nbhd_students
-      summary_perc_black_students <- sum(summary_data_student$perc_black_students * summary_data_student$total_students, 
-                                         na.rm = TRUE) / total_nbhd_students
+        summary_perc_black_students <- sum(summary_data_student$perc_black_students * summary_data_student$total_students, 
+                                           na.rm = TRUE) / total_nbhd_students
+      }
       
       # Print it!
       sprintf(
@@ -887,17 +897,27 @@ shinyServer(
       }
       
       # aggregate the demographics over all selected neighborhoods
-      total_nbhd_students <- sum(summary_data_student$total_students, na.rm = TRUE)
-      summary_perc_nonenglish_students <- sum(summary_data_student$perc_nonenglish_students * summary_data_student$total_students, 
+      total_nbhd_students <- sum(summary_data_student$total_students)
+      
+      if (total_nbhd_students < 10){
+        summary_perc_nonenglish_students <- NA
+        summary_perc_disable_students <- NA
+        summary_perc_hispanic_students <- NA
+        summary_perc_white_students <- NA
+        summary_perc_black_students <- NA
+      }
+      else{
+        summary_perc_nonenglish_students <- sum(summary_data_student$perc_nonenglish_students * summary_data_student$total_students, 
+                                                na.rm = TRUE) / total_nbhd_students
+        summary_perc_disable_students <- sum(summary_data_student$perc_disable_students * summary_data_student$total_students, 
+                                             na.rm = TRUE) / total_nbhd_students
+        summary_perc_hispanic_students <- sum(summary_data_student$perc_hispanic_students * summary_data_student$total_students, 
                                               na.rm = TRUE) / total_nbhd_students
-      summary_perc_disable_students <- sum(summary_data_student$perc_disable_students * summary_data_student$total_students, 
+        summary_perc_white_students <- sum(summary_data_student$perc_white_students * summary_data_student$total_students, 
                                            na.rm = TRUE) / total_nbhd_students
-      summary_perc_hispanic_students <- sum(summary_data_student$perc_hispanic_students * summary_data_student$total_students, 
-                                            na.rm = TRUE) / total_nbhd_students
-      summary_perc_white_students <- sum(summary_data_student$perc_white_students * summary_data_student$total_students, 
-                                         na.rm = TRUE) / total_nbhd_students
-      summary_perc_black_students <- sum(summary_data_student$perc_black_students * summary_data_student$total_students, 
-                                         na.rm = TRUE) / total_nbhd_students
+        summary_perc_black_students <- sum(summary_data_student$perc_black_students * summary_data_student$total_students, 
+                                           na.rm = TRUE) / total_nbhd_students
+      }
       
       # Print it!
       sprintf(
