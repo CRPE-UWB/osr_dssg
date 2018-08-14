@@ -1,0 +1,176 @@
+---
+title: "Moran’s I and High/Low Clusters"
+author: "Haowen Zheng"
+date: "8/14/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library(tidyverse)
+library(rgdal)
+library(rgeos)
+library(leaflet)
+library(ggplot2)
+library(tigris)
+library(ggthemes)
+```
+
+## Get connected to RDS
+```{r}
+# install.packages("RPostgreSQL")
+
+require("RPostgreSQL")
+
+# loads the PostgreSQL driver
+drv <- dbDriver("PostgreSQL")
+source('/Users/luna/Desktop/DSSG/ors/other/keyforRDS')
+# creates a connection to the postgres database
+# note that "con" will be used later in each connection to the database
+con <- dbConnect(drv, dbname = "dssg2018uw",
+                 host = "localhost", port = 9000,
+                 user = user, password = password)
+```
+
+## Get data we need
+
+To calculate Local Moran's I, we need a shape file at the block group level and the indices. 
+
+```{r}
+# get the indices
+driving_index <- dbGetQuery(con, "select * from clean.driving_index")
+transit_index <- dbGetQuery(con, "select * from clean.transit_index")
+
+# get acs_shapefile 
+acs_shape <- readOGR(dsn="/Users/luna/Desktop/DSSG/ors/data/clean data/shape_census", layer="shape_census")
+
+# select the indices we care about
+selected_index <- full_index %>% 
+  dplyr::select(Id2, AI_overall.x, AI_overall_free.x, AI_overall.y, AI_overall_free.y) %>% # x driving, y transit
+  merge(bg_nbhd, by = "Id2")
+
+#merge census shapefile to driving index for overall programs
+acs_shape@data$Id2 <- gsub("0(\\d{11})","\\1",acs_shape@data$Id2)
+moran.data <- geo_join(acs_shape, selected_index, by = "Id2")
+```
+
+## Caculate Local Moran' I for the driving index
+
+```{r}
+library(spdep)
+w <- poly2nb(moran.data, row.names=moran.data@data$Id2, queen=TRUE) #find adjacent polygons
+#We do this using the ‘Queen’s case’ setting, meaning that adjacent areas which share either a border or a corner are counted as neighbours.
+summary(w)
+ # convert it to a spatial weights matrix
+listw <-  nb2listw(w, style="W") 
+
+# calculate the local moran of the distribution of index score
+lmoran <- localmoran(moran.data@data$AI_overall.x, listw) #driving index for all programs
+summary(lmoran)
+
+# padronize the variable and save it to a new column
+moran.data@data$s_index <- scale(moran.data@data$AI_overall.x)  %>% as.vector()
+
+# create a spatially lagged variable and save it to a new column
+moran.data@data$lag_s_index <- lag.listw(listw, moran.data@data$s_index)
+
+# summary of variables, to inform the analysis
+summary(moran.data@data$s_index)
+summary(moran.data@data$lag_s_index)
+
+# create a new variable identifying the moran plot quadrant for each observation, dismissing the non-significant ones
+
+moran.data@data$SPATIAL_LAG_CAT <- 
+  ifelse(moran.data@data$s_index>0 & moran.data@data$lag_s_index>0, "High-High",
+       ifelse(moran.data@data$s_index>0 & moran.data@data$lag_s_index<0, "High-Low",
+              ifelse(moran.data@data$s_index<0 & moran.data@data$lag_s_index<0, "Low-Low",
+                     ifelse(moran.data@data$s_index<0 & moran.data@data$lag_s_index>0, "Low-High",
+       "Equivalent"))))
+
+# add Moran's I back into the shape file
+moran.data@data$lmoran_i <- lmoran[,1]
+moran.data@data$lmoran_p <-lmoran[,5]
+moran.data@data$lmoran_sig <-lmoran[,5]<0.05
+
+moran.data@data$id <- rownames(moran.data@data)
+
+# plotting the map
+
+df <- fortify(moran.data, region="id")
+df <- left_join(moran.data@data, df)
+df$SPATIAL_LAG_CAT <- 
+  factor(ifelse(df$lmoran_sig == TRUE, df$SPATIAL_LAG_CAT, "NotSig"
+      ))
+
+#filter out those which are significant
+df2 <- df %>% filter(lmoran_sig == TRUE)
+
+ggplot() +
+#  geom_polygon(data=df, aes(long, lat, fill=lmoran_sig, group=id),fill="grey",col="white") +
+  geom_polygon(data=df, aes(long, lat, fill=SPATIAL_LAG_CAT, group=id), col="white") +
+  scale_fill_manual(values=c("red","blue","grey"), labels = c("High Access Clusters", "Low Access Clusters", "Not Clustered"), name="") +
+  coord_fixed() +
+  theme_void() +
+  ggtitle("High and Low Access Areas Identified by Local Moran's I", subtitle = "Significance Level: p < 0.05") +
+  theme(legend.position = c(0.2,0.9)) 
+```
+
+## Moran's I for Public Transit Index
+Basically we get the same pattern.
+
+```{r}
+# calculate the local moran of the distribution of index score
+lmoran2 <- localmoran(moran.data@data$AI_overall.y, listw) #for transit index
+summary(lmoran2)
+
+# padronize the variable and save it to a new column
+moran.data@data$s_index2 <- scale(moran.data@data$AI_overall.y)  %>% as.vector()
+
+# create a spatially lagged variable and save it to a new column
+moran.data@data$lag_s_index2 <- lag.listw(listw, moran.data@data$s_index2)
+
+# summary of variables, to inform the analysis
+summary(moran.data@data$s_index2)
+summary(moran.data@data$lag_s_index2)
+
+
+# create a new variable identifying the moran plot quadrant for each observation, dismissing the non-significant ones
+
+moran.data@data$SPATIAL_LAG_CAT2 <- 
+  ifelse(moran.data@data$s_index2>0 & moran.data@data$lag_s_index2>0, "High-High",
+       ifelse(moran.data@data$s_index2>0 & moran.data@data$lag_s_index2<0, "High-Low",
+              ifelse(moran.data@data$s_index2<0 & moran.data@data$lag_s_index2<0, "Low-Low",
+                     ifelse(moran.data@data$s_index2<0 & moran.data@data$lag_s_index2>0, "Low-High",
+       "Equivalent"))))
+
+# add Moran's I back into the shape file
+moran.data@data$lmoran_i <- lmoran2[,1]
+moran.data@data$lmoran_p <-lmoran2[,5]
+moran.data@data$lmoran_sig <-lmoran2[,5]<0.05
+
+moran.data@data$id <- rownames(moran.data@data)
+
+# plotting the map
+
+df <- fortify(moran.data, region="id")
+df <- left_join(moran.data@data, df)
+df$SPATIAL_LAG_CAT2 <- 
+  factor(ifelse(df$lmoran_sig == TRUE, df$SPATIAL_LAG_CAT, "NotSig"
+      ))
+
+#filter out those which are significant
+df2 <- df %>% filter(lmoran_sig == TRUE)
+
+ggplot() +
+#  geom_polygon(data=df, aes(long, lat, fill=lmoran_sig, group=id),fill="grey",col="white") +
+  geom_polygon(data=df, aes(long, lat, fill=SPATIAL_LAG_CAT2, group=id), col="white") +
+  scale_fill_manual(values=c("red","blue","grey"), labels = c("High Access Clusters", "Low Access Clusters", "Not Clustered"), name="") +
+  coord_fixed() +
+  theme_void() +
+  ggtitle("High and Low Access Areas Identified by Local Moran's I", subtitle = "Significance Level: p < 0.05") +
+  theme(legend.position = c(0.2,0.9)) 
+```
+
