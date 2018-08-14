@@ -56,7 +56,7 @@ dbUnloadDriver(drv)
 ###############################################################
 # Other Resources (Open Data)
 
-data_folder <- file.path('..', 'data', 'shiny_tables')
+data_folder <- file.path('..', 'data', 'shiny_tables') # where the shiny tables are saved
 
 fields = read.csv( file.path(data_folder, 'fields.csv') )
 museums = read.csv( file.path(data_folder, 'museums.csv') )
