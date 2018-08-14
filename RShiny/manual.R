@@ -5,7 +5,7 @@ manual <- '
 <h3>About This Tool</h3>
 
 <p>
-some basic intro things
+Here we collect some basic information about the functionalities of this interactive web tool.
 </p>
 
 <h4>Overlaying Demographics Information</h4>
@@ -70,44 +70,51 @@ You can filter the resources to those located in a specific set of neighborhoods
 
 <p>
 
-Sree please write this
+Sree maybe write this?
 
 </p>
 
 <h4>Access Index Tab</h4>
 
 <p>
-The access index returns a score from 0-100 for every block group that describes the <i>access</i> 
-from the centerpoint of that block group to all available summer program sessions in Denver, 
-where 0 refers to the lowest access in Denver and 100 refers to the highest. <i>Access</i> here 
-refers to the sum of travel times to all locations, adjusted by the decay function, multiplied 
-by the number of sessions at each location. Separate indices were calculated for each program type, 
-cost threshold, driving and transit times. The <i>overall</i> driving and transit access index refers 
-to the average score for each category of program, at any cost. Driving and transit access results 
-are shown on the same 0-100 scale, given that transit is always longer than driving, <i>access</i> 
-over transit is categorically lower than driving (see the bottom for the details of the calculation).
+The <strong>access index</strong> returns a score from 0-100 for every block group, and describes the 
+access from the centerpoint of that block group to summer program sessions in Denver. 
+Here 0 refers to the lowest access in Denver and 100 refers to the highest. Access 
+is based on the sum of travel times to all program locations, adjusted by the decay function, multiplied 
+by the number of sessions at each location. Separate indices have been calculated for each program type, 
+cost threshold, driving and transit times. You can specify in the left sidebar which types and 
+costs of programs to include for the visualized index. Here are the equations:
+</p>
+
+<p>
+Decay function:    <img src="decay_function.png" alt="Decay Function", height="50">
+</p>
+<p>
+Access Index:    <img src="ai_equation.png" alt="Access Index Equation" height="50">
+</p>
+
+
+<p>
+The <i>overall</i> driving and transit access index refers 
+to the average score for each type of program, at any cost. Driving and transit access results 
+are shown on the same 0-100 scale; given that transit tiems are always longer than driving, transit access 
+is categorically lower than driving access.
 </p>
 
 <p>
 As expected, access index scores reflect primarily the concentration of sessions in Denver, as well 
 the accessibility of highways and relatively quick driving travel to these sessions. Access index 
 scores are highest in the Southeast Central Washington Park area and in the central business district 
-area of downtown Denver. In contrast, access is lowest is in the outer edges of Denver on the 
-Northeast and Southeast most block groups. In addition to the transit index returning overall lower 
-scores, Access is also considerably more concentrated, with only a handful of block groups with almost 
-relatively near proximity to a large number of sessions having an Access Index score greater than 10.
+area of downtown Denver. In contrast, access is lowest for the outer edges of Denver, specifically block 
+groups in the Northeast and Southwest. In addition to the transit index returning lower 
+scores overall than the driving index, transit access is also considerably more concentrated, 
+with only a handful of block groups being in close proximity to a large number of sessions and 
+having an access index score greater than 10.
 </p>
 
 <p>
-For more details about the calculation of the access index, check the report that accompanies this dashboard. 
+For more details about the calculation of the access index, please see the report that accompanies this dashboard. 
 </p>
-
-
-<p>fill this in later</p>
-
-<h3>Other things</h3>
-
-<p>maybe a glossary of census terms?</p>
 
 <h4>Credits and Contact Info</h4>
 
