@@ -47,6 +47,11 @@ transit_index <- dbGetQuery(con, "select * from clean.transit_index")
 # get acs_shapefile 
 acs_shape <- readOGR(dsn="/Users/luna/Desktop/DSSG/ors/data/clean data/shape_census", layer="shape_census")
 
+# select the indices we care about
+selected_index <- full_index %>% 
+  dplyr::select(Id2, AI_overall.x, AI_overall_free.x, AI_overall.y, AI_overall_free.y) %>% # x driving, y transit
+  merge(bg_nbhd, by = "Id2")
+
 #merge census shapefile to driving index for overall programs
 acs_shape@data$Id2 <- gsub("0(\\d{11})","\\1",acs_shape@data$Id2)
 moran.data <- geo_join(acs_shape, selected_index, by = "Id2")
