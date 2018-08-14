@@ -75,9 +75,7 @@ shape_census@data$racial_dist_html <- mapply(
   shape_census@data$NBHD_NA,
   shape_census@data$PCT_HIS,
   shape_census@data$PCT_WHI,
-  shape_census@data$PCT_BLA,
-  shape_census@data$PCT_NAT,
-  shape_census@data$PCT_ASI
+  shape_census@data$PCT_BLA
   
 )
 

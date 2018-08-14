@@ -141,3 +141,14 @@ Ai_leaflet <- leaflet(census_blocks) %>%
   #addCircles(data = census_centroids, opacity = 0.4,
              #weight=7,color="purple",popup=census_centroids$blockID) #originally we included centroids for validation, now we don't need them
 ```
+
+###For some reason there are duplicate addresses in Block Distance
+Worse yet, their travel time estimates vary just enough that we can subset them using unique. However, we still can't double count, so we need to exclude all these, and make sure our list is narrowed to only unique program addresses. Here we make a validation column that combines block group ID and program address and remove duplicates. Note that simply removing duplicates for program addresses would remove nearly all program addresses.
+```{r}
+block_distance_backup <- block_distance
+nrow(block_distance)
+block_distance$validation <- paste(block_distance$session_address_1,"id=",block_distance$Id2)
+block_distance <- subset(block_distance,duplicated(block_distance$validation)==FALSE)
+nrow(block_distance)
+```
+
