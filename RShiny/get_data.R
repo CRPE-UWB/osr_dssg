@@ -27,6 +27,18 @@ con <- dbConnect(drv, dbname = dbname,
 # Summary of total number of programs in each neighborhood
 nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summary")
 
+# ReSchool Program data
+reschool_summer_program_clean = dbGetQuery(con, "SELECT * from clean.reschool_summer_programs")
+reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
+aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
+
+# Aggregated DPS student data for demographics
+aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
+aggregate_dps_student_nbhds[aggregate_dps_student_nbhds$total_students<10,-c(1,2)] = NA
+
+# Search data from Google Analytics
+google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
+
 # Access index stuff
 driving_index = dbGetQuery(con, "SELECT * from clean.driving_index")
 driving_index_disability = dbGetQuery(con, "SELECT * from clean.driving_index_disability")
@@ -38,6 +50,10 @@ transit_index_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_nbhd")
 transit_index_disability_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_disability_nbhd")
 
 #####################################################
+
+# when you're done, close the connection and unload the driver 
+dbDisconnect(con) 
+dbUnloadDriver(drv)
 
 ###############################################################
 # Other Resources (Open Data)
@@ -52,6 +68,10 @@ rec_centers = read.csv( file.path(data_folder, 'rec_centers.csv') )
 parks = read.csv( file.path(data_folder, 'parks.csv') )
 
 #####################################################
+
+# Zip code stuff
+relevant_zip_codes = readOGR(dsn =  file.path("..", "data", "zip_codes") )
+total_denver_zipcodes = read.csv( file.path("..", "data", "denver_zip_codes.csv") )
 
 ##################### Getting shape files to plot block groups, nbhds on the map ##########################
 
