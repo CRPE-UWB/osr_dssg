@@ -2,77 +2,79 @@
 
 manual <- '
 
-<h3>About the Project</h3>
+<h3>About This Tool</h3>
 
-<p> 
-This interactive tool, built using RShiny, was created during the Summer 2018 
-<a href = "http://escience.washington.edu/dssg/">Data Science 
-for Social Good</a> program at the eScience Institute at the University of Washington. 
-The team members who were involved in creating this tool are:
-
-<ul>
-<li>Sivan Tuchman, Project Lead</li>
-<li>Jose Hernandez, Data Scientist</li>
-<li>Karen Lavi, Data Scientist</li>
-<li>Joe Abbate, Student Fellow</li>
-<li>Andrew Taylor, Student Fellow</li>
-<li>Kellie MacPhee, Student Fellow</li>
-<li>Sreekanth Krishnaiah, Student Fellow</li>
-<li>Haowen Zheng, Student Fellow.</li>
-</ul>
-
-Contact Sivan Tuchman (stuchman@uw.edu) for information about this tool if questions 
-arise after August 17th, 2018.
+<p>
+some basic intro things
 </p>
 
-<h3>General Use of This Tool</h3>
+<h4>Overlaying Demographics Information</h4>
+
+<p>
+In the "B4S Programs" and "Other Resources" tabs, you can select a demographics variable
+and the concentration of that demographic group across the city will be visualized on the map 
+(along with the resources themselves). 
+Demographic data comes from two sources, the census  (general population data) or Denver 
+Public Schools (student data). Toggle between the two data sources in the left sidebar, 
+and then select a demographics variable to visualize.
+</p>
+<p>
+You can also obtain demographic information about a neighborhood by hovering your mouse
+over that neighborhood in the map. Whether census (general population) or student demographics 
+is displayed when hovering is dependent on the selection in the left sidebar.
+Note that the student demographic information comes from a <i>subset</i> of the students in 
+Denver Public Schools (for whom we have addresses, who represent the majority of students who 
+participated in school choice); the number of students in the sample for a given neighborhood 
+is reported as the "sample size" in the hovering text.
+</p>
+<p>
+Demographic information for the census block groups in the "Access Index" tab can also be 
+seen by hovering over the block groups (similar to the neighborhoods in the first two tabs). 
+This demographic information is pulled from the census (general population) data. Student demographics 
+are not reported, since there are block groups with very small student samples.
+</p>
 
 <h4>B4S Programs Tab</h4>
 
-<p>fill this in later</p>
-
-
-
+<p>
+The "B4S Programs" tab shows all summer programs listed on the 
+<a href="https://blueprint4summer.com/co/">Blueprint4Summer website</a>, 
+which catalogs summer programs in Denver.
+Programs appear as yellow dots in the "Map" sub-tab, and the left sidebar allows you to filter
+programs by category, cost, and whether the programs have stated that they can accommodate 
+special needs students. You can also filter by the neighborhood in which the program occurs, 
+either by typing in a neighborhood name in the left sidebar, or by clicking on the neighborhood on the map.
+Selection of multiple neighborhoods is allowed, and a thick gray outline will appear around the selected 
+neighborhoods on the map.
+</p>
+<p>
+Hovering over a yellow program dot will display information about that program. Since some programs occur 
+at the same location, all program locations have been slightly offset from their original, exact location 
+in order to prevent program dots from landing directly on top of one another. You may have to zoom in to see 
+the program dots not overlap, however.
+</p>
 
 <h4>Other Resources Tab</h4>
 
-<p>fill this in later</p>
-
-
-
+<p>
+The "Other Resources" tab shows public resources in the city of Denver that students might 
+access during out-of-school time: parks, playgrounds, rec centers, libraries, museums, and athletic fields. 
+Museum locations were collected by hand using Google searches, all other data is from the 
+<a href="https://denvergov.org/opendata">Denver Open Data Catalog</a>. 
+Resource names and (limited) characteristics appear if you hover over the dots in the map. 
+You can filter the resources to those located in a specific set of neighborhoods, precisely as in the 
+"B4S Programs" tab.
+</p>
 
 <h4>B4S Searches Tab</h4>
 
-<p>fill this in later</p>
-
-
-
-
-<h4>Access Index Tab</h4>
-
-<p>fill this in later</p>
-
-
-
-
-
-<h3>Data Sources</h3>
-
 <p>
-Demographics data comes from 3 primary sources. <strong>Student-level data</strong> 
-is from Denver Public Schools, and represents <i>only students who participated in school choice</i> 
-(as these are the only students for whom we have location data). <strong>Census data</strong> comes 
-from American Fact Finder at the block group level, and the American Community Survey 
-(via Denver Open Data) at the neighborhood level. Neighborhoods are defined locally for the Denver 
-area, and their boundaries and names were also obtained from Denver Open Data.
+
+Sree please write this
+
 </p>
 
-
-<p>maybe a glossary of census terms?</p>
-
-
-
-<h3>About the Access Index</h3>
+<h4>Access Index Tab</h4>
 
 <p>
 The access index returns a score from 0-100 for every block group that describes the <i>access</i> 
@@ -103,6 +105,32 @@ For more details about the calculation of the access index, check the report tha
 
 <p>fill this in later</p>
 
+<h3>Other things</h3>
+
+<p>maybe a glossary of census terms?</p>
+
+<h4>Credits and Contact Info</h4>
+
+<p> 
+This web-based interactive tool was created during the Summer 2018 
+<a href = "http://escience.washington.edu/dssg/">Data Science 
+for Social Good</a> program at the eScience Institute at the University of Washington. 
+The team members involved in creating it were:
+<ul>
+<li>Sivan Tuchman, Project Lead (Center on Reinventing Public Education)</li>
+<li>Jose Hernandez, Data Scientist (eScience Institute)</li>
+<li>Karen Lavi, Data Scientist (Volunteer)</li>
+<li>Joe Abbate, Student Fellow</li>
+<li>Sreekanth Krishnaiah, Student Fellow</li>
+<li>Kellie MacPhee, Student Fellow</li>
+<li>Andrew Taylor, Student Fellow</li>
+<li>Haowen Zheng, Student Fellow</li>
+</ul>
+This tool is built using R Shiny, and the code is available on 
+<a href="https://github.com/CRPE-UWB/osr_dssg2018">GitHub</a>. 
+After August 17th, 2018, Sivan Tuchman (stuchman@uw.edu) is the 
+primary contact for any questions related to the tool.
+</p>
 
 
 '

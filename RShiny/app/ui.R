@@ -29,7 +29,7 @@ shinyUI(
   includeCSS("style.css"),
   
   navbarPage("Denver Out-of-School Resources",
-             selected = "B4S Programs",
+             selected = "About this Tool",
                    
 ########################## Blueprint4Summer Programs Tab ###########################################
 
