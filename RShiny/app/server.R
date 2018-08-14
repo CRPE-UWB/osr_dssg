@@ -493,9 +493,9 @@ shinyServer(
                 Biking: %s",
                 parks_data1$name,
                 # parks_data1$sqft
-                parks_data1$has_nature,
-                parks_data1$has_garden,
-                parks_data1$has_biking
+                ifelse(parks_data1$has_nature, "YES", "NO"),
+                ifelse(parks_data1$has_garden, "YES", "NO"),
+                ifelse(parks_data1$has_biking, "YES", "NO")
               ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
@@ -529,18 +529,18 @@ shinyServer(
                Aquatics: %s <br/>
               ",
               rec_centers_data1$name,
-              rec_centers_data1$has_cardio,
-              rec_centers_data1$has_weights,
-              rec_centers_data1$has_gym,
-              rec_centers_data1$has_arts_culture,
-              rec_centers_data1$has_day_camps,
-              rec_centers_data1$has_educ_programs,
-              rec_centers_data1$has_fitness_health_programs,
-              rec_centers_data1$has_senior_programs,
-              rec_centers_data1$has_social_enrich_clubs,
-              rec_centers_data1$has_special_events,
-              rec_centers_data1$has_sports,
-              rec_centers_data1$has_aquatics
+              ifelse(rec_centers_data1$has_cardio, "YES", "NO"),
+              ifelse(rec_centers_data1$has_weights, "YES", "NO"),
+              ifelse(rec_centers_data1$has_gym, "YES", "NO"),
+              ifelse(rec_centers_data1$has_arts_culture, "YES", "NO"),
+              ifelse(rec_centers_data1$has_day_camps, "YES", "NO"),
+              ifelse(rec_centers_data1$has_educ_programs, "YES", "NO"),
+              ifelse(rec_centers_data1$has_fitness_health_programs, "YES", "NO"),
+              ifelse(rec_centers_data1$has_senior_programs, "YES", "NO"),
+              ifelse(rec_centers_data1$has_social_enrich_clubs, "YES", "NO"),
+              ifelse(rec_centers_data1$has_special_events, "YES", "NO"),
+              ifelse(rec_centers_data1$has_sports, "YES", "NO"),
+              ifelse(rec_centers_data1$has_aquatics, "YES", "NO")
             ) %>% lapply(htmltools::HTML)
             
             open_resource_map <- open_resource_map %>% 
