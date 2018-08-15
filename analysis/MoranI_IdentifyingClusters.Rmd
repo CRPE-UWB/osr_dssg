@@ -54,7 +54,7 @@ selected_index <- full_index %>%
 
 #merge census shapefile to driving index for overall programs
 acs_shape@data$Id2 <- gsub("0(\\d{11})","\\1",acs_shape@data$Id2)
-moran.data <- geo_join(acs_shape, selected_index, by = "Id2")
+moran.data <- geo_join(acs_shape, selected_index, by = "Id2") #index being either driving or transit
 ```
 
 ## Caculate Local Moran' I for the driving index
