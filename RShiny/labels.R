@@ -146,7 +146,7 @@ get_nbhd_student_labels <- function(val=NULL) {
     %% Hispanic Students = %g%% <br/>
     %% White Students = %g%% <br/>
     %% Black Students = %g%% <br/>
-    <i><font size=1>(Note: sample size = %g)</font></i>",
+    <i><font size=1>(Sample Size = %g)</font></i>",
     shape_census@data$NBHD_NA,
     str_num_programs,
     shape_census@data$perc_nonenglish_students,
@@ -270,7 +270,8 @@ pal_list <- list(pal_age,
                  pal_black,
                  pal_white,
                  pal_all_races
-)
+                 )
+
 names(pal_list) <- demog_values[demog_values!="none"]
 names(lab_format_list) <- demog_values[demog_values!="none"]
 
@@ -285,7 +286,8 @@ lab_format_list_student <- list(labelFormat(prefix = " %"),
                                 labelFormat(suffix = " %"),
                                 labelFormat(suffix = " %"),
                                 labelFormat(suffix = " %"),
-                                labelFormat(suffix = " %"))
+                                labelFormat(suffix = " %")
+                                )
 
 names(pal_list_student) <- demog_student_values[demog_student_values!="none"]
 names(lab_format_list_student) <- demog_student_values[demog_student_values!="none"]
