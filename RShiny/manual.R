@@ -126,7 +126,7 @@ The team members involved in creating it were:
 <ul>
 <li>Sivan Tuchman, Project Lead (Center on Reinventing Public Education)</li>
 <li>Jose Hernandez, Data Scientist (eScience Institute)</li>
-<li>Karen Lavi, Data Scientist (Volunteer)</li>
+<li>Karen Lavi, Data Scientist</li>
 <li>Joe Abbate, Student Fellow</li>
 <li>Sreekanth Krishnaiah, Student Fellow</li>
 <li>Kellie MacPhee, Student Fellow</li>

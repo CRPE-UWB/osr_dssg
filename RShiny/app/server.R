@@ -7,7 +7,8 @@ library(DT)
 library(leaflet)
 library(sp)
 library(mapview)
-library(ineq) # inequality: for creating the Lorenz curve
+library(ineq) # for creating the Lorenz curve
+library(DescTools)  # for computing the gini coefficient
 
 shinyServer(
   function(input, output, session) {
@@ -55,7 +56,7 @@ shinyServer(
                                      "}")),
                     caption = htmltools::tags$caption(
                       style = 'caption-side: top; text-align: left; color: black ;',
-                      htmltools::h3("ReSchool Programs")
+                      htmltools::h3("Blueprint4Summer Programs")
                     ),
                     width = 300,
                     style = "bootstrap",
@@ -164,7 +165,7 @@ shinyServer(
         summary_nbhds <- "All Neighborhoods"
       }
 
-      sprintf('<h3>Summary for %s</h3>',
+      sprintf('<h3>Program Summary for %s</h3>',
               toString(summary_nbhds)
       ) %>% lapply(htmltools::HTML)
     })
@@ -1460,7 +1461,35 @@ shinyServer(
     output$lorenz <- renderPlot({
       tot_young_pop <- shape_census_block$Ag_L_18-shape_census_block$Ag_Ls_5
       plot(Lc(index()*tot_young_pop, tot_young_pop),
-           col="darkred",lwd=2, xlab = "Percentage of Students", ylab = "Cumulative Share of Access*") 
+           col="darkred",lwd=2, 
+           xlab = "Fraction of Students",
+           ylab = "Cumulative Share of Access*"
+           ) 
+    })
+    
+    output$lorenz_text <- renderUI({
+      tot_young_pop <- shape_census_block$Ag_L_18-shape_census_block$Ag_Ls_5
+      gini_coeff <- Gini(index()*tot_young_pop, tot_young_pop)
+      sprintf('<h4>Gini Coefficent: %.2f</h4><br>
+              <h4>About the Lorenz Curve and Gini Coefficient</h4>
+              <p> One way to investigate the degree of inequality in terms of access is to compare 
+              the situation with perfect equality in the distribution of access (where each student 
+              has the same access index) against the actual distribution. This is what the Lorenz curve 
+              and Gini coefficient do. Points on the <strong>Lorenz curve</strong> correspond to
+              statements like "the bottom x%% of students have y%% of the total access in the city."
+              If there was an even distribution of all access scores, then the points would fall on the 
+              diagonal, implying that each student had equal access to opportunities. The farther the 
+              red Lorenz curve is from the black diagonal, the more unequally distributed access to
+              out of school resources is.</p>
+              <p>The <strong>Gini coefficient</strong> 
+              quantifies how far the Lorenz curve is from the diagonal, by calculating the ratio between 
+              the area between the Lorenz curve and the diagonal, and the area in the triangle 
+              below the diagonal. Thus, a high Gini coefficient indicates a large discrepancy between the 
+              curve and the diagonal, and high inequality in the distribution. Note that the Gini coefficient 
+              is always between 0 and 1.</p>
+              ', 
+              gini_coeff) %>% lapply(htmltools::HTML)
+      
     })
     
     output$access_scatter <- renderPlotly({
@@ -1468,7 +1497,8 @@ shinyServer(
               type='scatter', mode='markers') %>%
         layout(title = "Neighborhoods with low access and high student age population",
                xaxis = list(title="Number of students in each neighborhood"), #showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE),
-               yaxis = list(title = "Access Index score")) #showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE))
+               yaxis = list(title = "Access Index score") #showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE)
+               )
     })
     
     race_access_means <- reactive({get_race_access_means(index())})
@@ -1477,7 +1507,13 @@ shinyServer(
       access_race_list <- race_access_means()
       access_race_names <- names(access_race_list)
       access_race_vals <- unlist(access_race_list)
-      plot_ly(x=access_race_names, y=access_race_vals, type="bar")
+      plot_ly(x=access_race_names, 
+              y=access_race_vals, 
+              type="bar") %>%
+        layout(title = "Average Access Index by Race / Ethnicity",
+               xaxis = list(title = "Race / Ethnicity"),
+               yaxis = list(title = "Average Access Index")
+               )
     })
     
   })  
