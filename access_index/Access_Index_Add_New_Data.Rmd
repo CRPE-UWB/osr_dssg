@@ -10,10 +10,26 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ##Intro
-This markdown defines how to add new to program data to the access index so it can continue to be used for future analysis. This assumes that new programs will be not uniquely identified, and instead the user will read a new export of blueprint for summer data, with the same formatting as the data originally used in this project. To add new data under this assumption, we complete the following steps: 1.) Read required data (new and old) 2.) Match & merge new data to old block group distances 3.) For programs with new addresses, find new travel times for all block groups 4.) 
+This markdown defines how to add new to program data to the access index so it can continue to be used for future analysis. This assumes that new programs will be not uniquely identified, and instead the user will read a new export of blueprint for summer data, with the same formatting as the data originally used in this project. To add new data under this assumption, we complete the following steps: 
+
+1.) Read required data (new and old) 
+2.) Match & merge new data to old block group distances 
+3.) For programs with new addresses, find new travel times for all block groups 
+4.) Calculate the access index for new session addressess. 
+
+Note that the so long as we call the access index from the new data, we will automaticaly subset our dataframe of travel times to the addresses in that dataframe, per the specifications of the user, so addresses which have been removed should not be double counted. 
 
 ###RDS Pull Prior Data
 ```{r}
+library(RPostgreSQL)
+drv <- dbDriver("PostgreSQL")
+
+# creates a connection to the postgres database
+# note that "con" will be used later in each connection to the database
+con <- dbConnect(drv, dbname = "dssg2018uw",
+                 host = "localhost", port = 9000,
+                 user = user, password = password) #local source credentials
+
 block_distance <- dbGetQuery(con, "select * from clean.block_distance") #for pre computed travel times
 reschool_programs <- dbGetQuery(con, "select * from clean.reschool_programs") #for getting unique program addresses
 reschool_addresses <- reschool_programs[,c("session_address_1","lat","long")] #subset to what we need
@@ -22,7 +38,7 @@ rownames(reschool_addresses) <- NULL
 ```
 
 ###Read New Data
-Assuming it has been preprocessed to match the blue print for summer data used in this project, see the preprocessing markdown for more. **NOTE** we don't actually have any new data, so here we make some up. 
+Assuming it has been preprocessed to match the blue print for summer data used in this project, see the preprocessing markdown for more. **NOTE** we don't actually have any new data, so here we make some up. Specifically, we session at a new address, and delete five elsewhere. We end up with one new unique address, but five fewer sessions at pre-existing addresses. .
 ```{r}
 #We would do this if we were reading a csv
 
@@ -36,11 +52,18 @@ new_reschool_programs[nrow(new_reschool_programs),"lat"] <- 39.715399
 new_reschool_programs[nrow(new_reschool_programs),"session_address_1"] <- "50 S Dahlia St"
 new_reschool_programs[nrow(new_reschool_programs),"session_name"] <- "Test_Session"
 
+#here we delete five arbitary programs
+new_reschool_programs <- new_reschool_programs[-c(1,100,1000,2,200),]
+
 #then we aggregate to new addresses
 new_reschool_addresses <- new_reschool_programs[,c("session_address_1","lat","long")] #subset to what we need
 new_reschool_addresses <- unique(new_reschool_addresses)
+
+#and finally we do some validation to confirm changes in our data, there should be fewer rows in new reschool programs, but one more unqiue address
 length(unique(new_reschool_addresses$session_address_1)) #note we have one new address now
 length(unique(reschool_addresses$session_address_1))
+nrow(new_reschool_programs)
+nrow(reschool_programs)
 ```
 
 ###Find New Programs
@@ -179,7 +202,6 @@ block_distance <- merge(new_block_distance,block_distance,by=c("Id2","session_ad
 nrow(block_distance) #just to make sure our key is correct for this merge
 ```
 
-
 ###Set cost thresholds for new reschool programs
 Identical to the old cost thresholds, but applicable to the new data. 
 ```{r}
@@ -201,13 +223,28 @@ Using the primarily predefined functions we already used to precompute the exist
 ```{r}
 Merge_Set_New <- function(dataframe){
  #here we're cutting duplicate program_addresses, and other antiquated info (previous aggregations, PCT vhcl ownership) that was use in previous calculations
-  temp <- merge(block_distance,dataframe,all.y=TRUE)
+  temp <- merge(block_distance,dataframe,by="session_address_1")
   temp$n[is.na(temp$n)==TRUE] <- 0
   return(temp)
 }
+
+
 ```
 
 
+```{r}
+temp <- merge(new_reschool_programs,block_distance,by="session_address_1")
+nrow(temp)
+length(unique(temp$session_address_1))
+length(unique(temp$Id2))
+
+length(unique(new_reschool_programs$session_address_1))
+nrow(new_reschool_programs)
+nrow(temp)/481
+```
+
+
+Second, we perform the actual access index calculations. 
 ```{r}
 #Create driving frame
 new_driving_index <- base_frame
@@ -228,7 +265,7 @@ for (i in 1:length(categories)){
     cost <- costs[x]
     user_set <- Make_Subset(new_reschool_programs,type,cost)
     agg_set <- Aggregate_Subset(user_set)
-    merged_set <- Merge_Set_New(agg_set)
+    merged_set <- Merge_Set(agg_set)
     merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive") 
     summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) 
     max_access <- max(summary_index_user$AccessIndex)
@@ -268,7 +305,7 @@ for (i in 1:length(categories)){
     cost <- costs[x]
     user_set <- Make_Subset(new_reschool_programs,type,cost)
     agg_set <- Aggregate_Subset(user_set)
-    merged_set <- Merge_Set_New(agg_set)
+    merged_set <- Merge_Set(agg_set)
     
     #replace na and 0 transit times with wallking times
     merged_set <- subset(merged_set,is.na(merged_set$walking_morning)==FALSE)
@@ -302,10 +339,17 @@ new_transit_index$AI_overall_free <- rowMeans(new_transit_index[,c("AI_has_natur
 ```
 
 ###Verify that we've updated indecies
-Here we do a quick identical check to ensure the new driving & transit indecies are correct. In both cases identical should == false. 
+Here we do a quick identical check to ensure the new driving & transit indecies are correct. In both cases identical should == false, even though access overall shouldn't budge much with a net loss of 4 sessions. 
 ```{r}
-identical(driving_index,new_driving_index)
-identical(transit_index,new_transit_index)
+#verifying driving is different
+summary(driving_index$AI_overall)
+summary(new_driving_index$AI_overall)
+identical(driving_index,new_driving_index) #if this returns FALSE, we've succesfully changed the addresses used in the calculation 
+
+#verifying transit is different
+summary(transit_index$AI_overall)
+summary(new_transit_index$AI_overall)
+identical(transit_index,new_transit_index) #again, we want this to return false
 ```
 
 ###Overwrite existing index
