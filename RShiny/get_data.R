@@ -47,7 +47,7 @@ parks = dbGetQuery(con, "SELECT * from shiny.parks")
 
 # get the required tables from the sql database
 reschool_summer_program_clean = dbGetQuery(con, "SELECT * from clean.reschool_summer_programs")
-reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
+#reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
 aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
 

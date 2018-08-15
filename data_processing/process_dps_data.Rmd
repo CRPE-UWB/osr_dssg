@@ -309,6 +309,34 @@ STARreading <- STARreading %>% na.omit()
 head(STARreading,6)
 ```
 
+##CoAlt Scores##
+
+```{r}
+coalt <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_CoAlt_1415-1617.csv", na.strings = " ") 
+head(coalt)
+```
+
+```{r}
+coalt_ela_inds <- c(2,3,4)
+coalt_math_inds <- c(5,6,7)
+
+coalt[-(1:2),c(coalt_ela_inds,coalt_math_inds)] <- apply(coalt[-(1:2),c(coalt_ela_inds,coalt_math_inds)],1:2,df_to_character)
+
+coalt_ela_scores <- coalt[-(1:2),c(1,coalt_ela_inds)]
+colnames(coalt_ela_scores) <- c("student_number","2015","2016","2017")
+coalt_ela_scores <- coalt_ela_scores %>% gather("2015","2016","2017",key="spring_year",value="ela_scores")
+
+coalt_math_scores <- coalt[-(1:2),c(1,coalt_math_inds)]
+colnames(coalt_math_scores) <- c("student_number","2015","2016","2017")
+coalt_math_scores <- coalt_math_scores %>% gather("2015","2016","2017",key="spring_year",value="math_scores")
+
+coalt <- merge(coalt_ela_scores, coalt_math_scores,by=c("student_number","spring_year"),all=TRUE)
+all_na_rows <- apply(coalt, 1, function(x) sum(is.na(x)) > 1)
+coalt <- coalt[!all_na_rows,]
+
+head(coalt)
+```
+
 ##Enrollment##
 Enrollment has a lot of info.
 ```{r}
@@ -869,17 +897,19 @@ print(sum(!unique(attendance$student_number) %in% unique(enrollment$student_numb
 enrollment <- merge(enrollment, attendance, by=c("student_number","spring_year"), all.x=TRUE)
 ```
 
-Now we have all of our basic, clean CSVs, organized into 10 tables:
+Now we have all of our basic, clean data tables, organized into 10 dataframes. 
 - students: Student info 
 - enrollment: Enrollment Info 
 - discipline: Discipline
 - cmas: CMAS scores
 - STARreading: STAR reading scores
 - ela: ELA scores
-- CoAlt scores
+- coalt: CoAlt scores
 - math: Math scores
 - school_locations: School info 
 - choice: School choice info
+
+CRPE may want to use these for other things. 
 
 ```{r}
 # discipline <- read.csv(file="/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/final_csv_files/discipline.csv")
@@ -901,4 +931,92 @@ Now we have all of our basic, clean CSVs, organized into 10 tables:
 # repeats_race <- read.csv(file="repeats_race.csv")
 # repeats_disability <- read.csv(file="repeats_disability.csv")
 # repeats_lre <- read.csv(file="repeats_lre.csv")
+```
+
+Now, we want the aggregated student data at the neighborhood level. 
+```{r}
+students_with_address <- students[!is.na(students$block),]
+# we only care about disability, race, el status, and location for our Shiny app
+students_with_address <- students_with_address[,c("block","race_ethnicity","primary_disability","elstatus")]
+students_with_address <- merge(students_with_address, block_locations, by="block")
+students_with_address$geoid_num <- NULL
+```
+
+What we care about is neighborhoods rather than block groups, though. So we want to have a mapping from block group to neighborhood. This will take a few steps, and takes in 
+
+First we'll need to get shapefiles for neighborhood and census
+```{r eval=FALSE}
+library(rgdal)
+library(rgeos)
+
+block_shapefile <- readOGR(dsn="../data/census_block_groups", "shape_census")
+block_shapefile <- block_shapefile[,"Id2"]
+
+nbhd_shapefile <- readOGR("raw_data/statistical_neighborhoods", "statistical_neighborhoods")
+nbhd_shapefile <- nbhd_shapefile[,c("NBHD_ID","NBHD_NAME")]
+head(nbhd_shapefile@data)
+```
+
+
+Now let's get the mapping from block groups to neighborhoods. 
+```{r eval=FALSE}
+#get block group centroids
+blockGroupCentroids <- gCentroid(block_shapefile, byid=TRUE)
+
+# If any centroids are outside of their block group, replace by 
+# a random point inside block group (e.g. if the block group is L-shaped)
+test <- gIntersects(blockGroupCentroids, block_shapefile, byid = TRUE)
+badCentroids <- which(colSums(test)!=1)
+altCentroids <- gPointOnSurface(block_shapefile, byid = TRUE)
+
+coordinates <- as.data.frame(blockGroupCentroids)
+for (i in badCentroids) {
+  print(i)
+  coordinates[i,] <- altCentroids[i]@coords[]
+}
+blockGroupCentroids <- SpatialPoints(
+  coordinates, proj4string = CRS(proj4string(blockGroupCentroids)))
+
+## Nest block groups inside neighborhoods using centroid locations
+nbhdsProj <- spTransform(nbhd_shapefile, proj4string(block_shapefile))  # make sure CRS's are the same
+nests <- gIntersects(blockGroupCentroids, nbhdsProj, byid = TRUE)  # rows=nbhds, cols=centroids
+true_idxs <- which(nests==TRUE, arr.ind=TRUE)  # col1 = nbhd idx, col2 = bgroup idx
+nbhd_idxs <- true_idxs[,1]
+bgroup_idxs <- true_idxs[,2]
+
+dfFinal <- data.frame(nbhd_shapefile@data$NBHD_ID[nbhd_idxs],
+                   nbhd_shapefile@data$NBHD_NAME[nbhd_idxs],
+                   block_shapefile@data$Id2[bgroup_idxs]
+                   )
+colnames(dfFinal) <- c("nbhd_id", "nbhd_name", "bgroup_id2")
+dfFinal$nbhd_id <- as.integer(dfFinal$nbhd_id)
+dfFinal$nbhd_name <- as.character(dfFinal$nbhd_name)
+dfFinal$bgroup_id2 <- as.character(as.numeric(as.character(dfFinal$bgroup_id2))) # strip leading 0's
+head(dfFinal)
+```
+
+Write the CSV so it can be used later. 
+```{r eval=FALSE}
+write.table(dfFinal, "block_nbhd_dict")
+```
+
+So now we can read it back:
+```{r}
+dfFinal <- read.table("block_nbhd_dict")
+```
+
+In any case, now we can get neighborhoods in with the students
+```{r}
+students_with_nbhds <- merge(students_with_address, dfFinal, by.x="block_group", by.y="bgroup_id2")
+head(students_with_nbhds)
+```
+
+```{r}
+final_student_df <- table(students_with_nbhds$nbhd_name, students_with_nbhds$race_ethnicity)
+final_student_df <- cbind(final_student_df, 
+                          table(students_with_nbhds$nbhd_name, students_with_nbhds$primary_disability))
+final_student_df <- cbind(final_student_df, 
+                          table(students_with_nbhds$nbhd_name, students_with_nbhds$elstatus))
+final_student_df <- cbind(final_student_df, as.vector(table(students_with_nbhds$nbhd_name)))
+colnames(final_student_df)[ncol(final_student_df)] <- "total_students"
 ```
