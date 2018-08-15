@@ -318,7 +318,50 @@ programdata_final_bgs <- merge(programdata_final, reschool_bgs, by.x=c("lat", "l
 head(programdata_final_bgs)
 ```
 
-Save the final, clean data to a csv.
+###Create Cost Per Day Variable
+In the future, it would be best to look at a cost per hour variable, but for now we can at least check cost per day, which will approximatley account for the lenght of the session vs. session cost. We start by converting time columns. **Note** that this requires using the *second* csv sent to us by Selam, and will not run based on the first. 
+```{r}
+programdata_final_bgs$Posfirst_session_start_time <- strptime(programdata_final_bgs$first_session_start_time, "%I:%M:%S %p")
+programdata_final_bgs$Posfirst_session_end_time <- strptime(programdata_final_bgs$first_session_end_time, "%I:%M:%S %p")
+programdata_final_bgs$Hours_Day <- (programdata_final_bgs$Posfirst_session_end_time - programdata_final_bgs$Posfirst_session_start_time)/(60*60) #differences are stored numerically in seconds, counting up from a static date. Thus we do last minus first for the difference in seconds, divide by 60*60 for to convert to hours
+```
+
+###Spot Checking
+Reveals five strange ones. There are three 0s, and two start at midnight end at 11:59 (>23 hours per day). The 0s (0 hours per day) are a for a camp, so we treat those as 24 hours. The 11:59s are for an online course, so we drop em. 
+```{r}
+summary(as.numeric(programdata_final_bgs$Hours_Day))
+programdata_final_bgs$Hours_Day[programdata_final_bgs$Hours_Day>23] <- NA
+programdata_final_bgs$Hours_Day[programdata_final_bgs$Hours_Day==0] <- 24
+summary(as.numeric(programdata_final_bgs$Hours_Day))
+```
+
+###Get Raw Days
+For sessions that are less than one week
+```{r}
+programdata_final_bgs$session_date_start <- as.Date(programdata_final_bgs$session_date_start, formate = "%Y /%m /%d")
+programdata_final_bgs$session_date_end <- as.Date(programdata_final_bgs$session_date_end, formate = "%Y /%m /%d")
+programdata_final_bgs$raw_days <- programdata_final_bgs$session_date_end - programdata_final_bgs$session_date_start
+summary(as.numeric(programdata_final_bgs$raw_days))
+```
+
+###Get Working Days
+Here we do some tricky things. First, for programs with "raw days" == 0, meaning they start and stop on the same day, we substitute the 0 for 1, in other treat them as being one day long. Second, we calculate number of weeks for programs with "raw days" < 7. Finally, we generate a working days col, with 1 day for 1 day long programs, the "raw days" for programs which are less than a week long, and the number of weeks * 5 (i.e, number of working days)  for all other programs.
+
+If we get days of the week information, we'll come up with a way to amend n of days per week for both <1 week and >1 week parameters then. 
+```{r}
+programdata_final_bgs$raw_days <- ifelse(programdata_final_bgs$raw_days==0,1,programdata_final_bgs$raw_days)
+programdata_final_bgs$raw_weeks <- ifelse(programdata_final_bgs$raw_days<7,0,programdata_final_bgs$raw_days/7)
+programdata_final_bgs$days <- ifelse(programdata_final_bgs$raw_week==0,programdata_final_bgs$raw_days,programdata_final_bgs$raw_weeks*5)
+summary(programdata_final_bgs$days)
+```
+
+###Approximate Cost Per Day
+Still waiting on days of week to refine calculation. But here we go for now.
+```{r}
+programdata_final_bgs$cost_per_day <- programdata_final_bgs$session_cost/programdata_final_bgs$days
+```
+
+###Save the final, clean data to a csv.
 
 ```{r}
 filename <- paste("clean-reschool-data-", Sys.Date(), ".csv", sep="")

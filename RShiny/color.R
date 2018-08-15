@@ -40,8 +40,8 @@ bins_age <- c(0, 500, 1000, 1500, 2000, max(shape_census@data$AGE_5_T))
 pal_age <- colorBin("Greys", domain = shape_census@data$AGE_5_T, bins = bins_age)
 # pal_age <- colorQuantile("Greys", domain = shape_census@data$AGE_5_T, n = 5)
 
-pal_disabled <- colorBin("Greys", domain = shape_census@data$perc_disable_students, bins = 5)
-pal_el <- colorBin("Greys", domain = shape_census@data$perc_nonenglish_students, bins = 5)
+pal_disabled <- colorBin("Reds", domain = shape_census@data$perc_disable_students, bins = 5)
+pal_el <- colorBin("Oranges", domain = shape_census@data$perc_el, bins = 5)
 
 # Palettes for racial demographics (colored)
 pal_hispanic <- colorBin("Greens", domain = shape_census@data$PCT_HIS, bins = 5)

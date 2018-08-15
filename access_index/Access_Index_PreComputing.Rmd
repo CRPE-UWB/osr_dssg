@@ -12,9 +12,25 @@ knitr::opts_chunk$set(echo = TRUE)
 ##Intro
 This markdown has the loops for precomputing combinations of program categories and cost for use in the Rshiny app. **NOTE** you must have the Access Index functions defined in your workspace, and the "reschool_data" and ""acs_demographics" pulled from the RDS to run this notebook.  
 
+###Establishing Cost Thresholds and Umbrella Program Types
+The only interesting one here is low cost. Selam specifically recommended 50 dollars, though this was very low n for total session cost. HOWEVER- now that we have cost per day calculations, we can confirm that for non-free programs, the first quantile cost per is 47.5 dollars, and the third quantile is 54.75 dollars, where sessions costing $50 or less per day account for about 41.7% of all sessions. 
+```{r}
+reschool_programs$academic <- reschool_programs$has_academic==TRUE | reschool_programs$has_stem==TRUE
+
+reschool_programs$art <- reschool_programs$has_arts==TRUE | reschool_programs$has_cooking==TRUE | reschool_programs$has_dance==TRUE | reschool_programs$has_drama==TRUE | reschool_programs$has_music==TRUE
+
+#cost thresolds, to be updated w/ time data from selam
+reschool_programs$free <- reschool_programs$session_cost==0
+reschool_programs$lowcost <- reschool_programs$cost_per_day<=50
+reschool_programs$anycost <- TRUE
+
+#establishing "1" per row for use in aggergation
+reschool_programs$n <- 1 
+```
+
 ###Set up dataframe for storing results
 ```{r}
-Id2 <- c(acs_demographics$id2)
+Id2 <- c(census_blocks$Id2)
 base_frame <- as.data.frame(Id2)
 ```
 
@@ -25,7 +41,7 @@ driving_index <- base_frame
 
 #Creating categories list for loop
 
-categories <- c("academic","art","has_sports","has_nature","has_special_needs_offerings")
+categories <- c("academic","art","has_sports","has_nature")
 
 #Creating cost list for loop
 

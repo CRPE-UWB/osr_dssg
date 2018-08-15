@@ -146,10 +146,10 @@ get_nbhd_student_labels <- function(val=NULL) {
     %% Hispanic Students = %g%% <br/>
     %% White Students = %g%% <br/>
     %% Black Students = %g%% <br/>
-    <i><font size=1>(Note: sample size = %g)</font></i>",
+    <i><font size=1>(Sample Size = %g)</font></i>",
     shape_census@data$NBHD_NA,
     str_num_programs,
-    shape_census@data$perc_nonenglish_students,
+    shape_census@data$perc_el,
     shape_census@data$perc_disable_students,
     shape_census@data$perc_hispanic_students,
     shape_census@data$perc_white_students,
@@ -191,7 +191,7 @@ legend_titles_demographic <- list(MED_HH_ = "Median HH Income",
                                   PCT_NON = "Lang. Besides <br>English",
                                   AGE_5_T = "5-17 Year Olds (#)",
                                   majority_race = "Most Common<br>Race/Ethnicity",
-                                  "perc_nonenglish_students" = "% EL",
+                                  "perc_el" = "% EL",
                                   "perc_disable_students" = "% Disabled",
                                   "perc_hispanic_students" = "% Hispanic",
                                   "perc_white_students" = "% White",
@@ -240,7 +240,7 @@ demog_values <- list("none",
 )
 
 demog_student_values <- list("none",
-                             "perc_nonenglish_students",
+                             "perc_el",
                              "perc_disable_students",
                              "perc_hispanic_students",
                              "perc_white_students",
@@ -270,7 +270,8 @@ pal_list <- list(pal_age,
                  pal_black,
                  pal_white,
                  pal_all_races
-)
+                 )
+
 names(pal_list) <- demog_values[demog_values!="none"]
 names(lab_format_list) <- demog_values[demog_values!="none"]
 
@@ -285,7 +286,8 @@ lab_format_list_student <- list(labelFormat(prefix = " %"),
                                 labelFormat(suffix = " %"),
                                 labelFormat(suffix = " %"),
                                 labelFormat(suffix = " %"),
-                                labelFormat(suffix = " %"))
+                                labelFormat(suffix = " %")
+                                )
 
 names(pal_list_student) <- demog_student_values[demog_student_values!="none"]
 names(lab_format_list_student) <- demog_student_values[demog_student_values!="none"]

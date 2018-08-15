@@ -937,7 +937,8 @@ Now, we want the aggregated student data at the neighborhood level.
 ```{r}
 students_with_address <- students[!is.na(students$block),]
 # we only care about disability, race, el status, and location for our Shiny app
-students_with_address <- students_with_address[,c("block","race_ethnicity","primary_disability","elstatus")]
+students_with_address <- students_with_address[,c("block","race","primary_disability","el_status")]
+#students_with_address <- students_with_address[,c("block","race_ethnicity","primary_disability","elstatus")]
 students_with_address <- merge(students_with_address, block_locations, by="block")
 students_with_address$geoid_num <- NULL
 ```
@@ -1011,12 +1012,52 @@ students_with_nbhds <- merge(students_with_address, dfFinal, by.x="block_group",
 head(students_with_nbhds)
 ```
 
+Now aggregate numbers by neighborhood level. 
 ```{r}
-final_student_df <- table(students_with_nbhds$nbhd_name, students_with_nbhds$race_ethnicity)
+final_student_df <- table(students_with_nbhds$nbhd_name, students_with_nbhds$race)
+#final_student_df <- table(students_with_nbhds$nbhd_name, students_with_nbhds$race_ethnicity)
 final_student_df <- cbind(final_student_df, 
                           table(students_with_nbhds$nbhd_name, students_with_nbhds$primary_disability))
 final_student_df <- cbind(final_student_df, 
-                          table(students_with_nbhds$nbhd_name, students_with_nbhds$elstatus))
+                          table(students_with_nbhds$nbhd_name, students_with_nbhds$el_status))
+#final_student_df <- cbind(final_student_df, 
+#                          table(students_with_nbhds$nbhd_name, students_with_nbhds$elstatus))
 final_student_df <- cbind(final_student_df, as.vector(table(students_with_nbhds$nbhd_name)))
-colnames(final_student_df)[ncol(final_student_df)] <- "total_students"
+final_student_df <- final_student_df[,c(ncol(final_student_df),1:(ncol(final_student_df)-1))]
+colnames(final_student_df)[1] <- "total_students"
+```
+
+And then remove sensitive info, i.e. demographic data on neighborhoods with fewer than 10 students
+```{r}
+min_student_threshold <- 10
+final_student_df[final_student_df[,"total_students"]<min_student_threshold,-1] <- NA
+head(final_student_df)
+```
+
+Now we just convert to percentages and change variable names. 
+```{r}
+# convert to percentages
+final_student_df[,c(2:8,ncol(final_student_df)-1,ncol(final_student_df))] <- apply(X=final_student_df[,c(2:8,ncol(final_student_df)-1,ncol(final_student_df))], FUN=function(vec) {100*(vec/final_student_df[,"total_students"])}, MARGIN=2)
+
+# change column names
+student_col_names <-  c("perc_asian_students", "perc_black_students", "perc_hispanic_students", "perc_nativeamerican_students", "perc_pacificislander_students", "perc_twoormore_students", "perc_white_students", "students_with_autism", "students_with_deafblind", "students_with_devdelay", "students_with_emotional_disability", "students_with_hearing_disability", "students_with_intel_disability", "students_with_multiple_disability", "students_with_no_disability", "students_with_orthopedic_disability", "students_with_other_health_impairment", "students_with_physical_disability", "students_with_sld", "students_with_sli", "students_with_tbi", "students_with_visual_disability", "perc_el", "perc_no_el")
+colnames(final_student_df)[2:ncol(final_student_df)] <- student_col_names
+
+# add nbhd_name column
+truly_final_student_df <- data.frame(nbhd_name=row.names(final_student_df),final_student_df,row.names = NULL)
+
+# add percent students with disability
+truly_final_student_df$perc_disable_students <- 100*(1-truly_final_student_df$students_with_no_disability/truly_final_student_df$total_students)
+truly_final_student_df$students_with_any_disability <- truly_final_student_df$total_students-truly_final_student_df$students_with_no_disability
+
+# remove unnecessary columns
+truly_final_student_df$perc_no_el <- NULL
+truly_final_student_df$students_with_no_disability <- NULL
+
+head(truly_final_student_df)
+```
+
+We're actually done now. Save the aggregated student data to a csv
+```{r}
+write.csv(truly_final_student_df,"../data/aggregate_dps_student_nbhds.csv")
 ```

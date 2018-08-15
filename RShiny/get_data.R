@@ -27,6 +27,18 @@ con <- dbConnect(drv, dbname = dbname,
 # Summary of total number of programs in each neighborhood
 nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summary")
 
+# ReSchool Program data
+reschool_summer_program_clean = dbGetQuery(con, "SELECT * from clean.reschool_summer_programs")
+reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
+aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
+
+# Aggregated DPS student data for demographics
+# aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
+aggregate_dps_student_nbhds = read.csv("../data/aggregate_dps_student_nbhds.csv",check.names=FALSE)
+
+# Search data from Google Analytics
+google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
+
 # Access index stuff
 driving_index = dbGetQuery(con, "SELECT * from clean.driving_index")
 driving_index_disability = dbGetQuery(con, "SELECT * from clean.driving_index_disability")
@@ -37,36 +49,32 @@ transit_index_disability = dbGetQuery(con, "SELECT * from clean.transit_index_di
 transit_index_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_nbhd")
 transit_index_disability_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_disability_nbhd")
 
-# Open resource stuff
-fields = dbGetQuery(con, "SELECT * from shiny.fields")
-museums = dbGetQuery(con, "SELECT * from shiny.museums")
-libraries = dbGetQuery(con, "SELECT * from shiny.libraries")
-playgrounds = dbGetQuery(con, "SELECT * from shiny.playgrounds")
-rec_centers = dbGetQuery(con, "SELECT * from shiny.rec_centers")
-parks = dbGetQuery(con, "SELECT * from shiny.parks")
-
-# get the required tables from the sql database
-reschool_summer_program_clean = dbGetQuery(con, "SELECT * from clean.reschool_summer_programs")
-#reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
-aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
-aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
-
-aggregate_dps_student_nbhds[aggregate_dps_student_nbhds$total_students<10,-c(1,2)] = NA
-
-#all_neighbourhoods = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
-google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
-relevant_zip_codes = readOGR(dsn="../data/zip_codes")
-total_denver_zipcodes = read.csv("../data/denver_zip_codes.csv")
-
 # when you're done, close the connection and unload the driver 
 dbDisconnect(con) 
 dbUnloadDriver(drv)
+
+###############################################################
+# Other Resources (Denver Open Data)
+
+data_folder <- file.path('..', 'data', 'shiny_tables') # where the shiny tables are saved
+
+fields = read.csv( file.path(data_folder, 'fields.csv') )
+museums = read.csv( file.path(data_folder, 'museums.csv') )
+libraries = read.csv( file.path(data_folder, 'libraries.csv') )
+playgrounds = read.csv( file.path(data_folder, 'playgrounds.csv') )
+rec_centers = read.csv( file.path(data_folder, 'rec_centers.csv') )
+parks = read.csv( file.path(data_folder, 'parks.csv') )
+
 #####################################################
+# Zip code stuff
+
+relevant_zip_codes = readOGR(dsn =  file.path("..", "data", "zip_codes") )
+total_denver_zipcodes = read.csv( file.path("..", "data", "denver_zip_codes.csv") )
 
 ##################### Getting shape files to plot block groups, nbhds on the map ##########################
 
 # Get block group shape file (for access index stuff)
-shape_census_block <- readOGR(dsn = "../data/census_block_groups", layer = "shape_census")
+shape_census_block <- readOGR(dsn = file.path("..", "data", "census_block_groups"), layer = "shape_census")
 shape_census_block@data$Id2 <- as.numeric(as.character(shape_census_block@data$Id2))
 shape_census_block <- shape_census_block[order(shape_census_block@data$Id2),]
 

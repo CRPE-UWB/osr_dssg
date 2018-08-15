@@ -1,9 +1,6 @@
 # Data
 *.html
 *.zip
-*.csv
-raw_data
-clean_data
 
 # History files
 .Rhistory

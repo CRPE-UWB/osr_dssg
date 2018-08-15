@@ -29,7 +29,7 @@ shinyUI(
   includeCSS("style.css"),
   
   navbarPage("Denver Out-of-School Resources",
-             selected = "B4S Programs",
+             selected = "About this Tool",
                    
 ########################## Blueprint4Summer Programs Tab ###########################################
 
@@ -143,8 +143,9 @@ shinyUI(
                                                        ),
                                               tabPanel(
                                                 "Summary Analysis",
-                                                br(), br(),
+                                                br(),
                                                 uiOutput("summary_title"),
+                                                br(),
                                                 div(plotlyOutput("program_summary_plot", height = "250px")),
                                                 br(),
                                                 fluidRow(
@@ -301,8 +302,8 @@ shinyUI(
                                            radioButtons("specific_search_questions", "Choose a question about the Blueprint4Summer Search Data to investigate:", 
                                                        choices = c("What program categories do people search for the most?",
                                                                    "What distances and session times do people search for, and how do they sort their results?",
-                                                                   "What locations are people searching for?",
-                                                                   "What locations are people searching for? - spatial analysis")))
+                                                                   "What locations are people searching for? (Charts)",
+                                                                   "What locations are people searching for? (Map)")))
                           ),
 
                         
@@ -348,17 +349,20 @@ shinyUI(
                                                                div(plotlyOutput("search_compare_prog_category", height = "350px")),
                                                                br()
                                                                ) ,
-                                              conditionalPanel('input.specific_search_questions=="What locations are people searching for?"',
+                                              conditionalPanel('input.specific_search_questions=="What locations are people searching for? (Charts)"',
                                                                br(),
                                                                div(plotlyOutput("search_zipcode_plot", height = "200px")), 
                                                                br(),
                                                                div(plotlyOutput("search_programs_zipcode_plot", height = "200px"))
                  
                                               ),
-                                              conditionalPanel('input.specific_search_questions=="What locations are people searching for? - spatial analysis"',
+                                              conditionalPanel('input.specific_search_questions=="What locations are people searching for? (Map)"',
                                                                leafletOutput("search_mymap", height = 520),
-                                                               HTML("<i>Note: Only top 20 zipcodes in terms of the number of searches are shown.</i>")
-                                                               
+                                                               HTML("<i>Note: Only top 20 zipcodes in terms of the number of searches are shown.</i>"),
+                                                               br(),
+                                                               br(),
+                                                               downloadButton('search_map_down', label = "Download Map (Takes About 10 Seconds)"),
+                                                               br(), br()
                                               )
                                               ),
                                       id = "conditionedPanels"
@@ -381,9 +385,9 @@ shinyUI(
                                                               choiceNames = c("How equally is access distributed among neighborhoods?",
                                                                           "How do the number of programs correspond to the number of students in neighborhoods?",
                                                                           "How does access differ among demographic groups?"),
-                                                              choiceValues = c("lorenz", "scatter", "demog")),
-                                                 br(), 
-                                                 br()
+                                                              choiceValues = c("lorenz", "scatter", "demog"))
+                                                 # br(), 
+                                                 # br()
                                 ),
                                 checkboxGroupInput("type_access", 
                                                    "Select one or more program types to include:", 
@@ -392,27 +396,26 @@ shinyUI(
                                                    inline = TRUE,
                                                    selected = c("academic","art","sports","nature")
                                                    ),
-                                br(),
+                                #br(),
                                 radioButtons("cost_access", 
                                              "Select a cost range for programs to include:", 
                                              choiceNames = list("Free", "Free to Low Cost", "All Programs"),
                                              choiceValues = list("free", "low", "any"),
                                              selected = "any"
                                              ),
-                                br(),
+                                #br(),
                                 radioButtons("drive_or_transit",
-                                             "Calculate distances to programs based on driving or 
-                                             public transit?",
+                                             "Select a transit mode for computing distances to programs:",
                                              choiceNames = list("Drive", "Transit"),
                                              choiceValues = list("drive", "transit"),
                                              selected = "drive"
                                              ),
                                 radioButtons("disability",
-                                             "Access specifically for students with disability?",
-                                             choiceNames = c("Any student", "Students with disability"),
+                                             "Choose whether to focus on programs that accommodate students with special needs:",
+                                             choiceNames = c("Any student", "Students with special needs"),
                                              choiceValues = c(FALSE,TRUE),
                                              selected = FALSE),
-                                br(),
+                                #br(),
                                 conditionalPanel(condition = "input.access_panel == 'Map'",
                                   selectInput("neighborhoods_access", "Focus on neighborhoods:", 
                                               choices = c("All neighborhoods", 
@@ -434,13 +437,16 @@ shinyUI(
                                                      br(),
                                                      DT::dataTableOutput("datatable_access"),
                                                      downloadButton("download_access_data", "Download Blockgroup Data"),
-                                                     br(),
+                                                     br(), br(),
                                                      DT::dataTableOutput("datatable_access_nbhd"),
-                                                     downloadButton("download_access_data_nbhd", "Download Neighborhood Data")
+                                                     downloadButton("download_access_data_nbhd", "Download Neighborhood Data"),
+                                                     br(), br()
                                             ),
                                             tabPanel("Summary Analysis",
                                                      conditionalPanel(condition = "input.specific_access_questions == 'lorenz'",
                                                                       plotOutput("lorenz"),
+                                                                      #br(),
+                                                                      uiOutput("lorenz_text"),
                                                                       br()
                                                      ),
                                                      conditionalPanel(condition = "input.specific_access_questions == 'scatter'",
@@ -448,7 +454,7 @@ shinyUI(
                                                                       plotlyOutput("access_scatter")
                                                      ),
                                                      conditionalPanel(condition = "input.specific_access_questions == 'demog'",
-                                                                      plotlyOutput("access_demog")
+                                                                      br(), plotlyOutput("access_demog")
                                                      )
                                                      ),
                                             id = "access_panel"
