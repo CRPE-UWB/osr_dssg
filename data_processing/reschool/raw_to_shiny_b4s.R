@@ -21,7 +21,7 @@ library(ggmap)
 library(rgdal)
 library(rgeos)
 
-raw_to_shiny_b4s <- function(raw_df) {
+raw_to_shiny_b4s <- function(raw_df, bg_nbhds_df) {
   
   cols_to_keep <- c("camp_name", "session_name", "session_short_description", "session_cost", 
                     "first_session_date", "last_session_date", "first_session_start_time", "first_session_end_time", 
@@ -185,6 +185,15 @@ raw_to_shiny_b4s <- function(raw_df) {
                                  by.y=c("lat", "long"), 
                                  all.x=TRUE, all.y=FALSE)
   
+  ######## Add nbhd names and ids to dataset ########
+  
+  bg_nbhds <- read.csv( file.path(github_dir, "data", "bg_nbhds.csv") )
+  
+  programdata_final_nbhds <- merge(programdata_final_bgs, bg_nbhds, 
+                                 by.x=c("bgroup_id2"), 
+                                 by.y=c("bgroup_id2"), 
+                                 all.x=TRUE, all.y=FALSE)
+  
   ######## Create Cost Per Day Variable ########
   
   programdata_final_bgs$Posfirst_session_start_time <- strptime(programdata_final_bgs$first_session_start_time, 
@@ -227,18 +236,18 @@ raw_to_shiny_b4s <- function(raw_df) {
                           "first_session_date", "last_session_date", "first_session_start_time",
                           "first_session_end_time",  "session_count", "has_academic",
                           "has_arts", "has_cooking", "has_dance", "has_drama", "has_music", "has_nature",
-                          "has_sports", "has_stem", "has_scholarships",
-                          "has_special_needs_offerings", "cost_per_day"
+                          "has_sports", "has_stem", "has_scholarships", "has_special_needs_offerings",  
+                          "cost_per_day", "bgroup_id2", "nbhd_name", "nbhd_id"
                           )
   shiny_df <- programdata_final_bgs[ , final_cols_to_keep]
 
   colnames(shiny_df) <- c("lat", "long", "session_zip", "camp_name", "session_name",
                           "session_short_description", "session_cost", "session_city",
-                          "session_start_date", "session_end_date", "first_session_start_time",
+                          "session_date_start", "session_date_end", "first_session_start_time",
                           "first_session_end_time",  "session_count", "has_academic",
                           "has_arts", "has_cooking", "has_dance", "has_drama", "has_music", "has_nature",
-                          "has_sports", "has_stem", "has_scholarships", 
-                          "has_special_needs_offerings", "cost_per_day"
+                          "has_sports", "has_stem", "has_scholarships", "has_special_needs_offerings",  
+                          "cost_per_day", "bgroup_id2", "nbhd_name", "nbhd_id"
                           )
   
   return(shiny_df)

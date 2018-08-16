@@ -1,0 +1,20 @@
+Raw Blueprint4Summer data is required to have the following columns:
+
+"camp_name"
+"session_name"
+"session_short_description"
+"session_cost"
+"first_session_date"
+"last_session_date"
+"first_session_start_time"
+"first_session_end_time"
+"session_count"
+"session_address_name"
+"session_address_1"
+"session_address_2"
+"session_city"
+"session_state"
+"session_zip"
+"session_categories"
+
+Additional columns are allowed, but if any of the above columns are missing (or have different names), then you will NOT be able to process and update the new data for use in the dashboard.
