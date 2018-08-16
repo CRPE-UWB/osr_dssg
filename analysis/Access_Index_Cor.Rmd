@@ -69,8 +69,9 @@ acs_transit_disabAI <- merge(transit_index_disabillity,acs_demographics,by="Id2"
 
 ###Census Correlations Loop for Driving
 ```{r}
-cor_tests <-  colnames(acs_driving_AI)[c(46:85)]#prepare dataframe
-index_tests <-  colnames(acs_driving_AI)[c(2:18)]#prepare things we want to loop
+library(weights)
+cor_tests <-  colnames(acs_driving_AI)[c(43:82)]#prepare dataframe
+index_tests <-  colnames(acs_driving_AI)[c(2:15)]#prepare things we want to loop
 cor_table <- data.frame(cor_tests)
 
 for (i in 1:length(index_tests)){ #here we loop the aggregation of students we want to test for correlations, store p_values and results in a dataframe. 
@@ -85,11 +86,11 @@ for (i in 1:length(index_tests)){ #here we loop the aggregation of students we w
   colnames(cor_table)[colnames(cor_table)=="confit_ltemp"] <- paste0("lower_",y)
   for (z in 1:length(cor_tests)){
     x <- cor_tests[z]
-    test <- cor.test(acs_driving_AI[,paste(x)],acs_driving_AI[,paste(y)],methods=c("pearson"))
-    cor_table[z,paste0(y)] <- round(as.numeric(test$estimate),3)
-    cor_table[z,paste0("p_",y)] <- round(as.numeric(test$p.value),3)
-    cor_table[z,paste0("upper_",y)] <- round(as.numeric(test$conf.int)[2],3)
-    cor_table[z,paste0("lower_",y)] <- round(as.numeric(test$conf.int)[1],3)
+    test <- wtd.cor(acs_driving_AI[,paste(x)],acs_driving_AI[,paste(y)],weight=dps_agg$student)
+    cor_table[z,paste0(y)] <- round(as.numeric(test[1]),3)
+    cor_table[z,paste0("p_",y)] <- round(as.numeric(test[4]),3)
+    cor_table[z,paste0("upper_",y)] <- round(test[1]+(1.96*test[2]),3)
+    cor_table[z,paste0("lower_",y)] <- round(test[1]-(1.96*test[2]),3)
   }
   print(paste(i,"working..."))
 }
@@ -99,8 +100,9 @@ cor_driving_acs <- cor_table
 
 ###Census Correlations Loop for Transit
 ```{r}
-cor_tests <-  colnames(acs_transit_AI)[c(46:84)]#prepare dataframe
-index_tests <-  colnames(acs_transit_AI)[c(2:18)]#prepare things we want to loop
+library(weights)
+cor_tests <-  colnames(acs_driving_AI)[c(43:82)]
+index_tests <-  colnames(acs_transit_AI)[c(2:15)]
 cor_table <- data.frame(cor_tests)
 
 for (i in 1:length(index_tests)){ #here we loop the aggregation of students we want to test for correlations, store p_values and results in a dataframe. 
@@ -115,11 +117,11 @@ for (i in 1:length(index_tests)){ #here we loop the aggregation of students we w
   colnames(cor_table)[colnames(cor_table)=="confit_ltemp"] <- paste0("lower_",y)
   for (z in 1:length(cor_tests)){
     x <- cor_tests[z]
-    test <- cor.test(acs_transit_AI[,paste(x)],acs_transit_AI[,paste(y)],methods=c("pearson"))
-    cor_table[z,paste0(y)] <- round(as.numeric(test$estimate),3)
-    cor_table[z,paste0("p_",y)] <- round(as.numeric(test$p.value),3)
-    cor_table[z,paste0("upper_",y)] <- round(as.numeric(test$conf.int)[2],3)
-    cor_table[z,paste0("lower_",y)] <- round(as.numeric(test$conf.int)[1],3)
+    test <- wtd.cor(acs_transit_AI[,paste(x)],acs_transit_AI[,paste(y)],weight=acs_transit_AI$students)
+    cor_table[z,paste0(y)] <- round(as.numeric(test[1]),3)
+    cor_table[z,paste0("p_",y)] <- round(as.numeric(test[4]),3)
+    cor_table[z,paste0("upper_",y)] <- round(test[1]+(1.96*test[2]),3)
+    cor_table[z,paste0("lower_",y)] <- round(test[1]-(1.96*test[2]),3)
   }
   print(paste(i,"working..."))
 }
@@ -154,7 +156,7 @@ for (i in 1:length(index_tests)){
 ```{r}
 library(ggplot2)
 plot_list_t <- list()
-cor_inc_acs <- cor_driving_acs[c(11:15,32),]
+cor_inc_acs <- cor_driving_acs[c(8:12,37),]
 for (i in 1:length(index_tests)){
   test <- index_tests[i]
   p <- ggplot(cor_inc_acs, aes(y=cor_inc_acs[,test],x=cor_tests)) +
@@ -330,12 +332,13 @@ dps_special_needs_transit <- merge(dps_special_needs_transit,crime)
 ```
 
 ###Driving Correlations with DPS demographics
-
 ####Loop for cor table, driving
 We wanna look at everything right? well there's a lot of things to look at, so here we return a dataframe of correlations for all ranges, and free vs. low and high cost. For driving.
+
 ```{r}
+library(weights)
 cor_tests <- colnames(dps_agg)[c(2:18,37:39)] #prepare dataframe
-index_tests <- colnames(dps_agg)[19:36] #prepare things we want to loop
+index_tests <- colnames(dps_agg)[20:36] #prepare things we want to loop
 cor_table <- data.frame(cor_tests)
 
 for (i in 1:length(index_tests)){ #here we loop the aggregation of students we want to test for correlations, store p_values and results in a dataframe. 
@@ -350,16 +353,16 @@ for (i in 1:length(index_tests)){ #here we loop the aggregation of students we w
   colnames(cor_table)[colnames(cor_table)=="confit_ltemp"] <- paste0("lower_",y)
   for (z in 1:length(cor_tests)){
     x <- cor_tests[z]
-    test <- cor.test((dps_agg[,paste(x)]/dps_agg$students),dps_agg[,paste(y)],methods=c("pearson")) #note we are using % of students, not n of students here, to match census specifications
-    cor_table[z,paste0(y)] <- round(as.numeric(test$estimate),3)
-    cor_table[z,paste0("p_",y)] <- round(as.numeric(test$p.value),3)
-    cor_table[z,paste0("upper_",y)] <- round(as.numeric(test$conf.int)[2],3)
-    cor_table[z,paste0("lower_",y)] <- round(as.numeric(test$conf.int)[1],3)
+    test <- wtd.cor((dps_agg[,paste(x)]/dps_agg$students),dps_agg[,paste(y)],weight=dps_agg$students) #note we are using % of students, not n of students here, to match census specifications
+    cor_table[z,paste0(y)] <- round(as.numeric(test[1]),3)
+    cor_table[z,paste0("p_",y)] <- round(as.numeric(test[4]),3)
+    cor_table[z,paste0("upper_",y)] <- round(test[1]+(1.96*test[2]),3)
+    cor_table[z,paste0("lower_",y)] <- round(test[1]-(1.96*test[2]),3)
   }
   print(paste(i,"working..."))
 }
 
-cor_driving_dps <- cor_table
+w_cor_driving_dps <- cor_table
 ```
 
 ###Loop for transit 
@@ -394,6 +397,8 @@ cor_transit_dps <- cor_table
 
 ###For Disabillity Index Driving
 ```{r}
+library(weights)
+
 cor_tests <- colnames(dps_special_needs_drive)[c(2:14)] #prepare dataframe
 index_tests <- colnames(dps_special_needs_drive)[c(22:33)]   #prepare things we want to loop
 cor_table <- data.frame(cor_tests)
@@ -410,11 +415,11 @@ for (i in 1:length(index_tests)){ #here we loop the aggregation of students we w
   colnames(cor_table)[colnames(cor_table)=="confit_ltemp"] <- paste0("lower_",y)
   for (z in 1:length(cor_tests)){
     x <- cor_tests[z]
-    test <- cor.test((dps_special_needs_drive[,paste(x)]/dps_special_needs_drive$students),dps_special_needs_drive[,paste(y)],methods=c("pearson")) #note we are using % of students, not n of students here, to match census specifications
-    cor_table[z,paste0(y)] <- round(as.numeric(test$estimate),3)
-    cor_table[z,paste0("p_",y)] <- round(as.numeric(test$p.value),3)
-    cor_table[z,paste0("upper_",y)] <- round(as.numeric(test$conf.int)[2],3)
-    cor_table[z,paste0("lower_",y)] <- round(as.numeric(test$conf.int)[1],3)
+    test <- wtd.cor((dps_special_needs_drive[,paste(x)]/dps_special_needs_drive$students),dps_special_needs_drive[,paste(y)],weight=dps_agg$students) #note we are using % of students, not n of students here, to match census specifications
+    cor_table[z,paste0(y)] <- round(as.numeric(test[1]),3)
+    cor_table[z,paste0("p_",y)] <- round(as.numeric(test[4]),3)
+    cor_table[z,paste0("upper_",y)] <- round(test[1]+(1.96*test[2]),3)
+    cor_table[z,paste0("lower_",y)] <- round(test[1]-(1.96*test[2]),3)
   }
   print(paste(i,"working..."))
 }
@@ -445,9 +450,9 @@ for (i in 1:length(index_tests)){
 
 ###Larger text
 ```{r}
-Text12 <- element_text(size = 12)
 Text16 <- element_text(size = 16)
-Text24 <- element_text(size = 24)
+Text20 <- element_text(size = 20)
+Text28 <- element_text(size = 28)
 ```
 
 ###For Export - Race
@@ -462,20 +467,21 @@ for (i in 1:length(index_tests)){
   test <- index_tests[i]
   race <- ggplot(race_cor, aes(y=race_cor[,test],x=race_cor$cor_tests)) +
          geom_errorbar(data=race_cor,aes(ymin=race_cor[,(paste0("lower_",test))],ymax=race_cor[,(paste0("upper_",test))]),width=.1,color="blue3",alpha=.5) + 
-         geom_point(color="blue3",size=3)+
+         geom_point(color="blue3",size=4)+
          labs(title=paste(test)) + 
   geom_hline(yintercept = 0,color="grey3") +
-  ylab("Driving Access Index") + 
-  xlab("Percent of Students in Block Group") +
+  ylab("Access Index: Driving") + 
     ylim(-0.75,0.75) + theme_tufte()
   plot_list_t[[i]] <- race
-  print(race + theme(axis.text.x = Text12, axis.text.y = Text12, axis.title.x = Text16, axis.title.y = Text16,title = Text24))
+  print(race + theme(axis.text.x = Text16, axis.text.y = Text16, axis.title.y = Text16,title = Text28, axis.title.x=element_blank()))
   print(paste(i,"working..."))
 }
 ```
 
 ###For Export - Disabillity
 ```{r}
+library(ggplot2)
+library(ggthemes)
 plot_list_t <- list()
 disab_cor <- cor_table[c(7:13),]
 disab_cor$cor_tests <- as.character(disab_cor$cor_tests)
@@ -489,9 +495,9 @@ for (i in 1:length(index_tests)){
   geom_hline(yintercept = 0,color="grey3") +
   ylab("Driving Access Index for Special Needs Programs") + 
   xlab("Percent in Block Group") +
-    ylim(-0.75,0.75)
+    ylim(-0.75,0.75) + theme_tufte()
   plot_list_t[[i]] <- disab
-  print(disab)
+  print(disab + theme(axis.text.x = Text16, axis.text.y = Text16, axis.title.y = Text16,title = Text28, axis.title.x=element_blank()))
   print(paste(i,"working..."))
 }
 ```

@@ -33,8 +33,8 @@ reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
 
 # Aggregated DPS student data for demographics
-aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
-aggregate_dps_student_nbhds[ (aggregate_dps_student_nbhds$total_students < 10), -c(1,2)] = NA
+# aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
+aggregate_dps_student_nbhds = read.csv("../data/aggregate_dps_student_nbhds.csv",check.names=FALSE)
 
 # Search data from Google Analytics
 google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")

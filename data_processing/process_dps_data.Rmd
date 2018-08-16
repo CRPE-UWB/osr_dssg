@@ -309,6 +309,34 @@ STARreading <- STARreading %>% na.omit()
 head(STARreading,6)
 ```
 
+##CoAlt Scores##
+
+```{r}
+coalt <- s3read_using(FUN = read.csv, object = "s3://dssg2018/rawdata/DPS_CoAlt_1415-1617.csv", na.strings = " ") 
+head(coalt)
+```
+
+```{r}
+coalt_ela_inds <- c(2,3,4)
+coalt_math_inds <- c(5,6,7)
+
+coalt[-(1:2),c(coalt_ela_inds,coalt_math_inds)] <- apply(coalt[-(1:2),c(coalt_ela_inds,coalt_math_inds)],1:2,df_to_character)
+
+coalt_ela_scores <- coalt[-(1:2),c(1,coalt_ela_inds)]
+colnames(coalt_ela_scores) <- c("student_number","2015","2016","2017")
+coalt_ela_scores <- coalt_ela_scores %>% gather("2015","2016","2017",key="spring_year",value="ela_scores")
+
+coalt_math_scores <- coalt[-(1:2),c(1,coalt_math_inds)]
+colnames(coalt_math_scores) <- c("student_number","2015","2016","2017")
+coalt_math_scores <- coalt_math_scores %>% gather("2015","2016","2017",key="spring_year",value="math_scores")
+
+coalt <- merge(coalt_ela_scores, coalt_math_scores,by=c("student_number","spring_year"),all=TRUE)
+all_na_rows <- apply(coalt, 1, function(x) sum(is.na(x)) > 1)
+coalt <- coalt[!all_na_rows,]
+
+head(coalt)
+```
+
 ##Enrollment##
 Enrollment has a lot of info.
 ```{r}
@@ -329,7 +357,7 @@ summary(enrollment)
 
 We want locations rather than just school names, so we use the Google maps API. This takes 5-10 minutes. Note that you can simply add in rows for new schools and manually input lat and lon. We also want to ultimately separate out student from school information in the RDS, so we will have school information as one dataframe and student enrollment information in another. 
 
-```{r}
+```{r eval=FALSE}
 unique_indices <- order(enrollment$SchoolName)[!duplicated(sort(enrollment$SchoolName))]
 school_locations = data.frame("SchoolName"=enrollment$SchoolName[unique_indices], 
                               "SchoolNum"=enrollment$SchoolNum[unique_indices])
@@ -347,7 +375,7 @@ for(i in 1:nrow(school_locations)) {
 ```
 
 Geocoding is finicky. Run the below code a couple of times to get whatever geocoding might have missed (there's no harm in running the below code - it just checks geocoding's work. 
-```{r}
+```{r eval=FALSE}
 for(name in school_locations$SchoolName[which(is.na(school_locations$lon))]) {
   result <- geocode(school_locations$SchoolName[school_locations$SchoolName==name], output="latlona", source="google")
   school_locations$lon[school_locations$SchoolName==name] <- as.numeric(result[1])
@@ -359,20 +387,20 @@ for(name in school_locations$SchoolName[which(is.na(school_locations$lon))]) {
 
 Looks like we have some NA values.
 
-```{r}
+```{r eval=FALSE}
 school_locations$SchoolName[which(is.na(school_locations$lon))]
 ```
 
 We'll just manually fix that by typing into Google maps. DS Innovation & Sustainable Design is at (39.7377,-104.9793).
 
-```{r}
+```{r eval=FALSE}
 school_locations[school_locations$SchoolName=="DS Innovation & Sustainable Design","lat"] <- 39.7377
 school_locations[school_locations$SchoolName=="DS Innovation & Sustainable Design","lon"] <- -104.9793
 ```
 
 Let's look at these locations to make sure nothing insane is going on. 
 
-```{r}
+```{r eval=FALSE}
 library("leaflet")
 library("leaflet.extras")
 leaflet(school_locations) %>% 
@@ -491,7 +519,7 @@ always_absent_students <- attendance[apply(attendance, 1, function(x) sum(is.na(
 always_absent_student_info <- enrollment %>% filter(StudentNumber %in% always_absent_students)
 absent_school_numbers <- (enrollment %>% filter(StudentNumber %in% always_absent_students))[,"SchoolNum"]
 sort(table(sapply(absent_school_numbers,
-                  FUN=function(x){return(school_locations$SchoolName[school_locations$SchoolNum==x])})))
+                  FUN=function(x){return(school_locations$SchoolName[school_locations$SchoolNum==x])})),decreasing=TRUE)
 #sort(table(school_locations$SchoolName[school_locations$SchoolName==absent_school_numbers]))
 ```
 
@@ -645,7 +673,7 @@ Now we'll deal with language.
 
 ```{r}
 lang <- langAndChoice[,c("StudentNumber","SpringYear","PrimaryHomeLanguage")]
-lang <- lang[!is.na(lang$primary_home_language),]
+lang <- lang[!is.na(lang$PrimaryHomeLanguage),]
 levels(langAndChoice$PrimaryHomeLanguage)
 ```
 
@@ -734,7 +762,7 @@ student_locations <- student_locations[,c("student_number","block","geoid_num")]
 We can save them by uncommenting the block below. Since the rest is sensitive, we'll just save school locations.
 
 ```{r}
-write.csv(school_locations, file="school_locations.csv", row.names=FALSE, na="")
+# write.csv(school_locations, file="school_locations.csv", row.names=FALSE, na="")
 # write.csv(discipline, file="discipline.csv", row.names=FALSE, na="")
 # write.csv(ela, file="ela.csv", row.names=FALSE, na="")
 # write.csv(math, file="math.csv", row.names=FALSE, na="")
@@ -749,5 +777,230 @@ write.csv(school_locations, file="school_locations.csv", row.names=FALSE, na="")
 # write.csv(choice, file="choice.csv", row.names=FALSE, na="")
 ```
 
-So now we get to use the squeaky clean data for our Shiny app. 
+Let's look at how many people have a changing EL status, race, and/or gender (if anyone). This will take about 20 to 30 minutes. 
 
+```{r eval=FALSE}
+repeats_el <- c()
+repeats_race <- c()
+repeats_gender <- c()
+repeats_disability <- c()
+repeats_lre <- c()
+count <- 0
+for (student_num in unique(enrollment$student_number)) {
+  if (length(unique(enrollment$elstatus[enrollment$student_number==student_num]))>1)
+    repeats_el <- c(repeats_el,student_num)
+  if (length(unique(enrollment$race_ethnicity[enrollment$student_number==student_num]))>1)
+    repeats_race <- c(repeats_race,student_num)
+  if (length(unique(enrollment$gender[enrollment$student_number==student_num]))>1)
+    repeats_gender <- c(repeats_gender,student_num)
+  if (length(unique(enrollment$disability[enrollment$student_number==student_num]))>1)
+    repeats_disability <- c(repeats_disability,student_num)
+  if (length(unique(enrollment$lre[enrollment$student_number==student_num]))>1)
+    repeats_lre <- c(repeats_lre,student_num)
+  if (!count%%1000)
+    print(paste(count,"of about 160,000"))
+  count = count+1
+}
+
+write.csv(repeats_el, file="repeats_el.csv", row.names=FALSE)
+write.csv(repeats_gender, file="repeats_gender.csv", row.names=FALSE)
+write.csv(repeats_race, file="repeats_race.csv", row.names=FALSE)
+write.csv(repeats_disability, file="repeats_disability.csv", row.names=FALSE)
+write.csv(repeats_lre, file="repeats_lre.csv", row.names=FALSE)
+```
+
+There aren't too many inconsistencies: 
+
+```{r}
+paste("EL inconsistencies:",length(repeats_el))
+paste("Gender inconsistencies:",length(repeats_gender))
+paste("Race inconsistencies:",length(repeats_race))
+paste("Disability inconsistencies:",length(repeats_disability))
+paste("LRE inconsistencies:",length(repeats_lre))
+```
+
+Since none of these are too significant a proportion of the total of about 160,000, we will ultimately use the mode as the "true" value. 
+
+```{r}
+# first consider only the unique values
+students <- enrollment[!duplicated(enrollment$student_number),]
+students$spring_year <- NULL
+students$school_num <- NULL
+students$grade <- NULL
+students$spring_year <- NULL
+ 
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+for(i in repeats_lre) {
+  students[students$student_number==i,"lre"] <- getmode(enrollment[enrollment$student_number==i,"lre"])
+}
+
+for(i in repeats_el) {
+  students[students$student_number==i,"elstatus"] <- getmode(enrollment[enrollment$student_number==i,"elstatus"])
+}
+
+for(i in repeats_race) {
+  students[students$student_number==i,"race_ethnicity"] <- getmode(enrollment[enrollment$student_number==i,"race_ethnicity"])
+}
+
+for(i in repeats_gender) {
+  students[students$student_number==i,"gender"] <- getmode(enrollment[enrollment$student_number==i,"gender"])
+}
+```
+
+Now we'll add graduation year to the students dataset, and since the number of students in the graduation dataset missing from the students is only 328, we'll simply exclude them. 
+
+```{r}
+print(sum(!graduation$student_number %in% students$student_number))
+students <- merge(students, graduation, by="student_number", all.x=TRUE)
+```
+
+Now add language. Only one student has a language without being in the enrollment dataset, so we'll just remove that student. 
+
+```{r}
+print(sum(!lang$student_number %in% students$student_number))
+students <- merge(students, lang, by="student_number", all.x=TRUE)
+```
+
+And let's also throw in transportation. Only 412 are excluded, so we'll just throw them out. 
+
+```{r}
+print(sum(!transportation$student_number %in% students$student_number))
+students <- merge(students, transportation, by="student_number", all.x=TRUE)
+students$has_transportation <- as.character(students$has_transportation)
+students$has_transportation[is.na(students$has_transportation)] <- "No"
+```
+
+Now for student locations, of which all students are represented in the students dataset. 
+
+```{r}
+print(sum(!student_locations$student_number %in% students$student_number))
+students <- merge(students, student_locations[,c("student_number","block")], by="student_number", all.x=TRUE)
+```
+
+And we'll make a separate dataframe mapping block ID to lat/long. We will also include the block group number in addition to just the block, which is just the first 11 numbers of the block ID (as per FIPS encoding). 
+
+```{r}
+block_locations <- student_locations[!duplicated(student_locations$block),]
+block_locations$student_number <- NULL
+block_locations$block_group <- gsub("\\d{3}$","",block_locations$block)
+```
+
+Now we move on to the final enrollment dataset, which will just have attendance, school year, grade level, and school number. Only about 1000 of the attendance records aren't represented, so we'll throw those out. 
+
+```{r}
+enrollment <- enrollment[,c("student_number","spring_year","school_num","grade")]
+print(sum(!unique(attendance$student_number) %in% unique(enrollment$student_number)))
+enrollment <- merge(enrollment, attendance, by=c("student_number","spring_year"), all.x=TRUE)
+```
+
+Now we have all of our basic, clean data tables, organized into 10 dataframes. 
+- students: Student info 
+- enrollment: Enrollment Info 
+- discipline: Discipline
+- cmas: CMAS scores
+- STARreading: STAR reading scores
+- ela: ELA scores
+- coalt: CoAlt scores
+- math: Math scores
+- school_locations: School info 
+- choice: School choice info
+
+CRPE may want to use these for other things. 
+
+```{r}
+# discipline <- read.csv(file="/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/final_csv_files/discipline.csv")
+# ela <- read.csv(file="/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/final_csv_files/ela.csv")
+# math <- read.csv(file="/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/final_csv_files/math.csv")
+# graduation <- read.csv(file="/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/final_csv_files/graduation.csv")
+# transportation <- read.csv(file="/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/final_csv_files/transportation.csv")
+# STARreading <- read.csv(file="/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/final_csv_files/star_reading.csv")
+# enrollment <- read.csv(file="/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/final_csv_files/enrollment.csv")
+# school_locations <- read.csv(file="/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/final_csv_files/school_locations.csv")
+# attendance <- read.csv(file="/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/final_csv_files/attendance.csv")
+# cmas <- read.csv(file="/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/final_csv_files/cmas.csv")
+# student_locations <- read.csv(file="/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/final_csv_files/student_locations.csv")
+# lang <- read.csv(file="/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/final_csv_files/lang.csv")
+# choice <- read.csv(file="/Users/josephabbate/Documents/Experiences/Applications/UWashington/Project/final_csv_files/choice.csv")
+# 
+# repeats_el <- read.csv(file="repeats_el.csv")
+# repeats_gender <- read.csv(file="repeats_gender.csv")
+# repeats_race <- read.csv(file="repeats_race.csv")
+# repeats_disability <- read.csv(file="repeats_disability.csv")
+# repeats_lre <- read.csv(file="repeats_lre.csv")
+```
+
+Now, we want the aggregated student data at the neighborhood level. 
+```{r}
+students_with_address <- students[!is.na(students$block),]
+# we only care about disability, race, el status, and location for our Shiny app
+students_with_address <- students_with_address[,c("block","race","primary_disability","el_status")]
+#students_with_address <- students_with_address[,c("block","race_ethnicity","primary_disability","elstatus")]
+students_with_address <- merge(students_with_address, block_locations, by="block")
+students_with_address$geoid_num <- NULL
+```
+
+What we care about is neighborhoods rather than block groups, though. So we want to have a mapping from block group to neighborhood. This can be computed via the function make_block_neighborhood_table in block_neighborhood.R:
+```{r}
+source("block_neighborhood.R")
+dfFinal <- make_block_neighborhood_table()
+```
+
+In any case, now we can get neighborhoods in with the students
+```{r}
+students_with_nbhds <- merge(students_with_address, dfFinal, by.x="block_group", by.y="bgroup_id2")
+head(students_with_nbhds)
+```
+
+Now aggregate numbers by neighborhood level. 
+```{r}
+final_student_df <- table(students_with_nbhds$nbhd_name, students_with_nbhds$race)
+#final_student_df <- table(students_with_nbhds$nbhd_name, students_with_nbhds$race_ethnicity)
+final_student_df <- cbind(final_student_df, 
+                          table(students_with_nbhds$nbhd_name, students_with_nbhds$primary_disability))
+final_student_df <- cbind(final_student_df, 
+                          table(students_with_nbhds$nbhd_name, students_with_nbhds$el_status))
+#final_student_df <- cbind(final_student_df, 
+#                          table(students_with_nbhds$nbhd_name, students_with_nbhds$elstatus))
+final_student_df <- cbind(final_student_df, as.vector(table(students_with_nbhds$nbhd_name)))
+final_student_df <- final_student_df[,c(ncol(final_student_df),1:(ncol(final_student_df)-1))]
+colnames(final_student_df)[1] <- "total_students"
+```
+
+And then remove sensitive info, i.e. demographic data on neighborhoods with fewer than 10 students
+```{r}
+min_student_threshold <- 10
+final_student_df[final_student_df[,"total_students"]<min_student_threshold,-1] <- NA
+head(final_student_df)
+```
+
+Now we just convert to percentages and change variable names. 
+```{r}
+# convert to percentages
+final_student_df[,c(2:8,ncol(final_student_df)-1,ncol(final_student_df))] <- apply(X=final_student_df[,c(2:8,ncol(final_student_df)-1,ncol(final_student_df))], FUN=function(vec) {100*(vec/final_student_df[,"total_students"])}, MARGIN=2)
+
+# change column names
+student_col_names <-  c("perc_asian_students", "perc_black_students", "perc_hispanic_students", "perc_nativeamerican_students", "perc_pacificislander_students", "perc_twoormore_students", "perc_white_students", "students_with_autism", "students_with_deafblind", "students_with_devdelay", "students_with_emotional_disability", "students_with_hearing_disability", "students_with_intel_disability", "students_with_multiple_disability", "students_with_no_disability", "students_with_orthopedic_disability", "students_with_other_health_impairment", "students_with_physical_disability", "students_with_sld", "students_with_sli", "students_with_tbi", "students_with_visual_disability", "perc_el", "perc_no_el")
+colnames(final_student_df)[2:ncol(final_student_df)] <- student_col_names
+
+# add nbhd_name column
+truly_final_student_df <- data.frame(nbhd_name=row.names(final_student_df),final_student_df,row.names = NULL)
+
+# add percent students with disability
+truly_final_student_df$perc_disable_students <- 100*(1-truly_final_student_df$students_with_no_disability/truly_final_student_df$total_students)
+truly_final_student_df$students_with_any_disability <- truly_final_student_df$total_students-truly_final_student_df$students_with_no_disability
+
+# remove unnecessary columns
+truly_final_student_df$perc_no_el <- NULL
+truly_final_student_df$students_with_no_disability <- NULL
+
+head(truly_final_student_df)
+```
+
+We're actually done now. Save the aggregated student data to a csv
+```{r}
+write.csv(truly_final_student_df,"../data/aggregate_dps_student_nbhds.csv")
+```

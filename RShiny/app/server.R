@@ -238,14 +238,14 @@ shinyServer(
       total_nbhd_students <- sum(summary_data_student$total_students, na.rm = TRUE)
       
       if (total_nbhd_students < 10){
-        summary_perc_nonenglish_students <- NA
+        summary_perc_el_students <- NA
         summary_perc_disable_students <- NA
         summary_perc_hispanic_students <- NA
         summary_perc_white_students <- NA
         summary_perc_black_students <- NA
       }
       else{
-        summary_perc_nonenglish_students <- sum(summary_data_student$perc_nonenglish_students * summary_data_student$total_students, 
+        summary_perc_el_students <- sum(summary_data_student$perc_el_students * summary_data_student$total_students, 
                                                 na.rm = TRUE) / total_nbhd_students
         summary_perc_disable_students <- sum(summary_data_student$perc_disable_students * summary_data_student$total_students, 
                                              na.rm = TRUE) / total_nbhd_students
@@ -266,7 +266,7 @@ shinyServer(
         %% White students = %.1f%% <br>
         %% Black students = %.1f%% <br><br>
         <i>Sample size = %s students</i>",
-        summary_perc_nonenglish_students,
+        summary_perc_el_students,
         summary_perc_disable_students,
         summary_perc_hispanic_students,
         summary_perc_white_students,
@@ -901,14 +901,14 @@ shinyServer(
       total_nbhd_students <- sum(summary_data_student$total_students)
       
       if (total_nbhd_students < 10){
-        summary_perc_nonenglish_students <- NA
+        summary_perc_el <- NA
         summary_perc_disable_students <- NA
         summary_perc_hispanic_students <- NA
         summary_perc_white_students <- NA
         summary_perc_black_students <- NA
       }
       else{
-        summary_perc_nonenglish_students <- sum(summary_data_student$perc_nonenglish_students * summary_data_student$total_students, 
+        summary_perc_el_students <- sum(summary_data_student$perc_el_students * summary_data_student$total_students, 
                                                 na.rm = TRUE) / total_nbhd_students
         summary_perc_disable_students <- sum(summary_data_student$perc_disable_students * summary_data_student$total_students, 
                                              na.rm = TRUE) / total_nbhd_students
@@ -929,7 +929,7 @@ shinyServer(
         %% White students = %.1f%% <br>
         %% Black students = %.1f%% <br><br>
         <i>Sample size = %s students</i>",
-        summary_perc_nonenglish_students,
+        summary_perc_el_students,
         summary_perc_disable_students,
         summary_perc_hispanic_students,
         summary_perc_white_students,
