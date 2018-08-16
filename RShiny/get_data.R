@@ -202,7 +202,7 @@ search_zipcode_summary$location = as.character(search_zipcode_summary$location)
 
 #Summary daat of searches and programs by zipcode
 reschool_summer_program$session_zip = as.character(reschool_summer_program$session_zip)
-zipcode_programs = reschool_summer_program_ %>% 
+zipcode_programs = reschool_summer_program %>% 
   select(session_zip) %>% 
   filter(session_zip != '') %>% 
   group_by(session_zip) %>% 

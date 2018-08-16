@@ -71,7 +71,7 @@ shinyServer(
     })
     
     output$download_reschool_data <- downloadHandler(
-      filename = "b4s_programs.csv",
+      filename = "b4s_programs_selected.csv",
       content = function(file) {
         # temporarily switch to the temp dir, in case you do not have write
         # permission to the current working directory
