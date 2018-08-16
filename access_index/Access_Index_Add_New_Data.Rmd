@@ -17,7 +17,7 @@ This markdown defines how to add new to program data to the access index so it c
 3.) For programs with new addresses, find new travel times for all block groups 
 4.) Calculate the access index for new session addressess. 
 
-Note that the so long as we call the access index from the new data, we will automaticaly subset our dataframe of travel times to the addresses in that dataframe, per the specifications of the user, so addresses which have been removed should not be double counted. 
+Note that so long as we call the access index from the new data, we will automatically subset our dataframe of travel times to the addresses in that dataframe, per the specifications of the user, so addresses which have been removed should not be double counted. 
 
 ###RDS Pull Prior Data
 ```{r}
@@ -95,8 +95,24 @@ colnames(new_programs) <- c("session_address_1","lat","long")
 head(new_programs)
 ```
 
+###Get census block group centroids for the oncoming calculation
+```{r}
+library(rgeos)
+library(rgdal)
+library(raster)
+library(tidyverse)
+
+spdf <- readOGR("../data/census_block_groups/shape_census.shp")
+census_centroids <- SpatialPointsDataFrame(gCentroid(spdf, byid=TRUE), spdf@data, match.ID = FALSE)
+census_centroids <- as.data.frame(census_centroids)
+colnames(census_centroids)[colnames(census_centroids)=="x"] <- "long"  # for consistency across files
+colnames(census_centroids)[colnames(census_centroids)=="y"] <- "lat"
+census_centroids <- census_centroids[,c("Id2", "lat", "long")]
+colnames(census_centroids)[colnames(census_centroids)=="Id2"] <- "blockID" #updating for loop consistency
+```
+
 ###Calculate Distances For New Programs
-This is identical to the final loop we use in the block group distances markdown, though we change the name of "block_distance" to "new_block_distnace" to account for how we're now only running for the new programs, a much shorter list. 
+For each of the new sessions, this calculates the distances from each new program to each of the block groups
 ```{r}
 library(googleway)
 new_block_distance <- new_programs
@@ -127,20 +143,20 @@ system.time(for (i in 1:nrow(census_centroids)){
     lat.long.x <- paste(lat.long.x,collapse=" ")
     #distance calculations with arrival time = 08:00am on a weekday
     distance.x <- google_distance(origin=c(lat.i,long.i),
-    destination = c(lat.x,long.x),
-    mode="driving",
-    arrival_time = arrival_time, #autocorrect to PST, so we adjust for the dif from MST to MT
-    key = google_api_key)
+                                  destination = c(lat.x,long.x),
+                                  mode="driving",
+                                  arrival_time = arrival_time, #autocorrect to PST, so we adjust for the dif from MST to MT
+                                  key = google_api_key)
     distance_walking.x <- google_distance(origin=c(lat.i,long.i),
-    destination = c(lat.x,long.x),
-    mode="walking",
-    arrival_time = arrival_time,
-    key = google_api_key)
+                                          destination = c(lat.x,long.x),
+                                          mode="walking",
+                                          arrival_time = arrival_time,
+                                          key = google_api_key)
     distance_transit.x <- google_distance(origin=c(lat.i,long.i),
-    destination = c(lat.x,long.x),
-    mode="transit",
-    arrival_time = arrival_time,
-    key = google_api_key)
+                                          destination = c(lat.x,long.x),
+                                          mode="transit",
+                                          arrival_time = arrival_time,
+                                          key = google_api_key)
     #grabbing our dataframe list items
     distance.x <- as.data.frame(distance.x$rows$elements)
     distance_walking.x <- as.data.frame(distance_walking.x$rows$elements)
@@ -246,6 +262,7 @@ nrow(temp)/481
 
 Second, we perform the actual access index calculations. 
 ```{r}
+base_frame <- spdf@data$Id2
 #Create driving frame
 new_driving_index <- base_frame
 

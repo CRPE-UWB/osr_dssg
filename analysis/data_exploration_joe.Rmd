@@ -15,6 +15,7 @@ require("RColorBrewer")
 ```
 
 ```{r}
+library("tidyverse")
 mypath <- dirname(rstudioapi::getActiveDocumentContext()$path)
 setwd(mypath)
 source(file.path('..', 'connect_to_database.R'), chdir = TRUE)
