@@ -28,8 +28,6 @@ con <- dbConnect(drv, dbname = dbname,
 nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summary")
 
 # ReSchool Program data
-reschool_summer_program_clean = dbGetQuery(con, "SELECT * from clean.reschool_summer_programs")
-reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
 
 # Aggregated DPS student data for demographics
@@ -54,9 +52,14 @@ dbDisconnect(con)
 dbUnloadDriver(drv)
 
 ###############################################################
-# Other Resources (Denver Open Data)
+# B4S Programs
 
 data_folder <- file.path('..', 'data', 'shiny_tables') # where the shiny tables are saved
+
+reschool_summer_program <- read.csv( file.path(data_folder, 'b4s_programs.csv') )
+
+###############################################################
+# Other Resources (Denver Open Data)
 
 fields = read.csv( file.path(data_folder, 'fields.csv') )
 museums = read.csv( file.path(data_folder, 'museums.csv') )
@@ -198,8 +201,8 @@ search_zipcode_summary = google_analytics %>%
 search_zipcode_summary$location = as.character(search_zipcode_summary$location)
 
 #Summary daat of searches and programs by zipcode
-reschool_summer_program_clean$session_zip = as.character(reschool_summer_program_clean$session_zip)
-zipcode_programs = reschool_summer_program_clean %>% 
+reschool_summer_program$session_zip = as.character(reschool_summer_program$session_zip)
+zipcode_programs = reschool_summer_program_ %>% 
   select(session_zip) %>% 
   filter(session_zip != '') %>% 
   group_by(session_zip) %>% 
@@ -227,7 +230,7 @@ search_map_data <- geo_join(relevant_zip_codes, search_zipcode_summary_map,
                             "GEOID10", "location", how = "inner")
 
 #Get the exhaustive zipcodes from the reschool dataset from the clean schema 
-subset_denver_zipcodes = reschool_summer_program_clean[reschool_summer_program_clean$session_city == 'Denver',]
+subset_denver_zipcodes = reschool_summer_program[reschool_summer_program$session_city == 'Denver',]
 subset_denver_zipcodes = relevant_zip_codes[relevant_zip_codes$GEOID10 %in% c(subset_denver_zipcodes$session_zip), ]
 
 

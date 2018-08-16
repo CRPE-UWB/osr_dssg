@@ -30,7 +30,7 @@ raw_df <- read.csv(file = raw_file, na.strings = "")
 Process the data, so that it's in the right format for the Shiny dashboard:
 
 ```{r process}
-source("raw_to_shiny_b4s.R")
+source( file.path(github_dir, "data_processing", "reschool", "raw_to_shiny_b4s.R") )
 shiny_df <- raw_to_shiny_b4s(raw_df)
 ```
 
