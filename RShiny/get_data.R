@@ -39,7 +39,7 @@ aggregate_dps_student_nbhds[ (aggregate_dps_student_nbhds$total_students < 10), 
 # Search data from Google Analytics
 google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
 
-# Access index stuff
+# Access index stuff - Andrew's got this
 driving_index = dbGetQuery(con, "SELECT * from clean.driving_index")
 driving_index_disability = dbGetQuery(con, "SELECT * from clean.driving_index_disability")
 driving_index_nbhd = dbGetQuery(con, "SELECT * from clean.driving_index_nbhd")
@@ -66,7 +66,7 @@ rec_centers = read.csv( file.path(data_folder, 'rec_centers.csv') )
 parks = read.csv( file.path(data_folder, 'parks.csv') )
 
 #####################################################
-# Zip code stuff
+# Zip code stuff - for Search Data tab
 
 relevant_zip_codes = readOGR(dsn =  file.path("..", "data", "zip_codes") )
 total_denver_zipcodes = read.csv( file.path("..", "data", "denver_zip_codes.csv") )
