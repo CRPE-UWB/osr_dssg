@@ -15,7 +15,7 @@ library(tidyverse)
 
 ## Import data
 ```{r}
-census_shape <- readOGR(dsn="/Users/luna/Desktop/DSSG/ors/data/clean data/shape_census", layer="shape_census")
+census_shape <- readOGR(dsn="../DSSG/ors/data/clean data/shape_census", layer="shape_census")
 ```
 
 ## Census Descriptives

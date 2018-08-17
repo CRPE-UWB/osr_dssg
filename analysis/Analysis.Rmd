@@ -60,6 +60,7 @@ colnames(nbhd_shape@data)[1] <- "nbhd_name"
 bg_nbhd <- dbGetQuery(con, "select * from clean.blockgroup_nbhds")
 ```
 
+
 ## Analysis
 ### How equal/unequal is access to out-of-school resources in Denver? Is access to osr proportional to the number of students? 
 
