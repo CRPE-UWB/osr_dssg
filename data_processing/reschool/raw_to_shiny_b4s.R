@@ -62,6 +62,16 @@ raw_to_shiny_b4s <- function(raw_df, bg_nbhds_df) {
   programdata$session_address_1 <- gsub('*\xa0', '', programdata$session_address_1)
   programdata$session_address_1 <- gsub('*\xe5\xca', '', programdata$session_address_1)
   
+  ## and in other places like session names
+  for (col in colnames(programdata)) {
+    print(col)
+    if (typeof(programdata[[col]]) == "character"){
+      x <- programdata[[col]]
+      Encoding(x) <- "UTF-8"
+      programdata[[col]] <- iconv(x, "UTF-8", "UTF-8",sub='')
+    }
+  }
+  
   ######## Getting the unique addresses of programs for geocoding ########
   
   camp_address = unique(programdata[c("session_address_1",  "session_city", "session_state", "session_zip")])
@@ -239,12 +249,10 @@ raw_to_shiny_b4s <- function(raw_df, bg_nbhds_df) {
   
   ############################# DELETE UNNECESSARY COLUMNS AND FINISH! #############################
   
-  shiny_df <- programdata_final_nbhds
-  
   final_cols_to_keep <- c("session_name", "first_session_date", "last_session_date", "session_cost", "lat", "long",
                           "nbhd_id", "nbhd_name", "camp_name", "session_short_description", "has_special_needs_offerings",
                           "has_scholarships", "has_academic", "has_arts", "has_cooking", "has_dance", "has_drama",
-                          "has_music", "has_nature", "has_sports", "has_stem" #, "bgroup_id2"
+                          "has_music", "has_nature", "has_sports", "has_stem", "bgroup_id2"
                           )
 
     # "session_zip", "session_city", "cost_per_day"
@@ -254,7 +262,7 @@ raw_to_shiny_b4s <- function(raw_df, bg_nbhds_df) {
   colnames(shiny_df) <- c("session_name", "session_date_start", "session_date_end", "session_cost", "lat", "long",
                           "nbhd_id", "nbhd_name", "camp_name", "session_short_description", "has_special_needs_offerings",
                           "has_scholarships", "has_academic", "has_arts", "has_cooking", "has_dance", "has_drama",
-                          "has_music", "has_nature", "has_sports", "has_stem" #, "bgroup_id2"
+                          "has_music", "has_nature", "has_sports", "has_stem", "bgroup_id2"
                           )
   
   return(shiny_df)

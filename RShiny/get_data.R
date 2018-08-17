@@ -61,7 +61,7 @@ data_folder <- file.path('..', 'data', 'shiny_tables') # where the shiny tables 
 reschool_summer_program_csv <- read.csv( file.path(data_folder, 'b4s_programs.csv'), stringsAsFactors = FALSE )
 
 # drop columns without block groups
-# reschool_summer_program_csv <- reschool_summer_program_csv[!is.na(reschool_summer_program_csv$bgroup_id2), ]
+reschool_summer_program_csv <- reschool_summer_program_csv[!is.na(reschool_summer_program_csv$bgroup_id2), ]
 reschool_summer_program_csv <- reschool_summer_program_csv[ , which(colnames(reschool_summer_program_csv) != "bgroup_id2")]
 reschool_summer_program <- reschool_summer_program_csv
 
