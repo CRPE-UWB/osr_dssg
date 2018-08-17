@@ -77,7 +77,7 @@ relevant_zip_codes = readOGR(dsn =  file.path("..", "data", "zip_codes") )
 total_denver_zipcodes = read.csv( file.path("..", "data", "denver_zip_codes.csv") )
 
 ###############################################################
-# Load Other Resources data (from Denver Open Data)
+# Other Resources (Denver Open Data)
 
 fields = read.csv( file.path(shiny_data_folder, 'fields.csv') )
 museums = read.csv( file.path(shiny_data_folder, 'museums.csv') )
