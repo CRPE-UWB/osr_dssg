@@ -47,6 +47,10 @@ write.csv(shiny_rec_centers, file.path(shiny_folder, 'rec_centers.csv'), row.nam
 shiny_parks = dbGetQuery(con, "SELECT * from shiny.parks")
 write.csv(shiny_parks, file.path(shiny_folder, 'parks.csv'), row.names = FALSE)
 
+# block groups and nbhsd data
+clean_bg_nbhds = dbGetQuery(con, "SELECT * from clean.blockgroup_nbhds")
+write.csv(clean_bg_nbhds, file.path(dirname(shiny_folder), 'bg_nbhds.csv'), row.names = FALSE)
+
 
 
 

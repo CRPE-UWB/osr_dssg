@@ -45,7 +45,7 @@ shinyServer(
     # Output the relevant data in the data tab based on the selections
     output$datatable <- DT::renderDataTable({
       data_table1 <- neighborhood_data()
-      DT::datatable(data_table1[,-c(5,6,7)], 
+      DT::datatable(data_table1[,-which( names(data_table1) %in% c("lat","long","nbhd_id") )], 
                     options = list(pageLength = 5, 
                                    scrollX = TRUE,
                                    initComplete = JS(
@@ -71,7 +71,7 @@ shinyServer(
     })
     
     output$download_reschool_data <- downloadHandler(
-      filename = "b4s_programs.csv",
+      filename = "b4s_programs_selected.csv",
       content = function(file) {
         # temporarily switch to the temp dir, in case you do not have write
         # permission to the current working directory

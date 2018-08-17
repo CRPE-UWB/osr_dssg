@@ -1,0 +1,426 @@
+---
+title: "Data_Exploration"
+author: "Haowen Zheng"
+date: "7/9/2018"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(rgdal)
+library(rgeos)
+library(leaflet)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(ggthemes)
+library(tigris)
+```
+
+## Get connected to RDS
+```{r}
+# install.packages("RPostgreSQL")
+
+require("RPostgreSQL")
+
+# loads the PostgreSQL driver
+drv <- dbDriver("PostgreSQL")
+source('/Users/luna/Desktop/DSSG/ors/other/keyforRDS')
+# creates a connection to the postgres database
+# note that "con" will be used later in each connection to the database
+con <- dbConnect(drv, dbname = "dssg2018uw",
+                 host = "localhost", port = 9000,
+                 user = user, password = password)
+
+dbListTables(con) #list tables 
+
+#here you will do what you need to do in the database.. like
+#dbWriteTable(con, c("<schema_name>", "<table_name"), value = <df_name>)
+#or: 
+#sql_df = dbGetQuery(con, "select * from _schema.table_")
+
+reschool_programs = dbGetQuery(con, "select * from clean.reschool_summer_programs")
+student_location = dbGetQuery(con, "select * from clean.dps_block_locations")
+choice = dbGetQuery(con, "select * from clean.dps_choice")
+nbhd = dbGetQuery(con, "select * from clean.blockgroup_nbhds")
+
+enrollment = dbGetQuery(con, "select * from clean.dps_enrollment")
+students = dbGetQuery(con, "select * from clean.dps_students")
+crimes = dbGetQuery(con, "select * from clean.crimes")
+hatecrimes = dbGetQuery(con, "select * from clean.hate_crimes")
+block_distance <- dbGetQuery(con, "select * from clean.block_distance")
+aggregate_programs_nbhd <- dbGetQuery(con, "select * from shiny.aggregate_programs_nbhd")
+children_race <- dbGetQuery(con, "select * from clean.acs_denverchildren_race")
+search_data <- dbGetQuery(con, "select * from clean.google_analytics")
+
+#when you're done, close the connection and unload the driver 
+dbDisconnect(con) 
+dbUnloadDriver(drv)
+```
+
+## reschool_programs data are renamed reschool_programs2
+
+## DPS student data -- demographics
+```{r}
+head(children_race)
+children_race_t <-t(children_race)
+colnames(children_race_t) <- "Denver "
+
+
+library(xlsx)
+write.xlsx(mydata, "c:/mydata.xlsx")
+```
+
+
+## Exploration into Reschool summer programs
+```{r}
+# map the programs to block group map
+leaflet(census_shape) %>%
+  addTiles() %>% 
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 0.5) %>%
+  addCircles(data = reschool_programs, opacity = 0.4, color = "black", weight = 2)
+
+# explore session_size
+ggplot(reschool_programs, aes(session_size)) +
+  geom_bar()
+  # a lot of zeros, not very useful.
+# explore session age limits 
+ggplot(reschool_programs, aes(session_min_age)) +
+  geom_bar()
+summary(reschool_programs$session_max_age)
+  # nothing particularly interesting so far
+
+# session cost 
+color3 <- c('#fee0d2','#fc9272','#de2d26')
+
+reschool_programs$factor_cost <- 0
+reschool_programs$factor_cost[reschool_programs$session_cost > 0] <- 1
+reschool_programs$factor_cost[reschool_programs$session_cost > 200] <- 2
+
+lab_factor_cost <- c("free", "low cost", "high cost")
+reschool_programs$factor_cost <- factor(reschool_programs$factor_cost, label = lab_factor_cost)
+  
+prop.table(table(reschool_programs$factor_cost))
+
+leaflet(census_shape) %>%
+  addTiles() %>% f
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 0.5) %>%
+  addCircles(data = reschool_programs,opacity = 0.4, 
+             col = ~colorFactor(color3, reschool_programs$factor_cost)(reschool_programs$factor_cost), weight = 4) %>%
+  setView(lat=39.7,lng=-104.9,zoom=10)
+```
+
+## Session lasting time. Waiting for Selam's data on session hours. 
+```{r}
+# adding session_lasting 
+reschool_programs$session_date_start <- as.POSIXct(reschool_programs$session_date_start)
+reschool_programs$session_date_end <- as.POSIXct(reschool_programs$session_date_end)
+reschool_programs$session_lasting <- difftime(reschool_programs$session_date_end, reschool_programs$session_date_start, 
+         units = "days")
+reschool_programs$session_lasting <- as.numeric(reschool_programs$session_lasting)
+reschool_programs$session_lasting <- reschool_programs$session_lasting + 1
+
+# What does cost per day look like? (Maybe not an accurate measure as for the long programs we do not know the exact days.)
+summary(reschool_programs$session_cost)
+reschool_programs$costperday <- reschool_programs$session_cost / (reschool_programs$session_lasting)
+reschool_programs <- reschool_programs %>%
+  arrange(-costperday)
+
+reschool_programs %>%
+  ggplot(aes(costperday, session_size)) + 
+  geom_jitter() 
+
+reschool_programs %>%
+  ggplot(aes(session_cost, session_lasting)) + 
+  geom_jitter()
+
+# free programs
+727/3136 #23.18
+
+reschool_programs %>%
+  ggplot(aes(factor_cost, session_lasting)) +
+  geom_jitter()
+```
+
+# categories of the programs
+```{r}
+head(reschool_programs) 
+
+reschool_programs %>% select(session_address_1, complete_session_address)
+
+# test 
+reschool_programs$n <- 1
+total_programs <- aggregate(n ~ session_address_1 + lat + lon, data = reschool_programs, sum)
+total_programs2 <- reschool_programs %>% group_by(session_address_1) %>% summarise(n = n()) #same output as the above line
+test <- left_join(total_programs, total_programs2, by = "session_address_1")
+
+# categorize the reschool programs
+reschool_programs$academic <- ifelse(reschool_programs$session_categories_academic==1 |
+                                     reschool_programs$session_categories_stem==TRUE,TRUE,FALSE) 
+reschool_programs$art <- ifelse(reschool_programs$session_categories_arts==1 | reschool_programs$session_categories_cooking==1 | 
+                                  reschool_programs$session_categories_dance==1 | reschool_programs$session_categories_drama==1
+                                | reschool_programs$session_categories_music==1,
+                                TRUE,FALSE)
+reschool_programs$nature <- ifelse(reschool_programs$session_categories_nature == 1, TRUE, FALSE)
+reschool_programs$sports <- ifelse(reschool_programs$session_categories_sports == 1, TRUE, FALSE)
+# some programs fall into multiple categories 
+
+# explore the number of programs by cost and categories
+p.academic <- reschool_programs %>%
+  filter(academic == TRUE) %>%
+  ggplot(aes(factor_cost, fill = factor_cost)) +
+  geom_bar() + 
+  xlab("Academic") +
+  ylab("") +
+  scale_y_continuous(limits=c(0, 900)) +
+  theme_bw() +
+  theme(legend.position="none")
+
+p.art <-  reschool_programs %>%
+  filter(art == TRUE) %>%
+  ggplot(aes(factor_cost, fill = factor_cost)) +
+  geom_bar() + 
+  xlab("Art") +
+  ylab("") +
+  scale_y_continuous(limits=c(0, 900)) +
+  theme_bw() +
+  theme(legend.position="none")
+
+p.nature <- reschool_programs %>%
+  filter(nature == TRUE) %>%
+  ggplot(aes(factor_cost, fill = factor_cost)) +
+  geom_bar() + 
+  xlab("Nature") +
+  ylab("") +
+  scale_y_continuous(limits=c(0, 900)) +
+  theme_bw() +
+  theme(legend.position="none")
+p.sports <- reschool_programs %>%
+  filter(sports == TRUE) %>%
+  ggplot(aes(factor_cost, fill = factor_cost)) +
+  geom_bar() + 
+  xlab("Sports") +
+  ylab("") +
+  scale_y_continuous(limits=c(0, 900)) +
+  theme_bw() +
+  theme(legend.position="none")
+
+grid.arrange(p.academic, p.art, p.nature, p.sports, nrow = 2)
+# It looks like for academic programs the proportion of free programs is the biggest, followed by art, nature, and sports. (There are barely no free sports program.) For all four categories, there are a lot of low and high cost programs. 
+```
+
+Now look at how the categories were distributed on the maps.
+```{r}
+programs.academic <- reschool_programs %>% filter(academic == TRUE) #2160
+programs.art <- reschool_programs %>% filter(art == TRUE) #1990
+program.nature <- reschool_programs %>% filter(nature == TRUE) #1502
+program.sport <- reschool_programs %>% filter(sports == TRUE) #1621
+
+leaflet(census_shape) %>%
+  addTiles() %>% 
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 0.5) %>%
+  addCircles(data = programs.academic,opacity = 0.2, 
+             col = "red", weight = 2) %>%
+  addCircles(data = programs.art,opacity = 0.2,
+             col = "blue", weight = 2) %>%
+  addCircles(data = program.nature,opacity = 0.2,
+             col = "dark green", weight = 2) %>%  
+  addCircles(data = program.sport,opacity = 0.2,
+             col = "yellow", weight = 2) %>%  
+  setView(lat=39.7,lng=-104.9,zoom=10)
+
+```
+
+## Exploration into DPS students data. 
+```{r}
+head(students)
+```
+
+## Compare racial & primary disability differences between RDS students (with addresses) and census student-age population. 
+```{r}
+sum(is.na(students$block)) #93203
+sum(!is.na(students$block)) #66718
+
+students$race <- as.factor(students$race)
+students$primary_disability <- as.factor(students$primary_disability)
+
+choice_students <- students %>% filter (!is.na(students$block))
+
+race_choice <- as.data.frame(prop.table(table(choice_students$race)))
+race_all <-  as.data.frame(prop.table(table(students$race)))
+ 
+race <- left_join(race_choice, race_all, by = "Var1")
+colnames(race) <- c("Race", "Choice", "All")
+
+race
+```
+
+```{r}
+# percentage of choice students if white
+white_choice <- choice_students %>% filter(race == "White")
+white <- students %>% filter(race == "White")
+white_pct <- length(white_choice$student_number) / length(white$student_number) #47.5
+
+Hispanic_choice <- choice_students %>% filter(race == "Hispanic")
+Hispanic <- students %>% filter(race == "Hispanic")
+hipanic_pct <- length(Hispanic_choice$student_number) / length(Hispanic$student_number) #41.1
+
+Black_choice <- choice_students %>% filter(race == "Black")
+Black <- students %>% filter(race == "Black")
+black_pct <- length(Black_choice$student_number) / length(Black$student_number) #36.1
+```
+
+```{r}
+pd_choice <- as.data.frame(prop.table(table(choice_students$primary_disability)))
+pd_all <- as.data.frame(prop.table(table(students$primary_disability)))
+pd <- left_join(pd_choice, pd_all, by = "Var1")
+colnames(pd) <- c("Race", "Choice", "All")
+pd$Choice <- pd$Choice * 100
+pd$All <- pd$All * 100
+
+pd
+```
+
+### Correlations 
+```{r}
+# get the indices from RDS
+driving_index <- dbGetQuery(con, "select * from clean.driving_index")
+transit_index <- dbGetQuery(con, "select * from clean.transit_index")
+
+# start with driving
+summary(driving_index$AI_overall)  #30.24 - 96.13
+boxplot(driving_index$AI_overall, data = driving_index)
+hist(driving_index$AI_overall) #looks almost like normal distribution!
+# try and see how it performs on Lorenze curve
+library(ineq)
+ineq(driving_index$AI_overall,type="Gini") #0.08756776
+plot(Lc(driving_index$AI_overall),col="darkred",lwd=2) #...looks like if you drive the accessibility is quite equal across block groups 
+# what if we weigh the index based on the number of students in each block group? 
+colnames(student_bg)[1] <- "Id2"
+testdata_1 <- merge(driving_index, student_bg, by = "Id2")
+hist(testdata_1$student_n)
+# overall programs
+cor.test(testdata_1$AI_overall, log(testdata_1$student_n), method=c("pearson")) #negative correlation! -0.27
+testdata_1$AI_overall_weighted <- 
+  testdata_1$AI_overall/log(testdata_1$student_n + 1)  #get rid of the inf value because the log(1)=0; not sure if we should reduce the screwness of data here 
+hist(testdata_1$AI_overall_weighted)
+summary(testdata_1$AI_overall_weighted)
+plot(Lc(testdata_1$AI_overall_weighted),col="darkred",lwd=2) #inequality after weighting 
+ineq(testdata_1$AI_overall_weighted,type="Gini") #0.2 #Gini coefficient is brought down again. 
+testdata_1<- testdata_1 %>% arrange(-AI_overall_weighted) 
+# It does not make sense to use student number from student data cause some of the block groups just have one-ten students.
+# What if we use census student age population? 
+testdata_2 <- census %>% select(id2, age_less_5, age_less_18)
+testdata_2$student_n_census <- testdata_2$age_less_18 - testdata_2$age_less_5
+summary(testdata_2$student_n_census) # a lot of zeros 
+ #nevertheless, let's first do a correlation test
+colnames(testdata_2)[1] <- "Id2"
+testdata_1 <- merge(testdata_1, testdata_2, by = "Id2")
+cor.test(testdata_1$AI_overall, testdata_1$student_n_census, method=c("pearson")) #negative correlation! -0.35
+ #give weights again, because there are a lot of zeros I increase student number by 1
+testdata_1$AI_overall_weighted_c <- testdata_1$AI_overall/(testdata_1$student_n_census + 1)
+summary(testdata_1$AI_overall_weighted_c)
+
+
+testdata_1 %>% 
+  ggplot(aes(log(student_n), AI_overall)) +  #the number of students are highly skewed so we did a log transformation here
+  geom_jitter() +
+  geom_smooth() #the scatterplot already suggest they are not proportional 
+
+
+# what about free programs?
+head(driving_index)
+driving_index$AI_overall_free <- rowMeans(driving_index[,c(4,7,10,13)], na.rm = FALSE) 
+summary(driving_index$AI_overall_free)
+plot(Lc(driving_index$AI_overall_free),col="darkred",lwd=2) 
+ineq(driving_index$AI_overall_free,type="Gini") #0.13 not bad! 
+# and after weighting by number of students
+testdata_1$AI_overall_free_w <- testdata_1$AI_overall_free/testdata_1$student_n
+plot(Lc(testdata_1$AI_overall_free_w),col="darkred",lwd=2) #inequality after weighting 
+ineq(testdata_1$AI_overall_free_w,type="Gini") #0.63 #Gini coefficient is very high. 
+
+
+
+# Test the correlation between 
+
+head(census)
+colnames(census)[4] <- "Id2"
+head(driving_index)
+merged_index_census <- merge(driving_index, census, by = "Id2")
+
+ggplot(merged_index_census, aes(log(median_hh_income), AI_overall)) +
+  geom_jitter() + 
+  geom_smooth()
+
+head(merged_index_census)
+ lm(AI_overall~median_hh_income)
+```
+
+
+```{r}
+# transit
+head(transit_index)
+summary(transit_index$AI_overall) #0.17 - 32.3
+
+hist(transit_index$AI_overall)
+ineq(transit_index$AI_overall,type="Gini") #0.2395329
+plot(Lc(transit_index$AI_overall),col="darkred",lwd=2) 
+
+# transit to free programs
+transit_index$AI_overall_free <-  rowMeans(driving_index[,c("AI_has_nature_free", "AI_has_sports_free", "AI_art_free", "AI_academic_free")], na.rm = FALSE) 
+plot(Lc(transit_index$AI_overall_free),col="darkred",lwd=2) # looks good. 
+hist(transit_index$AI_overall_free) 
+
+```
+
+
+## Other things. Not taken into report. 
+On car ownership. Not super insightful. 
+``` {r}
+# graph for percentage of households that have car(s)
+plot_car1 <- ggplot(sample_comparison, aes(sample, PCT_CarOwn)) +
+  geom_bar(stat = "identity", position = "dodge") #maybe it makes more sense to compare the car ownership accross transit index?                                                   #see if there are places where people really need public transit but score low
+  # 1st Q, 2nd Q, 3rd Q, 4th Q
+  car1 <- mean(data[data$AI_overall.y < 5.58, ]$pct_vehicle_own, na.rm = TRUE)
+  car2 <- mean(data[data$AI_overall.y < 7.86 & data$AI_overall.y >= 5.58, ]$pct_vehicle_own, na.rm = TRUE)
+  car3 <- mean(data[data$AI_overall.y < 10.75 & data$AI_overall.y >= 7.86, ]$pct_vehicle_own, na.rm = TRUE)
+  car4 <- mean(data[data$AI_overall.y > 10.75, ]$pct_vehicle_own, na.rm = TRUE)
+
+  sample_comparison_transit <- data.frame(
+  "sample" = c("1st Quantile", "2nd Quantile", "3rd Quantile", "4th Quantile"), 
+  "Pct_car" = c(car1, car2, car3, car4))
+  
+  sample_comparison_transit$sample <- 
+  factor(sample_comparison_transit$sample, 
+         levels = c("1st Quantile", "2nd Quantile", "3rd Quantile", "4th Quantile"))
+
+  plot_car2 <- ggplot(sample_comparison_transit, aes(sample, Pct_car)) +
+    geom_bar(stat = "identity", position = "dodge")
+  plot_car2 #not particularly interesting
+  
+  # let's pull out the leaflet map of car ownership again 
+  leaflet(census_shape) %>%
+  addTiles() %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5, popup = info2,
+    fillColor = ~colorFactor(colors5, census_shape@data$PCT_Vhcl_w)(census_shape@data$PCT_Vhcl_w))
+  
+  # Okay last try. This time see if there is any patterns if we avarage over low vs. high car ownership rates
+  summary(data$pct_vehicle_own)
+  # really low (below 1st Q) vs. really high(above 3rd Q)
+  score1 <- mean(data[data$pct_vehicle_own < 86.31, ]$AI_overall.y, na.rm = TRUE)
+  score2 <- mean(data[data$pct_vehicle_own > 98.37, ]$AI_overall.y, na.rm = TRUE)
+```
+
+## Close the link when you are done.
+```{r}
+dbDisconnect(con) 
+dbUnloadDriver(drv)
+```
+
