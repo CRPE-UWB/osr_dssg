@@ -16,6 +16,7 @@ require("RColorBrewer")
 
 ```{r}
 library("tidyverse")
+library("dplyr")
 mypath <- dirname(rstudioapi::getActiveDocumentContext()$path)
 setwd(mypath)
 source(file.path('..', 'connect_to_database.R'), chdir = TRUE)
@@ -59,7 +60,7 @@ parts <- data.frame()
 totals <- data.frame()
 for (grade in 0:12) {
   for (given_year in 2014:2018) {
-    students_with_choice <- choice %>% filter(spring_year %in% given_year) %>% select(student_number)
+    students_with_choice <- choice %>% filter(spring_year %in% given_year) %>% dplyr::select(student_number)
     students_with_choice <- students_with_choice$student_number
     
     part <- enrollment %>% filter(student_number %in% students_with_choice) %>% filter(spring_year %in% given_year) %>% filter(grade_level %in% grade) %>% nrow
