@@ -33,27 +33,28 @@ aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_program
 # Search data from Google Analytics
 google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
 
-# Access index stuff
-
-driving_index <- read.csv("../data/shiny_tables/access_indices/driving_index.csv")
-driving_index_disability <- read.csv("../data/shiny_tables/access_indices/driving_index_disability.csv")
-transit_index <- read.csv("../data/shiny_tables/access_indices/transit_index.csv")
-transit_index_disability <- read.csv("../data/shiny_tables/access_indices/transit_index_disability.csv")
-driving_index_nbhd <- read.csv("../data/shiny_tables/access_indices/driving_index_nbhd.csv")
-driving_index_disability_nbhd <- read.csv("../data/shiny_tables/access_indices/driving_index_disability_nbhd.csv")
-transit_index_nbhd <- read.csv("../data/shiny_tables/access_indices/transit_index_nbhd.csv")
-transit_index_nbhd_disability_nbhd <- read.csv("../data/shiny_tables/access_indices/transit_index_disability_nbhd.csv")
-
 # when you're done, close the connection and unload the driver 
 dbDisconnect(con) 
 dbUnloadDriver(drv)
 
 ###############################################################
+# Access index stuff
+
+shiny_data_folder <- file.path('..', 'data', 'shiny_tables') # where the shiny tables are saved
+
+driving_index <- read.csv( file.path(shiny_data_folder, "access_indices", "driving_index.csv") )
+driving_index_disability <- read.csv( file.path(shiny_data_folder, "access_indices", "driving_index_disability.csv") )
+transit_index <- read.csv( file.path(shiny_data_folder, "access_indices", "transit_index.csv") )
+transit_index_disability <- read.csv( file.path(shiny_data_folder, "access_indices", "transit_index_disability.csv") )
+driving_index_nbhd <- read.csv( file.path(shiny_data_folder, "access_indices", "driving_index_nbhd.csv") )
+driving_index_disability_nbhd <- read.csv( file.path(shiny_data_folder, "access_indices", "driving_index_disability_nbhd.csv") )
+transit_index_nbhd <- read.csv( file.path(shiny_data_folder, "access_indices", "transit_index_nbhd.csv") )
+transit_index_nbhd_disability_nbhd <- read.csv( file.path(shiny_data_folder, "access_indices", "transit_index_disability_nbhd.csv") )
+
+###############################################################
 # B4S Programs
 
-data_folder <- file.path('..', 'data', 'shiny_tables') # where the shiny tables are saved
-
-reschool_summer_program <- read.csv( file.path(data_folder, 'b4s_programs.csv'), stringsAsFactors = FALSE )
+reschool_summer_program <- read.csv( file.path(shiny_data_folder, 'b4s_programs.csv'), stringsAsFactors = FALSE )
 
 # drop columns without block groups
 reschool_summer_program <- reschool_summer_program[!is.na(reschool_summer_program$bgroup_id2), ]
@@ -61,16 +62,17 @@ reschool_summer_program <- reschool_summer_program[!is.na(reschool_summer_progra
 ###############################################################
 # Other Resources (Denver Open Data)
 
-fields = read.csv( file.path(data_folder, 'fields.csv') )
-museums = read.csv( file.path(data_folder, 'museums.csv') )
-libraries = read.csv( file.path(data_folder, 'libraries.csv') )
-playgrounds = read.csv( file.path(data_folder, 'playgrounds.csv') )
-rec_centers = read.csv( file.path(data_folder, 'rec_centers.csv') )
-parks = read.csv( file.path(data_folder, 'parks.csv') )
+fields = read.csv( file.path(shiny_data_folder, 'fields.csv') )
+museums = read.csv( file.path(shiny_data_folder, 'museums.csv') )
+libraries = read.csv( file.path(shiny_data_folder, 'libraries.csv') )
+playgrounds = read.csv( file.path(shiny_data_folder, 'playgrounds.csv') )
+rec_centers = read.csv( file.path(shiny_data_folder, 'rec_centers.csv') )
+parks = read.csv( file.path(shiny_data_folder, 'parks.csv') )
 
 ###############################################################
 # Aggregated DPS student data for demographics
-aggregate_dps_student_nbhds = read.csv( file.path("..", "data", "shiny_tables", "aggregate_dps_student_nbhds.csv"), check.names=FALSE )
+
+aggregate_dps_student_nbhds = read.csv( file.path(shiny_data_folder, "aggregate_dps_student_nbhds.csv"), check.names=FALSE )
 
 #####################################################
 # Zip code stuff - for Search Data tab
