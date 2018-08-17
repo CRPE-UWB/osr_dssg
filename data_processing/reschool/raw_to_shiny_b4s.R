@@ -1,4 +1,4 @@
-# Function to process the B4S programs data, for use in the Shiny app
+# Function to process the B4S programs data, for use in the Shiny app (and calculating the access index)
 
 # INPUT: dataframe of raw B4S programs data (csv) with at least the following columns (more is okay):
           # "camp_name", "session_name", "session_short_description", "session_cost", 
@@ -28,7 +28,7 @@ raw_to_shiny_b4s <- function(raw_df, bg_nbhds_df) {
                     "session_count", "session_address_name", "session_address_1", "session_address_2", 
                     "session_city", "session_state", "session_zip", "session_categories")
   
-  programdata <- raw_df[, cols_to_keep]
+  programdata <- raw_df[ , cols_to_keep]
   
   ######## fix column types ########
   integer_cols <- c("session_cost", "session_zip")
@@ -88,7 +88,7 @@ raw_to_shiny_b4s <- function(raw_df, bg_nbhds_df) {
   camp_address$lat <- NA
   
   # Run the geocoding!
-  max_runs <- 5  # sometimes don't get the lat/long on the first run - try again
+  max_runs <- 10  # sometimes don't get the lat/long on the first run - try again
   
   for (k in 1:max_runs) {
     notGeocoded <- which( is.na(camp_address$lat) | is.na(camp_address$long) )
@@ -100,9 +100,19 @@ raw_to_shiny_b4s <- function(raw_df, bg_nbhds_df) {
       camp_address$long[i] <- as.numeric(result[1])
       camp_address$lat[i] <- as.numeric(result[2])
       
-      Sys.sleep(0.5)  # prevent over 50 google maps queries per second
+      Sys.sleep(0.25*k)  # prevent over 50 google maps queries per second
     }
   }
+  
+  # Print how many geocodings failed
+  print( paste0("Number of missing program latitudes: ", sum(is.na(camp_address$lat)), 
+                ", Number of missing program longitudes: ", sum(is.na(camp_address$long))
+                ) )
+  print("Warning: programs with missing latitudes and longitudes will be deleted!")
+  
+  # Delete any missing geocodings
+  camp_address <- camp_address[which(!is.na(camp_address$lat)), ]
+  camp_address <- camp_address[which(!is.na(camp_address$long)), ]
 
   ######## Join geocodings to big dataset ########
   
@@ -196,58 +206,55 @@ raw_to_shiny_b4s <- function(raw_df, bg_nbhds_df) {
   
   ######## Create Cost Per Day Variable ########
   
-  programdata_final_bgs$Posfirst_session_start_time <- strptime(programdata_final_bgs$first_session_start_time, 
+  programdata_final_nbhds$Posfirst_session_start_time <- strptime(programdata_final_nbhds$first_session_start_time, 
                                                                 "%I:%M:%S %p")
-  programdata_final_bgs$Posfirst_session_end_time <- strptime(programdata_final_bgs$first_session_end_time, 
+  programdata_final_nbhds$Posfirst_session_end_time <- strptime(programdata_final_nbhds$first_session_end_time, 
                                                               "%I:%M:%S %p")
-  programdata_final_bgs$Hours_Day <- (programdata_final_bgs$Posfirst_session_end_time - 
-                                        programdata_final_bgs$Posfirst_session_start_time)/(60*60) 
+  programdata_final_nbhds$Hours_Day <- (programdata_final_nbhds$Posfirst_session_end_time - 
+                                        programdata_final_nbhds$Posfirst_session_start_time)/(60*60) 
   # differences are stored numerically in seconds, counting up from a static date. 
   # Thus we do last minus first for the difference in seconds, divide by 60*60 for to convert to hours
   
   # spot checking: 0s (0 hours per day) are a for a camp, so we treat those as 24 hours.
   # 11:59s are for an online course, so we drop em.
-  programdata_final_bgs$Hours_Day[programdata_final_bgs$Hours_Day>23] <- NA
-  programdata_final_bgs$Hours_Day[programdata_final_bgs$Hours_Day==0] <- 24
+  programdata_final_nbhds$Hours_Day[programdata_final_nbhds$Hours_Day>23] <- NA
+  programdata_final_nbhds$Hours_Day[programdata_final_nbhds$Hours_Day==0] <- 24
   
   ######## Get number of days for each program ########
   
   # for sessions less than one week
-  programdata_final_bgs$first_session_date <- as.Date(programdata_final_bgs$first_session_date, format = "%m /%d /%Y ")
-  programdata_final_bgs$last_session_date <- as.Date(programdata_final_bgs$last_session_date, format = "%m /%d /%Y")
-  programdata_final_bgs$raw_days <- programdata_final_bgs$last_session_date - programdata_final_bgs$first_session_date + 1
+  programdata_final_nbhds$first_session_date <- as.Date(programdata_final_nbhds$first_session_date, format = "%m /%d /%Y ")
+  programdata_final_nbhds$last_session_date <- as.Date(programdata_final_nbhds$last_session_date, format = "%m /%d /%Y")
+  programdata_final_nbhds$raw_days <- programdata_final_nbhds$last_session_date - programdata_final_nbhds$first_session_date + 1
   
   # also count number of weeks
-  programdata_final_bgs$raw_weeks <- ifelse(programdata_final_bgs$raw_days<7,0,programdata_final_bgs$raw_days/7)
-  programdata_final_bgs$days <- ifelse(programdata_final_bgs$raw_week==0, 
-                                       programdata_final_bgs$raw_days, 
-                                       programdata_final_bgs$raw_weeks*5)
+  programdata_final_nbhds$raw_weeks <- ifelse(programdata_final_nbhds$raw_days<7,0,programdata_final_nbhds$raw_days/7)
+  programdata_final_nbhds$days <- ifelse(programdata_final_nbhds$raw_week==0, 
+                                       programdata_final_nbhds$raw_days, 
+                                       programdata_final_nbhds$raw_weeks*5)
   
   
   ######## Approximate cost per day - update if we get better data on dates!!! ########
-  programdata_final_bgs$cost_per_day <- programdata_final_bgs$session_cost/programdata_final_bgs$days
+  programdata_final_nbhds$cost_per_day <- programdata_final_nbhds$session_cost/programdata_final_nbhds$days
   
   ############################# DELETE UNNECESSARY COLUMNS AND FINISH! #############################
   
-  shiny_df <- programdata_final_bgs
+  shiny_df <- programdata_final_nbhds
   
-  final_cols_to_keep <- c("lat", "long", "session_zip", "camp_name", "session_name",
-                          "session_short_description", "session_cost", "session_city",
-                          "first_session_date", "last_session_date", "first_session_start_time",
-                          "first_session_end_time",  "session_count", "has_academic",
-                          "has_arts", "has_cooking", "has_dance", "has_drama", "has_music", "has_nature",
-                          "has_sports", "has_stem", "has_scholarships", "has_special_needs_offerings",  
-                          "cost_per_day", "bgroup_id2", "nbhd_name", "nbhd_id"
+  final_cols_to_keep <- c("session_name", "first_session_date", "last_session_date", "session_cost", "lat", "long",
+                          "nbhd_id", "nbhd_name", "camp_name", "session_short_description", "has_special_needs_offerings",
+                          "has_scholarships", "has_academic", "has_arts", "has_cooking", "has_dance", "has_drama",
+                          "has_music", "has_nature", "has_sports", "has_stem" #, "bgroup_id2"
                           )
-  shiny_df <- programdata_final_bgs[ , final_cols_to_keep]
 
-  colnames(shiny_df) <- c("lat", "long", "session_zip", "camp_name", "session_name",
-                          "session_short_description", "session_cost", "session_city",
-                          "session_date_start", "session_date_end", "first_session_start_time",
-                          "first_session_end_time",  "session_count", "has_academic",
-                          "has_arts", "has_cooking", "has_dance", "has_drama", "has_music", "has_nature",
-                          "has_sports", "has_stem", "has_scholarships", "has_special_needs_offerings",  
-                          "cost_per_day", "bgroup_id2", "nbhd_name", "nbhd_id"
+    # "session_zip", "session_city", "cost_per_day"
+                          
+  shiny_df <- programdata_final_nbhds[ , final_cols_to_keep]
+
+  colnames(shiny_df) <- c("session_name", "session_date_start", "session_date_end", "session_cost", "lat", "long",
+                          "nbhd_id", "nbhd_name", "camp_name", "session_short_description", "has_special_needs_offerings",
+                          "has_scholarships", "has_academic", "has_arts", "has_cooking", "has_dance", "has_drama",
+                          "has_music", "has_nature", "has_sports", "has_stem" #, "bgroup_id2"
                           )
   
   return(shiny_df)

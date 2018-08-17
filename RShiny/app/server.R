@@ -45,7 +45,7 @@ shinyServer(
     # Output the relevant data in the data tab based on the selections
     output$datatable <- DT::renderDataTable({
       data_table1 <- neighborhood_data()
-      DT::datatable(data_table1[,-c(5,6,7)], 
+      DT::datatable(data_table1[,-which( names(data_table1) %in% c("lat","long","nbhd_id") )], 
                     options = list(pageLength = 5, 
                                    scrollX = TRUE,
                                    initComplete = JS(
