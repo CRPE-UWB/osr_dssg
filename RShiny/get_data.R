@@ -59,6 +59,21 @@ reschool_summer_program <- read.csv( file.path(shiny_data_folder, 'b4s_programs.
 # drop columns without block groups
 reschool_summer_program <- reschool_summer_program[!is.na(reschool_summer_program$bgroup_id2), ]
 
+# make aggregate data by neighborhood as well
+cols_to_sum <- c("has_academic", "has_arts", "has_cooking", "has_dance",
+                 "has_drama", "has_music", "has_nature", "has_scholarships", 
+                 "has_special_needs_offerings", "has_sports", "has_stem")
+nbhd_program_summary <- aggregate(reschool_summer_program[,cols_to_sum],
+                                  by = list(nbhd_id=reschool_summer_program$nbhd_id,
+                                            nbhd_name=reschool_summer_program$nbhd_name),
+                                  FUN = sum
+                                  )
+colnames(nbhd_program_summary) <- c("nbhd_id", "nbhd_name",
+                                    "total_academic", "total_arts", "total_cooking", "total_dance",
+                                    "total_drama", "total_music", "total_nature",
+                                    "total_scholarships", "total_special_needs",
+                                    "total_sports", "total_stem")
+
 ###############################################################
 # Other Resources (Denver Open Data)
 
