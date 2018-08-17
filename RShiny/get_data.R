@@ -7,6 +7,9 @@ library(rgdal)
 library(rgeos)
 library(tigris)
 
+# specify where the shiny tables live
+shiny_data_folder <- file.path('..', 'data', 'shiny_tables')
+
 ################## Getting data from the database e#############################################
 
 ####### WILL TAKE OUT ONCE MOVED TO GITHUB ##########
@@ -24,24 +27,15 @@ con <- dbConnect(drv, dbname = dbname,
                  host = host, port = port,
                  user = user, password = password)
 
-# Summary of total number of programs in each neighborhood
-nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summary")
-
 # ReSchool Program data
 aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
-
-# Search data from Google Analytics
-# google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
-google_analytics = read.csv("../data/shiny_tables/google_analytics.csv")
 
 # when you're done, close the connection and unload the driver 
 dbDisconnect(con) 
 dbUnloadDriver(drv)
 
 ###############################################################
-# Access index stuff
-
-shiny_data_folder <- file.path('..', 'data', 'shiny_tables') # where the shiny tables are saved
+# Load Access Index data
 
 driving_index <- read.csv( file.path(shiny_data_folder, "access_indices", "driving_index.csv") )
 driving_index_disability <- read.csv( file.path(shiny_data_folder, "access_indices", "driving_index_disability.csv") )
@@ -53,7 +47,7 @@ transit_index_nbhd <- read.csv( file.path(shiny_data_folder, "access_indices", "
 transit_index_nbhd_disability_nbhd <- read.csv( file.path(shiny_data_folder, "access_indices", "transit_index_disability_nbhd.csv") )
 
 ###############################################################
-# B4S Programs
+# Load B4S Program data
 
 reschool_summer_program <- read.csv( file.path(shiny_data_folder, 'b4s_programs.csv'), stringsAsFactors = FALSE )
 
@@ -76,7 +70,14 @@ colnames(nbhd_program_summary) <- c("nbhd_id", "nbhd_name",
                                     "total_sports", "total_stem")
 
 ###############################################################
-# Other Resources (Denver Open Data)
+# Load Search Data and zip codes to plot it
+
+google_analytics = read.csv( file.path(shiny_data_folder, "google_analytics.csv") )
+relevant_zip_codes = readOGR(dsn =  file.path("..", "data", "zip_codes") )
+total_denver_zipcodes = read.csv( file.path("..", "data", "denver_zip_codes.csv") )
+
+###############################################################
+# Load Other Resources data (from Denver Open Data)
 
 fields = read.csv( file.path(shiny_data_folder, 'fields.csv') )
 museums = read.csv( file.path(shiny_data_folder, 'museums.csv') )
@@ -86,17 +87,14 @@ rec_centers = read.csv( file.path(shiny_data_folder, 'rec_centers.csv') )
 parks = read.csv( file.path(shiny_data_folder, 'parks.csv') )
 
 ###############################################################
-# Aggregated DPS student data for demographics
+# Load aggregated DPS student data for demographics
 
-aggregate_dps_student_nbhds = read.csv( file.path(shiny_data_folder, "aggregate_dps_student_nbhds.csv"), check.names=FALSE )
+aggregate_dps_student_nbhds = read.csv( file.path(shiny_data_folder, 
+                                                  "aggregate_dps_student_nbhds.csv"), 
+                                        check.names=FALSE )
 
-#####################################################
-# Zip code stuff - for Search Data tab
-
-relevant_zip_codes = readOGR(dsn =  file.path("..", "data", "zip_codes") )
-total_denver_zipcodes = read.csv( file.path("..", "data", "denver_zip_codes.csv") )
-
-##################### Getting shape files to plot block groups, nbhds on the map ##########################
+###############################################################
+# Load shape files to plot block groups, nbhds on the map 
 
 # Get block group shape file (for access index stuff)
 shape_census_block <- readOGR(dsn = file.path("..", "data", "census_block_groups"), layer = "shape_census")
@@ -115,7 +113,8 @@ shape_census <- geo_join(shape_census, aggregate_dps_student_nbhds,
                          "NBHD_NA", "nbhd_name", how = "left")
 shape_census <- shape_census[order(as.character(shape_census@data$NBHD_NA)),]
 
-######################## Creating filter variables for the sidebar panels ############################
+###############################################################
+# Creating filter variables for the sidebar panels
 
 # Filter variables for 'B4S programs' tab
 neighborhoods_list <- sort(unique(as.character(shape_census$NBHD_NA)))
@@ -128,7 +127,7 @@ neighborhoods_other = shape_census@data$NBHD_NA #unique(all_neighbourhoods$nbhd_
 
 demographic_filters = c("Median Income", "Percent below poverty level")
 
-######## Filter variables for the B4S Search Data tab (Google Analytics) ########
+# Filter variables for the B4S Search Data tab (Google Analytics)
 
 # Convert the necessary columns to numeric
 google_analytics$mincost = as.numeric(google_analytics$mincost)
@@ -197,7 +196,6 @@ session_numberby_category$category = substring(session_numberby_category$categor
 #Merging the two datasets
 programs_sessions = merge(search_programtype_summary, session_numberby_category, by = "category")
 
-
 #Calculating the relavent metrics
 programs_sessions$total_searches_perc = round((programs_sessions$total_searches * 100)/sum(programs_sessions$total_searches),2)
 programs_sessions$number_of_searches_perc = round((programs_sessions$number_of_sessions * 100)/sum(programs_sessions$number_of_sessions),2)
@@ -239,8 +237,8 @@ final_zipcode_searches_programs = final_zipcode_searches_programs[match(target, 
 final_zipcode_searches_programs = final_zipcode_searches_programs %>% filter(is.na(location) == FALSE)
 
 
-#Search data map by zipcode
-#Aggregate the searches by zipcode
+# Search data map by zipcode
+# Aggregate the searches by zipcode
 search_zipcode_summary_map = google_analytics %>% 
   select(location, users) %>% 
   filter(location != '') %>% 
@@ -251,12 +249,12 @@ search_zipcode_summary_map = google_analytics %>%
 search_map_data <- geo_join(relevant_zip_codes, search_zipcode_summary_map, 
                             "GEOID10", "location", how = "inner")
 
-#Get the exhaustive zipcodes from the reschool dataset from the clean schema 
+# Get the exhaustive zipcodes from the reschool dataset from the clean schema 
 subset_denver_zipcodes = reschool_summer_program[reschool_summer_program$session_city == 'Denver',]
 subset_denver_zipcodes = relevant_zip_codes[relevant_zip_codes$GEOID10 %in% c(subset_denver_zipcodes$session_zip), ]
 
-
-############################ Creating racial distributions variables ##################################
+###############################################################
+# Creating racial distributions variables 
 
 # Creating majority (really most common) race variables for each neighborhood
 shape_census@data$majority_race <- max.col(as.matrix(

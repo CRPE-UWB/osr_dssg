@@ -217,6 +217,7 @@ shinyServer(
                 y = "",
                 text = as.character(summary_data$nbhd_name),
                 type = "scatter",
+                mode = "markers",
                 marker = list(size = 15),
                 alpha = 0.5,
                 height = 100,
