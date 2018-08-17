@@ -5,21 +5,17 @@ date: "6/29/2018"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 ###API Codebook
 Metrics and Dimensions codebook: https://developers.google.com/analytics/devguides/reporting/core/dimsmets
 
-###Packedge we be using
+Load in libraries
 ```{r}
 library(googleAnalyticsR)
 ```
 
 ###Functions we'll be using
 ```{r}
-source("../Google_Analytics_Functions.R",chdir=TRUE) #note this might not read the script directly, if you get an error just open the script and run the code from there
+source("Google_Analytics_Functions.R") #note this might not read the script directly, if you get an error just open the script and run the code from there
 ```
 
 
@@ -149,6 +145,7 @@ for (relevant_column in relevant_columns) {
 
 ###Writing to the database
 ```{r}
+write.csv(Search_Summary, "../../data/shiny_tables/google_analytics.csv")
 source("../update_rds.R",chdir=TRUE)
 update_rds(Search_Summary, "clean", "google_analytics", overwrite = TRUE)
 ```

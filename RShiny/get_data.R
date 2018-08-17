@@ -31,7 +31,8 @@ nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summar
 aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
 
 # Search data from Google Analytics
-google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
+# google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
+google_analytics = read.csv("../data/shiny_tables/google_analytics.csv")
 
 # when you're done, close the connection and unload the driver 
 dbDisconnect(con) 

@@ -41,7 +41,7 @@ transit_index_disability_nbhd <- transit_index_disability_nbhd %>%
     summarise_at(vars(matches("AI")), funs(mean)) 
 ```
 
-Upload to RDS
+Write to CSVs
 ```{r}
 write.csv(driving_index_nbhd, "../data/shiny_tables/access_indices/driving_index_nbhd.csv")
 write.csv(driving_index_disability_nbhd, "../data/shiny_tables/access_indices/driving_index_disability_nbhd.csv")
