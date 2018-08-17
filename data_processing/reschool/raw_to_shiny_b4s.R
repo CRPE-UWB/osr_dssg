@@ -64,7 +64,6 @@ raw_to_shiny_b4s <- function(raw_df, bg_nbhds_df) {
   
   ## and in other places like session names
   for (col in colnames(programdata)) {
-    print(col)
     if (typeof(programdata[[col]]) == "character"){
       x <- programdata[[col]]
       Encoding(x) <- "UTF-8"
@@ -198,7 +197,6 @@ raw_to_shiny_b4s <- function(raw_df, bg_nbhds_df) {
   
   # strip leading 0's in block group ids
   reschool_bgs$bgroup_id2 <- as.character(as.numeric(as.character(reschool_bgs$bgroup_id2))) 
-  print(reschool_bgs)
   
   programdata_final_bgs <- merge(programdata_final, reschool_bgs, 
                                  by.x=c("lat", "long"), 

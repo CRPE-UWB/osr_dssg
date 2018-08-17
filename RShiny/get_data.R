@@ -33,7 +33,6 @@ aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_program
 # Aggregated DPS student data for demographics
 # aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
 reschool_summer_program_clean = dbGetQuery(con, "SELECT * from clean.reschool_summer_programs")
-reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 aggregate_dps_student_nbhds = read.csv("../data/aggregate_dps_student_nbhds.csv",check.names=FALSE)
 
 # Search data from Google Analytics
@@ -58,12 +57,12 @@ dbUnloadDriver(drv)
 
 data_folder <- file.path('..', 'data', 'shiny_tables') # where the shiny tables are saved
 
-reschool_summer_program_csv <- read.csv( file.path(data_folder, 'b4s_programs.csv'), stringsAsFactors = FALSE )
+reschool_summer_program <- read.csv( file.path(data_folder, 'b4s_programs.csv'), stringsAsFactors = FALSE )
 
 # drop columns without block groups
-reschool_summer_program_csv <- reschool_summer_program_csv[!is.na(reschool_summer_program_csv$bgroup_id2), ]
-reschool_summer_program_csv <- reschool_summer_program_csv[ , which(colnames(reschool_summer_program_csv) != "bgroup_id2")]
-reschool_summer_program <- reschool_summer_program_csv
+reschool_summer_program <- reschool_summer_program[!is.na(reschool_summer_program$bgroup_id2), ]
+reschool_summer_program <- reschool_summer_program[ , which(colnames(reschool_summer_program) != "bgroup_id2")]
+reschool_summer_program <- reschool_summer_program
 
 ###############################################################
 # Other Resources (Denver Open Data)

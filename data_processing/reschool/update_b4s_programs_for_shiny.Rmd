@@ -32,8 +32,8 @@ Process the data, so that it's in the right format for the Shiny dashboard (note
 
 ```{r process}
 source( file.path(github_dir, "data_processing", "reschool", "raw_to_shiny_b4s.R") )
-# shiny_df <- raw_to_shiny_b4s(raw_df)
-shiny_df <- raw_to_shiny_b4s(raw_df[sample(1:nrow(raw_df), 30), ])
+shiny_df <- raw_to_shiny_b4s(raw_df)
+# shiny_df <- raw_to_shiny_b4s(raw_df[sample(1:nrow(raw_df), 30), ])
 ```
 
 Specify where to save the Shiny data (don't change this or the Shiny app won't contain updated data!):
