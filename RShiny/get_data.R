@@ -30,10 +30,6 @@ nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summar
 # ReSchool Program data
 aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
 
-# Search data from Google Analytics
-# google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
-google_analytics = read.csv("../data/shiny_tables/google_analytics.csv")
-
 # when you're done, close the connection and unload the driver 
 dbDisconnect(con) 
 dbUnloadDriver(drv)
@@ -59,6 +55,10 @@ reschool_summer_program <- read.csv( file.path(shiny_data_folder, 'b4s_programs.
 
 # drop columns without block groups
 reschool_summer_program <- reschool_summer_program[!is.na(reschool_summer_program$bgroup_id2), ]
+
+###############################################################
+# B4S Search Data from Google Analytics
+google_analytics = read.csv("../data/shiny_tables/google_analytics.csv")
 
 ###############################################################
 # Other Resources (Denver Open Data)
