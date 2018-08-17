@@ -163,6 +163,9 @@ shinyServer(
       summary_nbhds <- summary_data()[, "nbhd_name"]
       if ("No neighborhood selected" %in% summary_nbhds){
         summary_nbhds <- "All Neighborhoods"
+      } 
+      else if (length(summary_nbhds)==0) {
+        summary_nbhds <- "(No Neighborhoods Selected)"
       }
 
       sprintf('<h3>Program Summary for %s</h3>',
@@ -207,22 +210,26 @@ shinyServer(
     
     output$med_income_summary <- renderPlotly({
       summary_data <- subset_for_neighborhoods(shape_census@data, input$neighborhoods)
-      plot_ly(data = summary_data, 
-              x = ~MED_HH_,
-              y = "",
-              text = as.character(summary_data$nbhd_name),
-              type = "scatter",
-              marker = list(size = 15),
-              alpha = 0.5,
-              height = 100,
-              hoverinfo = 'text'
-              ) %>%
-        layout( xaxis = list(title = "", range = c(0,NULL)),
-                title = "Median HH Income ($)",
-                titlefont = list(size = 12),
-                margin = list(l = 0)
-                ) %>%
-        config(displayModeBar = FALSE)
+      
+      if (nrow(summary_data)>0) {
+        plot_ly(data = summary_data, 
+                x = ~MED_HH_,
+                y = "",
+                text = as.character(summary_data$nbhd_name),
+                type = "scatter",
+                marker = list(size = 15),
+                alpha = 0.5,
+                height = 100,
+                hoverinfo = 'text'
+        ) %>%
+          layout( xaxis = list(title = "", range = c(0,NULL)),
+                  title = "Median HH Income ($)",
+                  titlefont = list(size = 12),
+                  margin = list(l = 0)
+          ) %>%
+          config(displayModeBar = FALSE)
+      }
+      
     })
     
     output$nbhd_student_demog_summary <- renderUI({
@@ -367,8 +374,8 @@ shinyServer(
         dat <- subset_for_neighborhoods(reschool_summer_program, input$neighborhoods)
         relevant_colnames <- c("session_date_start", "session_date_end", "session_name")
         if (nrow(dat)==0) {
-          dat <- rep(0,length(relevant_colnames))
-          colnames(dat) <- relevant_colnames
+          dat <- data.frame(as.Date("1993-06-16"), as.Date("1993-06-16"), "Not a Real Program")
+          names(dat) <- relevant_colnames
         } else {
           dat <- dat[,relevant_colnames]
           dat$session_date_start <- as.Date(dat$session_date_start)
@@ -396,7 +403,7 @@ shinyServer(
           layout(xaxis = list(title = ""),
                  yaxis = list(title = "", showticklabels = FALSE),
                  title = "Programs by Date",
-                 showLegend = FALSE
+                 showlegend = FALSE
           )
         
         # different kind of plot
@@ -823,6 +830,9 @@ shinyServer(
       if ("All neighborhoods" %in% summary_nbhds){
         summary_nbhds <- "All Neighborhoods"
       }
+      else if (is.null(summary_nbhds)) {
+        summary_nbhds <- "(No Neighborhoods Selected)"
+      }
       
       sprintf('<h3>Summary for %s</h3>',
               toString(summary_nbhds)
@@ -890,18 +900,13 @@ shinyServer(
     
     output$nbhd_student_demog_summary_other <- renderUI({
       # subset to the selected neighborhoods
-      if ("No neighborhood selected" %in% input$neighborhoods){
-        summary_data_student <- aggregate_dps_student_nbhds
-      }
-      else{
-        summary_data_student <- subset_for_neighborhoods(aggregate_dps_student_nbhds, input$neighborhoods_other)
-      }
+      summary_data_student <- subset_for_neighborhoods(aggregate_dps_student_nbhds, input$neighborhoods_other)
       
       # aggregate the demographics over all selected neighborhoods
       total_nbhd_students <- sum(summary_data_student$total_students)
       
       if (total_nbhd_students < 10){
-        summary_perc_el <- NA
+        summary_perc_el_students <- NA
         summary_perc_disable_students <- NA
         summary_perc_hispanic_students <- NA
         summary_perc_white_students <- NA
@@ -940,27 +945,27 @@ shinyServer(
     
     output$med_income_summary_other <- renderPlotly({
       summary_data <- subset_for_neighborhoods(shape_census@data, input$neighborhoods_other)
-      plot_ly(data = summary_data, 
-              x = ~MED_HH_,
-              y = "",
-              text = as.character(summary_data$nbhd_name),
-              type = "scatter",
-              marker = list(size = 15),
-              alpha = 0.5,
-              height = 100,
-              hoverinfo = 'text'
-      ) %>%
-        layout( xaxis = list(title = "", range = c(0,NULL)),
-                title = "Median HH Income ($)",
-                titlefont = list(size = 12),
-                margin = list(l = 0)
+      
+      if (nrow(summary_data)>0){
+        plot_ly(data = summary_data, 
+                x = ~MED_HH_,
+                y = "",
+                text = as.character(summary_data$nbhd_name),
+                type = "scatter",
+                marker = list(size = 15),
+                alpha = 0.5,
+                height = 100,
+                hoverinfo = 'text'
         ) %>%
-        config(displayModeBar = FALSE)
+          layout( xaxis = list(title = "", range = c(0,NULL)),
+                  title = "Median HH Income ($)",
+                  titlefont = list(size = 12),
+                  margin = list(l = 0)
+          ) %>%
+          config(displayModeBar = FALSE)
+      }
+      
     })
-    
-    
-    
-    
     
     
     ###################################################################################################################
