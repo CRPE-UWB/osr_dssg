@@ -160,8 +160,8 @@ shinyServer(
     ####### MAKE THE RESCHOOL PROGRAMS Summary Analysis #######
 
     output$summary_title <- renderUI({
-      summary_nbhds <- summary_data()[, "nbhd_name"]
-      if ("No neighborhood selected" %in% summary_nbhds){
+      summary_nbhds <- input$neighborhoods
+      if ("All neighborhoods" %in% summary_nbhds){
         summary_nbhds <- "All Neighborhoods"
       } 
       else if (length(summary_nbhds)==0) {
@@ -217,6 +217,7 @@ shinyServer(
                 y = "",
                 text = as.character(summary_data$nbhd_name),
                 type = "scatter",
+                mode = "markers",
                 marker = list(size = 15),
                 alpha = 0.5,
                 height = 100,
