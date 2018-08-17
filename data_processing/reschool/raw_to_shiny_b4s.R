@@ -26,12 +26,12 @@ raw_to_shiny_b4s <- function(raw_df, bg_nbhds_df) {
   cols_to_keep <- c("camp_name", "session_name", "session_short_description", "session_cost", 
                     "first_session_date", "last_session_date", "first_session_start_time", "first_session_end_time", 
                     "session_count", "session_address_name", "session_address_1", "session_address_2", 
-                    "session_city", "session_state", "session_zip", "session_categories")
+                    "session_city", "session_state", "session_zip", "session_categories", "session_id")
   
   programdata <- raw_df[ , cols_to_keep]
   
   ######## fix column types ########
-  integer_cols <- c("session_cost", "session_zip")
+  integer_cols <- c("session_cost", "session_zip", "session_id")
   
   char_cols <- c("camp_name", "session_name", "session_short_description", "first_session_date", 
                  "last_session_date", "session_address_name", "session_address_1", "session_address_2",
@@ -251,7 +251,7 @@ raw_to_shiny_b4s <- function(raw_df, bg_nbhds_df) {
                           "nbhd_id", "nbhd_name", "camp_name", "session_short_description", "has_special_needs_offerings",
                           "has_scholarships", "has_academic", "has_arts", "has_cooking", "has_dance", "has_drama",
                           "has_music", "has_nature", "has_sports", "has_stem", 
-                          "bgroup_id2", "session_zip", "session_city", "cost_per_day"
+                          "bgroup_id2", "session_zip", "session_city", "session_id", "cost_per_day"
                           )
                           
   shiny_df <- programdata_final_nbhds[ , final_cols_to_keep]
@@ -260,7 +260,7 @@ raw_to_shiny_b4s <- function(raw_df, bg_nbhds_df) {
                           "nbhd_id", "nbhd_name", "camp_name", "session_short_description", "has_special_needs_offerings",
                           "has_scholarships", "has_academic", "has_arts", "has_cooking", "has_dance", "has_drama",
                           "has_music", "has_nature", "has_sports", "has_stem", 
-                          "bgroup_id2", "session_zip", "session_city", "cost_per_day"
+                          "bgroup_id2", "session_zip", "session_city", "session_id", "cost_per_day"
                           )
   
   return(shiny_df)

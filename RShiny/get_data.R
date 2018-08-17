@@ -10,30 +10,6 @@ library(tigris)
 # specify where the shiny tables live
 shiny_data_folder <- file.path('..', 'data', 'shiny_tables')
 
-################## Getting data from the database e#############################################
-
-####### WILL TAKE OUT ONCE MOVED TO GITHUB ##########
-
-# load the PostgreSQL driver
-drv <- dbDriver("PostgreSQL")
-
-# load credentials for the connection: dbname, host, port, user, password
-# looks for cred.txt in parent dir to cloned github repo
-source('cred.txt')
-
-# create a connection to the postgres database
-# note that "con" will be used later in each connection to the database
-con <- dbConnect(drv, dbname = dbname,
-                 host = host, port = port,
-                 user = user, password = password)
-
-# ReSchool Program data
-aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
-
-# when you're done, close the connection and unload the driver 
-dbDisconnect(con) 
-dbUnloadDriver(drv)
-
 ###############################################################
 # Load Access Index data
 
@@ -49,7 +25,8 @@ transit_index_nbhd_disability_nbhd <- read.csv( file.path(shiny_data_folder, "ac
 ###############################################################
 # Load B4S Program data
 
-reschool_summer_program <- read.csv( file.path(shiny_data_folder, 'b4s_programs.csv'), stringsAsFactors = FALSE )
+reschool_summer_program <- read.csv( file.path(shiny_data_folder, 'b4s_programs.csv'), 
+                                     stringsAsFactors = FALSE )
 
 # drop columns without block groups
 reschool_summer_program <- reschool_summer_program[!is.na(reschool_summer_program$bgroup_id2), ]
@@ -68,6 +45,11 @@ colnames(nbhd_program_summary) <- c("nbhd_id", "nbhd_name",
                                     "total_drama", "total_music", "total_nature",
                                     "total_scholarships", "total_special_needs",
                                     "total_sports", "total_stem")
+
+aggregate_session_nbhds <- aggregate(reschool_summer_program$session_id,
+                                     by = list(nbhd_name=reschool_summer_program$nbhd_name),
+                                     FUN = n_distinct
+                                     )
 
 ###############################################################
 # Load Search Data and zip codes to plot it
