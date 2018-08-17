@@ -1,0 +1,188 @@
+---
+title: "Census_Exploration"
+author: "Haowen Zheng"
+date: "7/12/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(leaflet)
+library(tigris)
+```
+
+## Map student age population from census. 
+```{r}
+census <- read.csv("/Users/luna/dssg2018/osr_dssg2018/data/census_clean/Denver Demographics on block group level 2016.csv")
+census_shape <- readOGR(dsn="/Users/luna/Desktop/DSSG/ors/data/clean data/shape_census", layer="shape_census")
+
+#show the student age population 
+#set up pop-up info
+info <- paste( "ID2:",census_shape@data$Id2,"<br/>",
+                 "Population:",census_shape@data$TTL_ppl, "<br/>",
+                  "Student:",census_shape@data$Ag_L_18)
+
+#set up color
+colors5 <- c('#ffffb2','#fecc5c','#fd8d3c','#f03b20','#bd0026') 
+
+# census_shape@data$student <- 1
+# census_shape@data$student[census_shape@data$Ag_L_18 > 100] <- 2
+# census_shape@data$student[census_shape@data$Ag_L_18 > 300] <- 3
+# census_shape@data$student[census_shape@data$Ag_L_18 > 500] <- 4
+# census_shape@data$student[census_shape@data$Ag_L_18 > 1000] <- 5
+
+# lab_factor <- c("Less than 100", 
+#                "Between 100 and 300", 
+#                "Between 300 and 500", 
+#                "Between 500 and 1000", 
+#                "More than 1000")
+# census_shape@data$student <- factor(census_shape@data$student, label = lab_factor)
+
+
+leaflet(shape_census) %>%
+  addTiles() %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5, popup = info,
+    fillColor = ~colorFactor(colors5, census_shape@data$student)(census_shape@data$student))
+```
+
+Car ownership
+```{r}
+info2 = paste("Id2:", census_shape@data$Id2,"<br/>",
+              "Car ownership:",census_shape@data$PCT_Vhcl_w)
+
+leaflet(census_shape) %>%
+  addTiles() %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5, popup = info2,
+    fillColor = ~colorFactor(colors5, census_shape@data$PCT_Vhcl_w)(census_shape@data$PCT_Vhcl_w))
+```
+
+Income & poverty distribution in Denver
+```{r}
+#why are there so many N.A.s in census block group Median Household Income? 
+sum(is.na(shape_census@data$Mdn_HH_)) #15
+ # From Factfinder: either no sample observations or too few sample observations were available to compute an estimate, or a ratio of medians cannot be calculated because one or both of the median estimates falls in the lowest interval or upper interval of an open-ended distribution.
+
+#let's use the nbhd level data from oepn denver 2015
+nbhd_demo <- readOGR(dsn = "/Users/luna/dssg2018/osr_dssg2018/data/nbhd_dem_shapes", layer = "nbhd_dem_shapes")
+
+head(nbhd_demo@data)
+sum(is.na(nbhd_demo@data$MED_HH_)) 
+
+# map the census median income and programs(colored by costs)
+col3 <- c("yellow",'red','purple')
+popup.income <-  paste("Name:", nbhd_demo@data$NBHD_NA,"<br/>",
+              "MedianHHIncome:",nbhd_demo@data$MED_HH_)
+pal <- colorQuantile(
+  palette = "Blues",
+  domain = nbhd_demo@data$MED_HH_, n = 5)
+
+# map for costs of programs on income, neighborhood level 
+leaflet(nbhd_demo) %>%
+  addTiles() %>% 
+  addPolygons(stroke = FALSE, smoothFactor = 0.5, popup = popup.income, 
+    fillOpacity = 0.8, color = ~pal(nbhd_demo@data$MED_HH_)) %>%
+  addCircles(data = reschool_programs,opacity = 0.4, 
+             col = ~colorFactor(col3, reschool_programs$factor_cost)(reschool_programs$factor_cost), weight = 4) %>%
+  setView(lat=39.7,lng=-104.9,zoom=10)
+
+unique(nbhd_demo@data$NBHD_NA) # 78 unique nbhds
+summary(nbhd_demo@data$MED_HH_)
+boxplot(nbhd_demo@data$MED_HH_,data=nbhd_demo@data)
+```
+
+The same pattern shows itself on block group level.
+```{r}
+pal2 <- colorQuantile(
+  palette = "Blues",
+  domain = census_shape@data$Mdn_HH_, n = 5)
+
+m_income <- leaflet(census_shape) %>%
+  addTiles() %>%
+  addPolygons(stroke = FALSE, smoothFactor = 0.5, popup = popup.income, 
+    fillOpacity = 0.8, color = ~pal2(census_shape@data$Mdn_HH_)) %>%
+  addCircles(data = reschool_programs,opacity = 0.4, 
+             col = ~colorFactor(col3, reschool_programs$factor_cost)(reschool_programs$factor_cost), weight = 4) %>%
+  setView(lat=39.7,lng=-104.9,zoom=10) 
+
+# What if we add another layer of poverty? Map the rate of households below poverty line.
+leaflet(census_shape) %>%
+  addTiles() %>%
+  addPolygons(stroke = FALSE, smoothFactor = 0.5, popup = popup.income, 
+    fillOpacity = 0.8, color = ~pal2(census_shape@data$Mdn_HH_), group = "Income") %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5, 
+    fillColor = ~colorFactor(colors5, census_shape@data$P_PCT_H)(census_shape@data$P_PCT_H), group = "Poverty") %>%
+  addCircles(data = reschool_programs,opacity = 0.4, 
+             col = ~colorFactor(col3, reschool_programs$factor_cost)(reschool_programs$factor_cost), 
+             weight = 4, group = "Programs") %>%
+  setView(lat=39.7,lng=-104.9,zoom=10) %>%
+  addLayersControl(
+    overlayGroups = c("Programs", "Income","Poverty"),
+                        options = layersControlOptions(collapsed = F))
+
+```
+
+```{r}
+#look at neighborhood demographic data on the map
+#playing around with distribution of hispanic population and income levels
+leaflet(nbhd_demo) %>%
+  addTiles() %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5, 
+    fillColor = ~colorFactor(colors5, nbhd_demo@data$MED_HH_)(nbhd_demo@data$MED_HH_), group = "Income") %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5, 
+    fillColor = ~colorFactor(colors5, nbhd_demo@data$PCT_HIS)(nbhd_demo@data$PCT_HIS), group = "Hispanic") %>%
+    addLayersControl(overlayGroups = c("Income","Hispanic"),
+                        options = layersControlOptions(collapsed = F))
+```
+
+## Aggregate_programs_nbhd
+```{r}
+head(aggregate_programs_nbhd) #60 observations
+colnames(aggregate_programs_nbhd)[2] <- "NBHD_NA"
+
+merged <- geo_join(nbhd_demo, aggregate_programs_nbhd, by = "NBHD_NA")
+merged@data$log_income <- log2(merged@data$MED_HH_)
+merged@data$log_income2 <- log(merged@data$MED_HH_)
+
+
+scatter.smooth(x=merged@data$log_income, y=merged@data$count)
+
+head(merged@data)
+
+summary(merged@data$log_income)
+summary(merged@data$MED_HH_)
+hist(merged@data$MED_HH_)
+hist(merged@data$log_income)
+hist(merged@data$log_income2)
+```
+
+
+## Get centroids from census shapefile
+```{r}
+census_shape <- readOGR(dsn="/Users/luna/Desktop/DSSG/ors/data/clean data/shape_census", layer="shape_census")
+centroids <- SpatialPointsDataFrame(gCentroid(census_shape, byid=TRUE), census_shape@data, match.ID=FALSE) 
+  centroids <- as.data.frame(centroids)
+  colnames(centroids)[colnames(centroids)=="x"] <- "long"  # for consistency across files
+  colnames(centroids)[colnames(centroids)=="y"] <- "lat"  # for consistency across files
+
+# check, looks perfect
+# check the first 30 black groups, seems to distribute around quite randomly
+leaflet(census_shape) %>%
+  addTiles() %>% 
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 0.5) %>%
+  addCircles(data = centroids[1:30, ], opacity = 0.4, color = "red", weight = 2)
+
+#write a csv and store the centroids 
+write.csv(centroids, file = "/Users/luna/dssg2018/osr_dssg2018/data/clean data/Centroids_block_groups.csv")
+
+head(census_shape@data)
+```
+

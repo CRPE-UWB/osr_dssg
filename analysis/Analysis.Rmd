@@ -494,46 +494,6 @@ Nativity
 t.test(high$PCT_nativity, low$PCT_nativity)
 ```
 
-
-## Other things. Not taken into report. 
-On car ownership. Not super insightful. 
-``` {r}
-# graph for percentage of households that have car(s)
-plot_car1 <- ggplot(sample_comparison, aes(sample, PCT_CarOwn)) +
-  geom_bar(stat = "identity", position = "dodge") #maybe it makes more sense to compare the car ownership accross transit index?                                                   #see if there are places where people really need public transit but score low
-  # 1st Q, 2nd Q, 3rd Q, 4th Q
-  car1 <- mean(data[data$AI_overall.y < 5.58, ]$pct_vehicle_own, na.rm = TRUE)
-  car2 <- mean(data[data$AI_overall.y < 7.86 & data$AI_overall.y >= 5.58, ]$pct_vehicle_own, na.rm = TRUE)
-  car3 <- mean(data[data$AI_overall.y < 10.75 & data$AI_overall.y >= 7.86, ]$pct_vehicle_own, na.rm = TRUE)
-  car4 <- mean(data[data$AI_overall.y > 10.75, ]$pct_vehicle_own, na.rm = TRUE)
-
-  sample_comparison_transit <- data.frame(
-  "sample" = c("1st Quantile", "2nd Quantile", "3rd Quantile", "4th Quantile"), 
-  "Pct_car" = c(car1, car2, car3, car4))
-  
-  sample_comparison_transit$sample <- 
-  factor(sample_comparison_transit$sample, 
-         levels = c("1st Quantile", "2nd Quantile", "3rd Quantile", "4th Quantile"))
-
-  plot_car2 <- ggplot(sample_comparison_transit, aes(sample, Pct_car)) +
-    geom_bar(stat = "identity", position = "dodge")
-  plot_car2 #not particularly interesting
-  
-  # let's pull out the leaflet map of car ownership again 
-  leaflet(census_shape) %>%
-  addTiles() %>%
-  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
-    opacity = 1.0, fillOpacity = 0.5, popup = info2,
-    fillColor = ~colorFactor(colors5, census_shape@data$PCT_Vhcl_w)(census_shape@data$PCT_Vhcl_w))
-  
-  # Okay last try. This time see if there is any patterns if we avarage over low vs. high car ownership rates
-  summary(data$pct_vehicle_own)
-  # really low (below 1st Q) vs. really high(above 3rd Q)
-  score1 <- mean(data[data$pct_vehicle_own < 86.31, ]$AI_overall.y, na.rm = TRUE)
-  score2 <- mean(data[data$pct_vehicle_own > 98.37, ]$AI_overall.y, na.rm = TRUE)
-```
-
-
 ## Close the link when you are done.
 ```{r}
 dbDisconnect(con) 
