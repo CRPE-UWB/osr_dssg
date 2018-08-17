@@ -5,14 +5,10 @@ date: "6/29/2018"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 ###API Codebook
 Metrics and Dimensions codebook: https://developers.google.com/analytics/devguides/reporting/core/dimsmets
 
-###Packedge we be using
+Load in libraries
 ```{r}
 library(googleAnalyticsR)
 ```
