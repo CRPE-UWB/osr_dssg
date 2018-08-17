@@ -250,17 +250,17 @@ raw_to_shiny_b4s <- function(raw_df, bg_nbhds_df) {
   final_cols_to_keep <- c("session_name", "first_session_date", "last_session_date", "session_cost", "lat", "long",
                           "nbhd_id", "nbhd_name", "camp_name", "session_short_description", "has_special_needs_offerings",
                           "has_scholarships", "has_academic", "has_arts", "has_cooking", "has_dance", "has_drama",
-                          "has_music", "has_nature", "has_sports", "has_stem", "bgroup_id2"
+                          "has_music", "has_nature", "has_sports", "has_stem", 
+                          "bgroup_id2", "session_zip", "session_city", "cost_per_day"
                           )
-
-    # "session_zip", "session_city", "cost_per_day"
                           
   shiny_df <- programdata_final_nbhds[ , final_cols_to_keep]
 
   colnames(shiny_df) <- c("session_name", "session_date_start", "session_date_end", "session_cost", "lat", "long",
                           "nbhd_id", "nbhd_name", "camp_name", "session_short_description", "has_special_needs_offerings",
                           "has_scholarships", "has_academic", "has_arts", "has_cooking", "has_dance", "has_drama",
-                          "has_music", "has_nature", "has_sports", "has_stem", "bgroup_id2"
+                          "has_music", "has_nature", "has_sports", "has_stem", 
+                          "bgroup_id2", "session_zip", "session_city", "cost_per_day"
                           )
   
   return(shiny_df)

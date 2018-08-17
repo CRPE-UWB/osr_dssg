@@ -30,11 +30,6 @@ nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summar
 # ReSchool Program data
 aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
 
-# Aggregated DPS student data for demographics
-# aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
-reschool_summer_program_clean = dbGetQuery(con, "SELECT * from clean.reschool_summer_programs")
-aggregate_dps_student_nbhds = read.csv("../data/aggregate_dps_student_nbhds.csv",check.names=FALSE)
-
 # Search data from Google Analytics
 google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
 
@@ -61,8 +56,6 @@ reschool_summer_program <- read.csv( file.path(data_folder, 'b4s_programs.csv'),
 
 # drop columns without block groups
 reschool_summer_program <- reschool_summer_program[!is.na(reschool_summer_program$bgroup_id2), ]
-reschool_summer_program <- reschool_summer_program[ , which(colnames(reschool_summer_program) != "bgroup_id2")]
-reschool_summer_program <- reschool_summer_program
 
 ###############################################################
 # Other Resources (Denver Open Data)
@@ -73,6 +66,10 @@ libraries = read.csv( file.path(data_folder, 'libraries.csv') )
 playgrounds = read.csv( file.path(data_folder, 'playgrounds.csv') )
 rec_centers = read.csv( file.path(data_folder, 'rec_centers.csv') )
 parks = read.csv( file.path(data_folder, 'parks.csv') )
+
+###############################################################
+# Aggregated DPS student data for demographics
+aggregate_dps_student_nbhds = read.csv( file.path("..", "data", "aggregate_dps_student_nbhds.csv"), check.names=FALSE )
 
 #####################################################
 # Zip code stuff - for Search Data tab
@@ -207,8 +204,8 @@ search_zipcode_summary = google_analytics %>%
 search_zipcode_summary$location = as.character(search_zipcode_summary$location)
 
 #Summary daat of searches and programs by zipcode
-reschool_summer_program_clean$session_zip = as.character(reschool_summer_program_clean$session_zip)
-zipcode_programs = reschool_summer_program_clean %>% 
+reschool_summer_program$session_zip = as.character(reschool_summer_program$session_zip)
+zipcode_programs = reschool_summer_program %>% 
   select(session_zip) %>% 
   filter(session_zip != '') %>% 
   group_by(session_zip) %>% 
@@ -236,7 +233,7 @@ search_map_data <- geo_join(relevant_zip_codes, search_zipcode_summary_map,
                             "GEOID10", "location", how = "inner")
 
 #Get the exhaustive zipcodes from the reschool dataset from the clean schema 
-subset_denver_zipcodes = reschool_summer_program_clean[reschool_summer_program_clean$session_city == 'Denver',]
+subset_denver_zipcodes = reschool_summer_program[reschool_summer_program$session_city == 'Denver',]
 subset_denver_zipcodes = relevant_zip_codes[relevant_zip_codes$GEOID10 %in% c(subset_denver_zipcodes$session_zip), ]
 
 
