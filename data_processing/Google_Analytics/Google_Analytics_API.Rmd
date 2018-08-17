@@ -15,7 +15,7 @@ library(googleAnalyticsR)
 
 ###Functions we'll be using
 ```{r}
-source("Google_Analytics_Functions.R") #note this might not read the script directly, if you get an error just open the script and run the code from there
+source("Google_Analytics_Functions.R")
 ```
 
 
