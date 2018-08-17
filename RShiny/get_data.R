@@ -33,15 +33,16 @@ aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_program
 # Search data from Google Analytics
 google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
 
-# Access index stuff - Andrew's got this
-driving_index = dbGetQuery(con, "SELECT * from clean.driving_index")
-driving_index_disability = dbGetQuery(con, "SELECT * from clean.driving_index_disability")
-driving_index_nbhd = dbGetQuery(con, "SELECT * from clean.driving_index_nbhd")
-driving_index_disability_nbhd = dbGetQuery(con, "SELECT * from clean.driving_index_disability_nbhd")
-transit_index = dbGetQuery(con, "SELECT * from clean.transit_index")
-transit_index_disability = dbGetQuery(con, "SELECT * from clean.transit_index_disability")
-transit_index_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_nbhd")
-transit_index_disability_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_disability_nbhd")
+# Access index stuff
+
+driving_index <- read.csv("../data/shiny_tables/access_indices/driving_index.csv")
+driving_index_disability <- read.csv("../data/shiny_tables/access_indices/driving_index_disability.csv")
+transit_index <- read.csv("../data/shiny_tables/access_indices/transit_index.csv")
+transit_index_disability <- read.csv("../data/shiny_tables/access_indices/transit_index_disability.csv")
+driving_index_nbhd <- read.csv("../data/shiny_tables/access_indices/driving_index_nbhd.csv")
+driving_index_disability_nbhd <- read.csv("../data/shiny_tables/access_indices/driving_index_disability_nbhd.csv")
+transit_index_nbhd <- read.csv("../data/shiny_tables/access_indices/transit_index_nbhd.csv")
+transit_index_nbhd_disability_nbhd <- read.csv("../data/shiny_tables/access_indices/transit_index_disability_nbhd.csv")
 
 # when you're done, close the connection and unload the driver 
 dbDisconnect(con) 
@@ -69,7 +70,7 @@ parks = read.csv( file.path(data_folder, 'parks.csv') )
 
 ###############################################################
 # Aggregated DPS student data for demographics
-aggregate_dps_student_nbhds = read.csv( file.path("..", "data", "aggregate_dps_student_nbhds.csv"), check.names=FALSE )
+aggregate_dps_student_nbhds = read.csv( file.path("..", "data", "shiny_tables", "aggregate_dps_student_nbhds.csv"), check.names=FALSE )
 
 #####################################################
 # Zip code stuff - for Search Data tab

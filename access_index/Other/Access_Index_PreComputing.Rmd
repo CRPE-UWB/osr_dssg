@@ -1,0 +1,302 @@
+---
+title: "Pre_Computing_Access_Indecies"
+author: "Andrew Taylor"
+date: "7/27/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Intro
+This markdown has the loops for precomputing combinations of program categories and cost for use in the Rshiny app. **NOTE** you must have the Access Index functions defined in your workspace, and the "reschool_data" and ""acs_demographics" pulled from the RDS to run this notebook.  
+
+###Establishing Cost Thresholds and Umbrella Program Types
+The only interesting one here is low cost. Selam specifically recommended 50 dollars, though this was very low n for total session cost. HOWEVER- now that we have cost per day calculations, we can confirm that for non-free programs, the first quantile cost per is 47.5 dollars, and the third quantile is 54.75 dollars, where sessions costing $50 or less per day account for about 41.7% of all sessions. 
+```{r}
+reschool_programs$academic <- reschool_programs$has_academic==TRUE | reschool_programs$has_stem==TRUE
+
+reschool_programs$art <- reschool_programs$has_arts==TRUE | reschool_programs$has_cooking==TRUE | reschool_programs$has_dance==TRUE | reschool_programs$has_drama==TRUE | reschool_programs$has_music==TRUE
+
+#cost thresolds, to be updated w/ time data from selam
+reschool_programs$free <- reschool_programs$session_cost==0
+reschool_programs$lowcost <- reschool_programs$cost_per_day<=50
+reschool_programs$anycost <- TRUE
+
+#establishing "1" per row for use in aggergation
+reschool_programs$n <- 1 
+```
+
+###Set up dataframe for storing results
+```{r}
+Id2 <- c(census_blocks$Id2)
+base_frame <- as.data.frame(Id2)
+```
+
+###Driving Dataframe
+```{r}
+#Create driving frame
+driving_index <- base_frame
+
+#Creating categories list for loop
+
+categories <- c("academic","art","has_sports","has_nature")
+
+#Creating cost list for loop
+
+costs <- c("free","lowcost","anycost")
+
+#Loop for all categories and costs
+
+for (i in 1:length(categories)){
+  type <- categories[i]
+  for (x in 1:length(costs)){
+    cost <- costs[x]
+    user_set <- Make_Subset(reschool_programs,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set(agg_set)
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive") 
+    summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) 
+    max_access <- max(summary_index_user$AccessIndex)
+    #update colnames for merge
+    summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_access)
+    colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",type,cost,sep = "_") #flexible name writing for loop
+    summary_index_user$Id2 <- as.numeric(summary_index_user$Id2) #matching str to baseframe 
+    driving_index <- merge(summary_index_user,driving_index,by=c("Id2"))
+  }
+  print(paste(i,"working"))
+  if(length(driving_index)>11){
+    print(colnames(driving_index))
+  }
+}
+
+#Create an overall average by category with no cost
+
+driving_index$AI_overall <- rowMeans(driving_index[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
+driving_index$AI_overall_free <- rowMeans(driving_index[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
+```
+
+###Transit Dataframe
+```{r}
+#Create driving frame
+transit_index <- base_frame
+
+#Creating categories list for loop
+
+categories <- c("academic","art","has_sports","has_nature")
+
+#Creating cost list for loop
+
+costs <- c("free","lowcost","anycost")
+
+#Loop for all categories and costs
+
+for (i in 1:length(categories)){
+  type <- categories[i]
+  for (x in 1:length(costs)){
+    cost <- costs[x]
+    user_set <- Make_Subset(reschool_programs,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set(agg_set)
+    
+    #replace na and 0 transit times with wallking times
+    merged_set$transit_morning[is.na(merged_set$transit_morning)] <- merged_set$walking_morning[is.na(merged_set$transit_morning)] #there shouldn't be NAs or 0s
+    merged_set$transit_morning[merged_set$transit_morning==0] <- merged_set$walking_morning[merged_set$transit_morning==0] #but if there is, as sometimes occurs with the API calls,        here we replace non-existant transit times with walking times, under the assumption the purpose of this index is to view access for individuals without a ca
+    
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"transit") 
+    merged_set$CarAccess <- decay_fxn_softGravity(merged_set,"drive")
+    
+    summary_index_user_transit_graphic <- aggregate(CarAccess ~ Id2,data=merged_set,FUN=sum)
+    summary_index_user_transit <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+
+    #normalize, note here we make two columns, one to compare to driving, one for visual rep
+    max_access <- max(summary_index_user_transit_graphic$CarAccess)
+    summary_index_user_transit$AccessIndex <- normalize(summary_index_user_transit$AccessIndex,max_access)
+    
+    #update colnames for merge
+    colnames(summary_index_user_transit)[colnames(summary_index_user_transit)=="AccessIndex"] <- paste("AI",type,cost,sep = "_") #flexible name writing for loop
+    summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2) #matching str to baseframe 
+    transit_index <- merge(summary_index_user_transit,transit_index,by=c("Id2"))
+  }
+  print(paste(i,"working"))
+  if(length(transit_index)>11){
+    print(colnames(transit_index))
+  }
+}
+
+#Create an overall average by category with no cost
+
+transit_index$AI_overall <- rowMeans(transit_index[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
+transit_index$AI_overall_free <- rowMeans(transit_index[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
+```
+
+###Driving Disabillity Dataframe
+```{r}
+#Create driving frame & subset for disability
+driving_index_disabillity <- base_frame
+reschool_programs_disabillity <- subset(reschool_programs,reschool_programs$has_special_needs_offerings==TRUE)
+
+#Creating categories list for loop
+
+categories <- c("academic","art","has_sports","has_nature")
+
+#Creating cost list for loop
+
+costs <- c("free","lowcost","anycost")
+
+#Loop for all categories and costs
+
+for (i in 1:length(categories)){
+  type <- categories[i]
+  for (x in 1:length(costs)){
+    cost <- costs[x]
+    user_set <- Make_Subset(reschool_programs_disabillity,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set(agg_set)
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive") 
+    summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) 
+    max_access <- max(summary_index_user$AccessIndex)
+    #update colnames for merge
+    summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_access)
+    colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",type,cost,sep = "_") #flexible name writing for loop
+    summary_index_user$Id2 <- as.numeric(summary_index_user$Id2) #matching str to baseframe 
+    driving_index_disabillity <- merge(summary_index_user,driving_index_disabillity,by=c("Id2"))
+  }
+  print(paste(i,"working"))
+  if(length(driving_index_disabillity)>11){
+    print(colnames(driving_index_disabillity))
+  }
+}
+
+#Create an overall average by category with no cost
+driving_index_disabillity$AI_overall <- rowMeans(driving_index_disabillity[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
+driving_index_disabillity$AI_overall_free <- rowMeans(driving_index_disabillity[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
+```
+
+###Transit Disabillity dataframe
+```{r}
+#Create driving frame
+transit_index_disabillity <- base_frame
+reschool_programs_disabillity <- subset(reschool_programs,reschool_programs$has_special_needs_offerings==TRUE)
+
+#Creating categories list for loop
+
+categories <- c("academic","art","has_sports","has_nature")
+
+#Creating cost list for loop
+
+costs <- c("free","lowcost","anycost")
+
+#Loop for all categories and costs
+
+for (i in 1:length(categories)){
+  type <- categories[i]
+  for (x in 1:length(costs)){
+    cost <- costs[x]
+    user_set <- Make_Subset(reschool_programs_disabillity,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set(agg_set)
+    
+    #replace na and 0 transit times with wallking times
+    merged_set$transit_morning[is.na(merged_set$transit_morning)] <- merged_set$walking_morning[is.na(merged_set$transit_morning)] #there shouldn't be NAs or 0s
+    merged_set$transit_morning[merged_set$transit_morning==0] <- merged_set$walking_morning[merged_set$transit_morning==0] #but if there is, as sometimes occurs with the API calls,        here we replace non-existant transit times with walking times, under the assumption the purpose of this index is to view access for individuals without a ca
+    
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"transit") 
+    merged_set$CarAccess <- decay_fxn_softGravity(merged_set,"drive")
+    
+    summary_index_user_transit_graphic <- aggregate(CarAccess ~ Id2,data=merged_set,FUN=sum)
+    summary_index_user_transit <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+
+    #normalize, note here we make two columns, one to compare to driving, one for visual rep
+    max_access <- max(summary_index_user_transit_graphic$CarAccess)
+    summary_index_user_transit$AccessIndex <- normalize(summary_index_user_transit$AccessIndex,max_access)
+    
+    #update colnames for merge
+    colnames(summary_index_user_transit)[colnames(summary_index_user_transit)=="AccessIndex"] <- paste("AI",type,cost,sep = "_") #flexible name writing for loop
+    summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2) #matching str to baseframe 
+    transit_index_disabillity <- merge(summary_index_user_transit,transit_index_disabillity,by=c("Id2"))
+  }
+  print(paste(i,"working"))
+  if(length(transit_index_disabillity)>11){
+    print(colnames(transit_index_disabillity))
+  }
+}
+
+#Create an overall average by category with no cost
+
+transit_index_disabillity$AI_overall <- rowMeans(transit_index_disabillity[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
+transit_index_disabillity$AI_overall_free <- rowMeans(transit_index_disabillity[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
+```
+
+
+###Push to RDS
+Remember you have to log in through the command line before running this chunk. 
+```{r}
+library("RPostgreSQL")
+
+# loads the PostgreSQL driver
+drv <- dbDriver("PostgreSQL")
+
+con <- dbConnect(drv, dbname = "dssg2018uw",
+                 host = "localhost", port = 9000,
+                 user = user, password = password)
+
+# specify data and schema and table names
+data <- driving_index  # must be already loaded in your environment
+schemaName <- "clean"
+tableName <- "driving_index"
+
+dbWriteTable(con,
+             c(schemaName, tableName),
+             value = data,
+             row.names = FALSE,
+             overwrite = TRUE  # overwrite an existing table
+)
+
+data <- transit_index  # must be already loaded in your environment
+schemaName <- "clean"
+tableName <- "transit_index"
+
+dbWriteTable(con,
+             c(schemaName, tableName),
+             value = data,
+             row.names = FALSE,
+             overwrite = TRUE)
+
+data <- transit_index_disabillity  # must be already loaded in your environment
+schemaName <- "clean"
+tableName <- "transit_index_disabillity"
+
+dbWriteTable(con,
+             c(schemaName, tableName),
+             value = data,
+             row.names = FALSE,
+             overwrite = TRUE)
+
+data <- driving_index_disabillity  # must be already loaded in your environment
+schemaName <- "clean"
+tableName <- "driving_index_disabillity"
+
+dbWriteTable(con,
+             c(schemaName, tableName),
+             value = data,
+             row.names = FALSE,
+             overwrite = TRUE)
+
+data <- reschool_programs  # must be already loaded in your environment
+schemaName <- "clean"
+tableName <- "reschool_programs"
+
+dbWriteTable(con,
+             c(schemaName, tableName),
+             value = data,
+             row.names = FALSE,
+             overwrite = TRUE)
+
+dbListTables(con) #check both are saved
+
+dbDisconnect(con) 
+dbUnloadDriver(drv)
+```
+

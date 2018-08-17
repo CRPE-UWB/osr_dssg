@@ -5,10 +5,6 @@ date: "8/13/2018"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 ##Intro
 This markdown defines how to add new to program data to the access index so it can continue to be used for future analysis. This assumes that new programs will be not uniquely identified, and instead the user will read a new export of blueprint for summer data, with the same formatting as the data originally used in this project. To add new data under this assumption, we complete the following steps: 
 
@@ -17,29 +13,41 @@ This markdown defines how to add new to program data to the access index so it c
 3.) For programs with new addresses, find new travel times for all block groups 
 4.) Calculate the access index for new session addressess. 
 
-Note that the so long as we call the access index from the new data, we will automaticaly subset our dataframe of travel times to the addresses in that dataframe, per the specifications of the user, so addresses which have been removed should not be double counted. 
+Note that so long as we call the access index from the new data, we will automatically subset our dataframe of travel times to the addresses in that dataframe, per the specifications of the user, so addresses which have been removed should not be double counted. 
 
-###RDS Pull Prior Data
+Even simpler, the input for this markdown is a new CSV of summer programs and a google API key for calculating distances from newly added programs to block group centers. The output is a new table of access indices, which are used in the RShiny app. 
+
+###Insert your inputs
 ```{r}
-library(RPostgreSQL)
-drv <- dbDriver("PostgreSQL")
+# First read in the new file of programs
+# replace "example_new_program_list.csv" with your own filename below, or try out this example to see how it works
+new_reschool_programs <- read.csv("example_new_program_list.csv")
 
-# creates a connection to the postgres database
-# note that "con" will be used later in each connection to the database
-con <- dbConnect(drv, dbname = "dssg2018uw",
-                 host = "localhost", port = 9000,
-                 user = user, password = password) #local source credentials
+# Then put your API key here (keep the quotation marks, just replace YOUR_KEY_HERE with the really long number that is your google api key)
+google_api_key <- "YOUR_KEY_HERE"
+```
 
-block_distance <- dbGetQuery(con, "select * from clean.block_distance") #for pre computed travel times
-reschool_programs <- dbGetQuery(con, "select * from clean.reschool_programs") #for getting unique program addresses
+###Get prior data
+```{r}
+# Previous distances from block centroids to programs
+block_distance <- read.csv("../data/shiny_tables/block_distance.csv")
+
+# Previous address of summer programs
+reschool_programs <- read.csv("../data/shiny_tables/reschool_programs.csv")
 reschool_addresses <- reschool_programs[,c("session_address_1","lat","long")] #subset to what we need
 reschool_addresses <- unique(reschool_addresses) #just in case there's any duplicates
 rownames(reschool_addresses) <- NULL
+
+driving_index <- read.csv("../data/shiny_tables/access_indices/driving_index.csv")
+driving_index_disability <- read.csv("../data/shiny_tables/access_indices/driving_index_disability.csv")
+transit_index <- read.csv("../data/shiny_tables/access_indices/transit_index.csv")
+transit_index_disability <- read.csv("../data/shiny_tables/access_indices/transit_index_disability.csv")
 ```
 
-###Read New Data
-Assuming it has been preprocessed to match the blue print for summer data used in this project, see the preprocessing markdown for more. **NOTE** we don't actually have any new data, so here we make some up. Specifically, we session at a new address, and delete five elsewhere. We end up with one new unique address, but five fewer sessions at pre-existing addresses. .
-```{r}
+###An example of a new datafile
+
+The following chunk of code doesn't need to be run, but demonstrates how we created the "example_new_program_list.csv" file. Specifically, we session at a new address, and delete five elsewhere. We end up with one new unique address, but five fewer sessions at pre-existing addresses.
+```{r eval=FALSE}
 #We would do this if we were reading a csv
 
 #new_reschool_programs <- read.csv("location.csv",header=TRUE,stringsAsFactors = FALSE) #replace with a real location obvs
@@ -64,6 +72,8 @@ length(unique(new_reschool_addresses$session_address_1)) #note we have one new a
 length(unique(reschool_addresses$session_address_1))
 nrow(new_reschool_programs)
 nrow(reschool_programs)
+
+write.csv(new_reschool_programs, "example_new_program_list.csv")
 ```
 
 ###Find New Programs
@@ -95,8 +105,24 @@ colnames(new_programs) <- c("session_address_1","lat","long")
 head(new_programs)
 ```
 
+###Get census block group centroids for the oncoming calculation
+```{r}
+library(rgeos)
+library(rgdal)
+library(raster)
+library(tidyverse)
+
+spdf <- readOGR("../data/census_block_groups/shape_census.shp")
+census_centroids <- SpatialPointsDataFrame(gCentroid(spdf, byid=TRUE), spdf@data, match.ID = FALSE)
+census_centroids <- as.data.frame(census_centroids)
+colnames(census_centroids)[colnames(census_centroids)=="x"] <- "long"  # for consistency across files
+colnames(census_centroids)[colnames(census_centroids)=="y"] <- "lat"
+census_centroids <- census_centroids[,c("Id2", "lat", "long")]
+colnames(census_centroids)[colnames(census_centroids)=="Id2"] <- "blockID" #updating for loop consistency
+```
+
 ###Calculate Distances For New Programs
-This is identical to the final loop we use in the block group distances markdown, though we change the name of "block_distance" to "new_block_distnace" to account for how we're now only running for the new programs, a much shorter list. 
+For each of the new sessions, this calculates the distances from each new program to each of the block groups
 ```{r}
 library(googleway)
 new_block_distance <- new_programs
@@ -127,20 +153,20 @@ system.time(for (i in 1:nrow(census_centroids)){
     lat.long.x <- paste(lat.long.x,collapse=" ")
     #distance calculations with arrival time = 08:00am on a weekday
     distance.x <- google_distance(origin=c(lat.i,long.i),
-    destination = c(lat.x,long.x),
-    mode="driving",
-    arrival_time = arrival_time, #autocorrect to PST, so we adjust for the dif from MST to MT
-    key = google_api_key)
+                                  destination = c(lat.x,long.x),
+                                  mode="driving",
+                                  arrival_time = arrival_time, #autocorrect to PST, so we adjust for the dif from MST to MT
+                                  key = google_api_key)
     distance_walking.x <- google_distance(origin=c(lat.i,long.i),
-    destination = c(lat.x,long.x),
-    mode="walking",
-    arrival_time = arrival_time,
-    key = google_api_key)
+                                          destination = c(lat.x,long.x),
+                                          mode="walking",
+                                          arrival_time = arrival_time,
+                                          key = google_api_key)
     distance_transit.x <- google_distance(origin=c(lat.i,long.i),
-    destination = c(lat.x,long.x),
-    mode="transit",
-    arrival_time = arrival_time,
-    key = google_api_key)
+                                          destination = c(lat.x,long.x),
+                                          mode="transit",
+                                          arrival_time = arrival_time,
+                                          key = google_api_key)
     #grabbing our dataframe list items
     distance.x <- as.data.frame(distance.x$rows$elements)
     distance_walking.x <- as.data.frame(distance_walking.x$rows$elements)
@@ -197,9 +223,7 @@ new_block_distance$transit_morning[new_block_distance$transit_morning == 0] <- N
 
 ###Merge new distances with old
 ```{r}
-nrow(block_distance) #we check this number to make sure it increases after we merge
 block_distance <- merge(new_block_distance,block_distance,by=c("Id2","session_address_1","driving_morning","walking_morning","transit_morning","lat","long"),all=TRUE)
-nrow(block_distance) #just to make sure our key is correct for this merge
 ```
 
 ###Set cost thresholds for new reschool programs
@@ -218,47 +242,74 @@ new_reschool_programs$anycost <- TRUE
 new_reschool_programs$n <- 1 
 ```
 
-###Re-Calculate Access Index
-Using the primarily predefined functions we already used to precompute the existing index. Note that we save these as new indecies primarily for validation, in practice you may prefer to over write the old index with the news. First, we need to update one function, the "Merge Set" function, to use the new block distances. 
+Second, we perform the actual access index calculations. 
+
+Before we do that, we have to create some helping functions:
 ```{r}
-Merge_Set_New <- function(dataframe){
- #here we're cutting duplicate program_addresses, and other antiquated info (previous aggregations, PCT vhcl ownership) that was use in previous calculations
-  temp <- merge(block_distance,dataframe,by="session_address_1")
+Merge_Set <- function(dataframe){
+  relevant_columns <- c("Id2","session_address_1","driving_morning","walking_morning","transit_morning","kilometers","block_lat","block_long")
+  block_distance_new <- block_distance[,relevant_columns] #here we're cutting duplicate program_addresses, and other antiquated info (previous aggregations, PCT vhcl ownership) that was use in previous calculations
+  temp <- merge(block_distance_new,dataframe,all.y=TRUE)
   temp$n[is.na(temp$n)==TRUE] <- 0
   return(temp)
 }
 
+# Subsets the dataset for different types of access index (i.e. by type and cost)
+Make_Subset <- function(dataframe,type=NULL,cost=NULL){
+  dataframe$n <- 1
+  if(is.null(type)){
+    dataframe <- dataframe
+    }
+  if(length(type)==1){
+    dataframe <- dataframe[dataframe[,type],]
+  }
+  if(length(type)>1){
+    dataframe <- dataframe[apply(FUN=any,X=dataframe[,c(type)],MARGIN=1),]
+  }
+  if(is.null(cost)){
+    return(dataframe)
+  }
+  else{
+     dataframe <- dataframe <- dataframe[dataframe[,cost],]
+  }
+}
 
+# Aggregates the data 
+Aggregate_Subset <- function(dataframe){
+  return(aggregate(n ~ session_address_1+lat+long, data=dataframe,FUN=sum)) #note that "n" in this case ==1 per row, which n this case corresponds to one unique program session
+}
+
+decay_fxn_softGravity <- function(dataframe,mode){
+  if (mode=="transit") {
+    scale = 10
+    column="transit_morning"
+  }
+  if (mode=="drive"){
+    scale = 10
+    column="driving_morning"
+  }
+  mode=mode
+  dataframe[,"n"]*(1/(1+(dataframe[,column]/scale))^2)
+}
+
+normalize <- function(vec,max) {
+  return((vec/max)*100)
+}
 ```
 
-
+Then we can create the access indices for driving and for transit. 
 ```{r}
-temp <- merge(new_reschool_programs,block_distance,by="session_address_1")
-nrow(temp)
-length(unique(temp$session_address_1))
-length(unique(temp$Id2))
-
-length(unique(new_reschool_programs$session_address_1))
-nrow(new_reschool_programs)
-nrow(temp)/481
-```
-
-
-Second, we perform the actual access index calculations. 
-```{r}
+base_frame <- data.frame("Id2"=spdf@data$Id2)
 #Create driving frame
 new_driving_index <- base_frame
 
 #Creating categories list for loop
-
 categories <- c("academic","art","has_sports","has_nature")
 
 #Creating cost list for loop
-
 costs <- c("free","lowcost","anycost")
 
 #Loop for all categories and costs
-
 for (i in 1:length(categories)){
   type <- categories[i]
   for (x in 1:length(costs)){
@@ -282,7 +333,6 @@ for (i in 1:length(categories)){
 }
 
 #Create an overall average by category with no cost
-
 new_driving_index$AI_overall <- rowMeans(new_driving_index[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
 new_driving_index$AI_overall_free <- rowMeans(new_driving_index[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
 
@@ -290,15 +340,12 @@ new_driving_index$AI_overall_free <- rowMeans(new_driving_index[,c("AI_has_natur
 new_transit_index <- base_frame
 
 #Creating categories list for loop
-
 categories <- c("academic","art","has_sports","has_nature")
 
 #Creating cost list for loop
-
 costs <- c("free","lowcost","anycost")
 
 #Loop for all categories and costs
-
 for (i in 1:length(categories)){
   type <- categories[i]
   for (x in 1:length(costs)){
@@ -338,26 +385,111 @@ new_transit_index$AI_overall <- rowMeans(new_transit_index[,c("AI_has_nature_any
 new_transit_index$AI_overall_free <- rowMeans(new_transit_index[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
 ```
 
-###Verify that we've updated indecies
-Here we do a quick identical check to ensure the new driving & transit indecies are correct. In both cases identical should == false, even though access overall shouldn't budge much with a net loss of 4 sessions. 
-```{r}
-#verifying driving is different
-summary(driving_index$AI_overall)
-summary(new_driving_index$AI_overall)
-identical(driving_index,new_driving_index) #if this returns FALSE, we've succesfully changed the addresses used in the calculation 
-
-#verifying transit is different
-summary(transit_index$AI_overall)
-summary(new_transit_index$AI_overall)
-identical(transit_index,new_transit_index) #again, we want this to return false
-```
-
 ###Overwrite existing index
-And/or write to a csv.
 ```{r}
-driving_index <- new_driving_index
-transit_index <- new_transit_index
-#write.csv("driving_index","location",row.names = FALSE) #replace "location" with an actual location on your computer
-#write.csv("transit_index","location",row.names = FALSE)
+# then overwrite the old indices
+write.csv(new_driving_index,"../data/shiny_tables/access_indices/driving_index.csv")
+write.csv(new_transit_index,"../data/shiny_tables/access_indices/transit_index.csv")
 ```
 
+Finally, do the same thing for programs with disabilities. 
+```{r}
+new_reschool_programs_disability <- subset(new_reschool_programs,new_reschool_programs$has_special_needs_offerings==TRUE)
+
+base_frame <- data.frame("Id2"=spdf@data$Id2)
+#Create driving frame
+new_driving_index <- base_frame
+
+#Creating categories list for loop
+categories <- c("academic","art","has_sports","has_nature")
+
+#Creating cost list for loop
+costs <- c("free","lowcost","anycost")
+
+#Loop for all categories and costs
+for (i in 1:length(categories)){
+  type <- categories[i]
+  for (x in 1:length(costs)){
+    cost <- costs[x]
+    user_set <- Make_Subset(new_reschool_programs_disability,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set(agg_set)
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive") 
+    summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) 
+    max_access <- max(summary_index_user$AccessIndex)
+    #update colnames for merge
+    summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_access)
+    colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",type,cost,sep = "_") #flexible name writing for loop
+    summary_index_user$Id2 <- as.numeric(summary_index_user$Id2) #matching str to baseframe 
+    new_driving_index <- merge(summary_index_user,new_driving_index,by=c("Id2"))
+  }
+  print(paste(i,"working"))
+  if(length(new_driving_index)>11){
+    print(colnames(new_driving_index))
+  }
+}
+
+#Create an overall average by category with no cost
+new_driving_index$AI_overall <- rowMeans(new_driving_index[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
+new_driving_index$AI_overall_free <- rowMeans(new_driving_index[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
+
+#Create driving frame
+new_transit_index <- base_frame
+
+#Creating categories list for loop
+categories <- c("academic","art","has_sports","has_nature")
+
+#Creating cost list for loop
+costs <- c("free","lowcost","anycost")
+
+#Loop for all categories and costs
+for (i in 1:length(categories)){
+  type <- categories[i]
+  for (x in 1:length(costs)){
+    cost <- costs[x]
+    user_set <- Make_Subset(new_reschool_programs_disability,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set(agg_set)
+    
+    #replace na and 0 transit times with wallking times
+    merged_set <- subset(merged_set,is.na(merged_set$walking_morning)==FALSE)
+    merged_set$transit_morning[is.na(merged_set$transit_morning)] <- merged_set$walking_morning[is.na(merged_set$transit_morning)] #there shouldn't be NAs or 0s
+    merged_set$transit_morning[merged_set$transit_morning==0] <- merged_set$walking_morning[merged_set$transit_morning==0] #but if there is, as sometimes occurs with the API calls,        here we replace non-existant transit times with walking times, under the assumption the purpose of this index is to view access for individuals without a car
+    
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"transit") 
+    merged_set$CarAccess <- decay_fxn_softGravity(merged_set,"drive")
+    
+    summary_index_user_transit_graphic <- aggregate(CarAccess ~ Id2,data=merged_set,FUN=sum)
+    summary_index_user_transit <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+
+    #normalize, note here we make two columns, one to compare to driving, one for visual rep
+    max_access <- max(summary_index_user_transit_graphic$CarAccess)
+    summary_index_user_transit$AccessIndex <- normalize(summary_index_user_transit$AccessIndex,max_access)
+    
+    #update colnames for merge
+    colnames(summary_index_user_transit)[colnames(summary_index_user_transit)=="AccessIndex"] <- paste("AI",type,cost,sep = "_") #flexible name writing for loop
+    summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2) #matching str to baseframe 
+    new_transit_index <- merge(summary_index_user_transit,new_transit_index,by=c("Id2"))
+  }
+  print(paste(i,"working"))
+  if(length(new_transit_index)>11){
+    print(colnames(new_transit_index))
+  }
+}
+
+#Create an overall average by category with no cost
+new_transit_index$AI_overall <- rowMeans(new_transit_index[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
+new_transit_index$AI_overall_free <- rowMeans(new_transit_index[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
+```
+
+And then save that:
+```{r}
+# then overwrite the old indices
+write.csv(new_driving_index,"../data/shiny_tables/access_indices/driving_index_disability.csv")
+write.csv(new_transit_index,"../data/shiny_tables/access_indices/transit_index_disability.csv")
+```
+
+Finally, update the block distances
+```{r}
+write.csv(block_distance, "../data/shiny_tables/block_distance.csv")
+```

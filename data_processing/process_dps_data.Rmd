@@ -945,8 +945,7 @@ students_with_address$geoid_num <- NULL
 
 What we care about is neighborhoods rather than block groups, though. So we want to have a mapping from block group to neighborhood. This can be computed via the function make_block_neighborhood_table in block_neighborhood.R:
 ```{r}
-source("block_neighborhood.R")
-dfFinal <- make_block_neighborhood_table()
+dfFinal <- read.csv("../block_neighborhood.csv") 
 ```
 
 In any case, now we can get neighborhoods in with the students
@@ -1002,5 +1001,5 @@ head(truly_final_student_df)
 
 We're actually done now. Save the aggregated student data to a csv
 ```{r}
-write.csv(truly_final_student_df,"../data/aggregate_dps_student_nbhds.csv")
+write.csv(truly_final_student_df,"../data/shiny_tables/aggregate_dps_student_nbhds.csv")
 ```
