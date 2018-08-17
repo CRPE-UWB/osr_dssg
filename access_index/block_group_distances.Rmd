@@ -5,23 +5,7 @@ date: "7/9/2018"
 output: html_document
 ---
 
-###Get SQL Data
-```{r}
-library(RPostgreSQL)
-# loads the PostgreSQL driver
-drv <- dbDriver("PostgreSQL")
-
-# creates a connection to the postgres database
-# note that "con" will be used later in each connection to the database
-con <- dbConnect(drv, dbname = "dssg2018uw",
-                 host = "localhost", port = 9000,
-                 user = user, password = password) #local source credentials
-
-dbListTables(con) #list tables 
-```
-
 ###Download the blockgroup shapefiles
-Specifically made for this project vis-a-vi Haowen. Future iterations of this will pull the shape file directly from GitHub. However, because you need all shape files, not just the .shp file for this to function, for now you'll need to update the location to .shp file in your directory.
 ```{r}
 #double note: update the link below to your directory
 spdf <- readOGR("../census_block_groups/shape_census.shp") #reads the shapefile, NOTE: you need all shapefiles in the directory present

@@ -28,35 +28,38 @@ con <- dbConnect(drv, dbname = dbname,
 nbhd_program_summary <- dbGetQuery(con, "SELECT * from shiny.nbhd_program_summary")
 
 # ReSchool Program data
-reschool_summer_program_clean = dbGetQuery(con, "SELECT * from clean.reschool_summer_programs")
-reschool_summer_program = dbGetQuery(con, "SELECT * from shiny.summer_programs")
 aggregate_session_nbhds = dbGetQuery(con, "SELECT * from shiny.aggregate_programs_nbhd")
-
-# Aggregated DPS student data for demographics
-# aggregate_dps_student_nbhds = dbGetQuery(con, "SELECT * from shiny.dps_student_aggregate_nbhd")
-aggregate_dps_student_nbhds = read.csv("../data/aggregate_dps_student_nbhds.csv",check.names=FALSE)
 
 # Search data from Google Analytics
 google_analytics = dbGetQuery(con, "SELECT * from clean.google_analytics")
 
 # Access index stuff
-driving_index = dbGetQuery(con, "SELECT * from clean.driving_index")
-driving_index_disability = dbGetQuery(con, "SELECT * from clean.driving_index_disability")
-driving_index_nbhd = dbGetQuery(con, "SELECT * from clean.driving_index_nbhd")
-driving_index_disability_nbhd = dbGetQuery(con, "SELECT * from clean.driving_index_disability_nbhd")
-transit_index = dbGetQuery(con, "SELECT * from clean.transit_index")
-transit_index_disability = dbGetQuery(con, "SELECT * from clean.transit_index_disability")
-transit_index_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_nbhd")
-transit_index_disability_nbhd = dbGetQuery(con, "SELECT * from clean.transit_index_disability_nbhd")
+
+driving_index <- read.csv("../data/shiny_tables/access_indices/driving_index.csv")
+driving_index_disability <- read.csv("../data/shiny_tables/access_indices/driving_index_disability.csv")
+transit_index <- read.csv("../data/shiny_tables/access_indices/transit_index.csv")
+transit_index_disability <- read.csv("../data/shiny_tables/access_indices/transit_index_disability.csv")
+driving_index_nbhd <- read.csv("../data/shiny_tables/access_indices/driving_index_nbhd.csv")
+driving_index_disability_nbhd <- read.csv("../data/shiny_tables/access_indices/driving_index_disability_nbhd.csv")
+transit_index_nbhd <- read.csv("../data/shiny_tables/access_indices/transit_index_nbhd.csv")
+transit_index_nbhd_disability_nbhd <- read.csv("../data/shiny_tables/access_indices/transit_index_disability_nbhd.csv")
 
 # when you're done, close the connection and unload the driver 
 dbDisconnect(con) 
 dbUnloadDriver(drv)
 
 ###############################################################
-# Other Resources (Denver Open Data)
+# B4S Programs
 
 data_folder <- file.path('..', 'data', 'shiny_tables') # where the shiny tables are saved
+
+reschool_summer_program <- read.csv( file.path(data_folder, 'b4s_programs.csv'), stringsAsFactors = FALSE )
+
+# drop columns without block groups
+reschool_summer_program <- reschool_summer_program[!is.na(reschool_summer_program$bgroup_id2), ]
+
+###############################################################
+# Other Resources (Denver Open Data)
 
 fields = read.csv( file.path(data_folder, 'fields.csv') )
 museums = read.csv( file.path(data_folder, 'museums.csv') )
@@ -65,8 +68,12 @@ playgrounds = read.csv( file.path(data_folder, 'playgrounds.csv') )
 rec_centers = read.csv( file.path(data_folder, 'rec_centers.csv') )
 parks = read.csv( file.path(data_folder, 'parks.csv') )
 
+###############################################################
+# Aggregated DPS student data for demographics
+aggregate_dps_student_nbhds = read.csv( file.path("..", "data", "shiny_tables", "aggregate_dps_student_nbhds.csv"), check.names=FALSE )
+
 #####################################################
-# Zip code stuff
+# Zip code stuff - for Search Data tab
 
 relevant_zip_codes = readOGR(dsn =  file.path("..", "data", "zip_codes") )
 total_denver_zipcodes = read.csv( file.path("..", "data", "denver_zip_codes.csv") )
@@ -198,8 +205,8 @@ search_zipcode_summary = google_analytics %>%
 search_zipcode_summary$location = as.character(search_zipcode_summary$location)
 
 #Summary daat of searches and programs by zipcode
-reschool_summer_program_clean$session_zip = as.character(reschool_summer_program_clean$session_zip)
-zipcode_programs = reschool_summer_program_clean %>% 
+reschool_summer_program$session_zip = as.character(reschool_summer_program$session_zip)
+zipcode_programs = reschool_summer_program %>% 
   select(session_zip) %>% 
   filter(session_zip != '') %>% 
   group_by(session_zip) %>% 
@@ -227,7 +234,7 @@ search_map_data <- geo_join(relevant_zip_codes, search_zipcode_summary_map,
                             "GEOID10", "location", how = "inner")
 
 #Get the exhaustive zipcodes from the reschool dataset from the clean schema 
-subset_denver_zipcodes = reschool_summer_program_clean[reschool_summer_program_clean$session_city == 'Denver',]
+subset_denver_zipcodes = reschool_summer_program[reschool_summer_program$session_city == 'Denver',]
 subset_denver_zipcodes = relevant_zip_codes[relevant_zip_codes$GEOID10 %in% c(subset_denver_zipcodes$session_zip), ]
 
 

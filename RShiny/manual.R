@@ -70,7 +70,10 @@ You can filter the resources to those located in a specific set of neighborhoods
 
 <p>
 
-Sree maybe write this?
+The "Blueprint4summer" website was used by the families of students in order to search the programs of their choice. 
+This search data, which was collected using google analytics, is a proxy for the demand for programs. Meanwhile, the current programs 
+indicate the supply. The summary tab displays the number and percentage of searches based on the search specifications.
+The "visualization" tab has driving questions that help visialize the supply and demand relationship.   
 
 </p>
 

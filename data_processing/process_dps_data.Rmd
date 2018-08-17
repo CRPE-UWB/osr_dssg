@@ -943,67 +943,9 @@ students_with_address <- merge(students_with_address, block_locations, by="block
 students_with_address$geoid_num <- NULL
 ```
 
-What we care about is neighborhoods rather than block groups, though. So we want to have a mapping from block group to neighborhood. This will take a few steps, and takes in 
-
-First we'll need to get shapefiles for neighborhood and census
-```{r eval=FALSE}
-library(rgdal)
-library(rgeos)
-
-block_shapefile <- readOGR(dsn="../data/census_block_groups", "shape_census")
-block_shapefile <- block_shapefile[,"Id2"]
-
-nbhd_shapefile <- readOGR("raw_data/statistical_neighborhoods", "statistical_neighborhoods")
-nbhd_shapefile <- nbhd_shapefile[,c("NBHD_ID","NBHD_NAME")]
-head(nbhd_shapefile@data)
-```
-
-
-Now let's get the mapping from block groups to neighborhoods. 
-```{r eval=FALSE}
-#get block group centroids
-blockGroupCentroids <- gCentroid(block_shapefile, byid=TRUE)
-
-# If any centroids are outside of their block group, replace by 
-# a random point inside block group (e.g. if the block group is L-shaped)
-test <- gIntersects(blockGroupCentroids, block_shapefile, byid = TRUE)
-badCentroids <- which(colSums(test)!=1)
-altCentroids <- gPointOnSurface(block_shapefile, byid = TRUE)
-
-coordinates <- as.data.frame(blockGroupCentroids)
-for (i in badCentroids) {
-  print(i)
-  coordinates[i,] <- altCentroids[i]@coords[]
-}
-blockGroupCentroids <- SpatialPoints(
-  coordinates, proj4string = CRS(proj4string(blockGroupCentroids)))
-
-## Nest block groups inside neighborhoods using centroid locations
-nbhdsProj <- spTransform(nbhd_shapefile, proj4string(block_shapefile))  # make sure CRS's are the same
-nests <- gIntersects(blockGroupCentroids, nbhdsProj, byid = TRUE)  # rows=nbhds, cols=centroids
-true_idxs <- which(nests==TRUE, arr.ind=TRUE)  # col1 = nbhd idx, col2 = bgroup idx
-nbhd_idxs <- true_idxs[,1]
-bgroup_idxs <- true_idxs[,2]
-
-dfFinal <- data.frame(nbhd_shapefile@data$NBHD_ID[nbhd_idxs],
-                   nbhd_shapefile@data$NBHD_NAME[nbhd_idxs],
-                   block_shapefile@data$Id2[bgroup_idxs]
-                   )
-colnames(dfFinal) <- c("nbhd_id", "nbhd_name", "bgroup_id2")
-dfFinal$nbhd_id <- as.integer(dfFinal$nbhd_id)
-dfFinal$nbhd_name <- as.character(dfFinal$nbhd_name)
-dfFinal$bgroup_id2 <- as.character(as.numeric(as.character(dfFinal$bgroup_id2))) # strip leading 0's
-head(dfFinal)
-```
-
-Write the CSV so it can be used later. 
-```{r eval=FALSE}
-write.table(dfFinal, "block_nbhd_dict")
-```
-
-So now we can read it back:
+What we care about is neighborhoods rather than block groups, though. So we want to have a mapping from block group to neighborhood. This can be computed via the function make_block_neighborhood_table in block_neighborhood.R:
 ```{r}
-dfFinal <- read.table("block_nbhd_dict")
+dfFinal <- read.csv("../block_neighborhood.csv") 
 ```
 
 In any case, now we can get neighborhoods in with the students
@@ -1059,5 +1001,5 @@ head(truly_final_student_df)
 
 We're actually done now. Save the aggregated student data to a csv
 ```{r}
-write.csv(truly_final_student_df,"../data/aggregate_dps_student_nbhds.csv")
+write.csv(truly_final_student_df,"../data/shiny_tables/aggregate_dps_student_nbhds.csv")
 ```

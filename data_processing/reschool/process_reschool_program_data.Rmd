@@ -309,19 +309,25 @@ reschool_bgs <- data.frame(coords[program_idxs,],
                       blockGroups$Id2[bgroup_idxs]
                       )
 colnames(reschool_bgs) <- c("long", "lat", "bgroup_id2")
+print(reschool_bgs)
 
 # strip leading 0's in block group ids
 reschool_bgs$bgroup_id2 <- as.character(as.numeric(as.character(reschool_bgs$bgroup_id2))) 
 head(reschool_bgs)
 
-programdata_final_bgs <- merge(programdata_final, reschool_bgs, by.x=c("lat", "long"), by.y=c("lat", "long"), all.x=TRUE, all.y=FALSE)
+programdata_final_bgs <- merge(programdata_final, reschool_bgs, 
+                               by.x=c("lat", "long"), 
+                               by.y=c("lat", "long"), 
+                               all.x=TRUE, all.y=FALSE)
 head(programdata_final_bgs)
 ```
 
 ###Create Cost Per Day Variable
 In the future, it would be best to look at a cost per hour variable, but for now we can at least check cost per day, which will approximatley account for the lenght of the session vs. session cost. We start by converting time columns. **Note** that this requires using the *second* csv sent to us by Selam, and will not run based on the first. 
 ```{r}
+programdata_final_bgs$Posfirst_session_start_time <- NA
 programdata_final_bgs$Posfirst_session_start_time <- strptime(programdata_final_bgs$first_session_start_time, "%I:%M:%S %p")
+programdata_final_bgs$Posfirst_session_end_time <- NA
 programdata_final_bgs$Posfirst_session_end_time <- strptime(programdata_final_bgs$first_session_end_time, "%I:%M:%S %p")
 programdata_final_bgs$Hours_Day <- (programdata_final_bgs$Posfirst_session_end_time - programdata_final_bgs$Posfirst_session_start_time)/(60*60) #differences are stored numerically in seconds, counting up from a static date. Thus we do last minus first for the difference in seconds, divide by 60*60 for to convert to hours
 ```
@@ -338,20 +344,21 @@ summary(as.numeric(programdata_final_bgs$Hours_Day))
 ###Get Raw Days
 For sessions that are less than one week
 ```{r}
-programdata_final_bgs$session_date_start <- as.Date(programdata_final_bgs$session_date_start, formate = "%Y /%m /%d")
-programdata_final_bgs$session_date_end <- as.Date(programdata_final_bgs$session_date_end, formate = "%Y /%m /%d")
-programdata_final_bgs$raw_days <- programdata_final_bgs$session_date_end - programdata_final_bgs$session_date_start
+programdata_final_bgs$first_session_date <- as.Date(programdata_final_bgs$first_session_date, format = "%m /%d /%Y")
+programdata_final_bgs$last_session_date <- as.Date(programdata_final_bgs$last_session_date, format = "%m /%d /%Y")
+programdata_final_bgs$raw_days <- programdata_final_bgs$last_session_date - programdata_final_bgs$first_session_date + 1
 summary(as.numeric(programdata_final_bgs$raw_days))
 ```
 
 ###Get Working Days
-Here we do some tricky things. First, for programs with "raw days" == 0, meaning they start and stop on the same day, we substitute the 0 for 1, in other treat them as being one day long. Second, we calculate number of weeks for programs with "raw days" < 7. Finally, we generate a working days col, with 1 day for 1 day long programs, the "raw days" for programs which are less than a week long, and the number of weeks * 5 (i.e, number of working days)  for all other programs.
+Here we calculate number of weeks for programs with "raw days" < 7. Finally, we generate a working days col, with 1 day for 1 day long programs, the "raw days" for programs which are less than a week long, and the number of weeks * 5 (i.e, number of working days)  for all other programs.
 
 If we get days of the week information, we'll come up with a way to amend n of days per week for both <1 week and >1 week parameters then. 
 ```{r}
-programdata_final_bgs$raw_days <- ifelse(programdata_final_bgs$raw_days==0,1,programdata_final_bgs$raw_days)
+# programdata_final_bgs$raw_days <- ifelse(programdata_final_bgs$raw_days==0,1,programdata_final_bgs$raw_days)
 programdata_final_bgs$raw_weeks <- ifelse(programdata_final_bgs$raw_days<7,0,programdata_final_bgs$raw_days/7)
-programdata_final_bgs$days <- ifelse(programdata_final_bgs$raw_week==0,programdata_final_bgs$raw_days,programdata_final_bgs$raw_weeks*5)
+programdata_final_bgs$days <- ifelse(programdata_final_bgs$raw_week==0,programdata_final_bgs$raw_days, 
+                                     programdata_final_bgs$raw_weeks*5)
 summary(programdata_final_bgs$days)
 ```
 
