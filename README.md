@@ -6,12 +6,12 @@ The Out-of-School Resources (OSR) Team as part of Data Science for Social Good (
 
 Our data sources include program information from ReSchool, Google Analytics search data from ReSchool Blueprint4Summer website, and demographics from census and Open Denver Catalog. Work presented here includes 1)an access index that measures ease of accessibily to out-of-school resources 2)data analysis on levels of access and student characteristics and 3)an interactive dashboard that hosts visualizations in R Shiny. Please refer to the respective folders for codes details. 
 
-The OSR Team members include:
-* Sivan Tuchman, Project Lead (Center on Reinventing Public Education)
-* Jose Hernandez, Data Scientist (eScience Institute)
-* Karen Lavi, Data Scientist
-Joe Abbate, Student Fellow
-Sreekanth Krishnaiah, Student Fellow
-Kellie MacPhee, Student Fellow
-Andrew Taylor, Student Fellow
-Haowen Zheng, Student Fellow
+The OSR Team members include:  
+Sivan Tuchman, Project Lead (Center on Reinventing Public Education)  
+Jose Hernandez, Data Scientist (eScience Institute)  
+Karen Lavi, Data Scientist  
+Joe Abbate, Student Fellow  
+Sreekanth Krishnaiah, Student Fellow  
+Kellie MacPhee, Student Fellow  
+Andrew Taylor, Student Fellow  
+Haowen Zheng, Student Fellow  
