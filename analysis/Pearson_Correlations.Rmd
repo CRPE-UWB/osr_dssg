@@ -35,8 +35,8 @@ dps_block_locations <- dbGetQuery(con, "select * from clean.dps_block_locations"
 crime_rates <- dbGetQuery(con, "select * from clean.crime_rates")
 driving_index <- dbGetQuery(con, "select * from clean.driving_index")
 transit_index <- dbGetQuery(con, "select * from clean.transit_index")
-driving_index_disabillity <- dbGetQuery(con, "select * from clean.driving_index_disabillity")
-transit_index_disabillity <- dbGetQuery(con, "select * from clean.transit_index_disabillity")
+driving_index_disabillity <- dbGetQuery(con, "select * from clean.driving_index_disability")
+transit_index_disabillity <- dbGetQuery(con, "select * from clean.transit_index_disability")
 
 #disconnect
 dbDisconnect(con) 

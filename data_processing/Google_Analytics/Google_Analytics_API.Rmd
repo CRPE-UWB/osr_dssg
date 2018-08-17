@@ -17,6 +17,12 @@ Metrics and Dimensions codebook: https://developers.google.com/analytics/devguid
 library(googleAnalyticsR)
 ```
 
+###Functions we'll be using
+```{r}
+source("../Google_Analytics_Functions.R",chdir=TRUE) #note this might not read the script directly, if you get an error just open the script and run the code from there
+```
+
+
 ###Authenticate
 #VERY IMPORTANT:
 The "ga_auth()" command will prompt an internet dialogue to authenticate our access to google analytics. In this case, let's use the DSSG OSR one. You have to use the browser for this, at least with this packege. 
@@ -30,15 +36,15 @@ account_list <- ga_account_list()
 ##Every account has a view ID
 account_list$viewId
 
-##Here we extract the view ID we want. One seems to be the homepage and two seems to be the search engine?
+##Here we extract the view ID we want. One seems to be the homepage and two seems to be the search engine.
 ga_id_one <- account_list$viewId[1]
 ga_id_two <- account_list$viewId[2]
 ```
 
 ###Understanding "PathLevel" Dimension 
-Of all the dimensions we could have picked why PathLevel? Why not something more for n of searches or search traffic data? 
+Of all the dimensions we could have picked why PathLevel? Why not something more for number of searches or search traffic data? 
 
-In short- because the former too return primarily null values because they are not correctly specified for the internal search engine on the site. Or so the internet tells me. "PathLevel" is the only metric that returns details related to user searches (in this case at the user level, though we could perform "session" analysis with say, page views), in the form of the url which contains the search features.
+In short- because the former two return primarily null values because they are not correctly specified for the internal search engine on the site. Or so the internet tells me. "PathLevel" is the only metric that returns details related to user searches (in this case at the user level, though we could perform "session" analysis with say, page views), in the form of the url which contains the search features.
 
 PagePath is a "Page Level" dimensions, e.g PathLevel by "Level" risks double counting if not "Paths" are discrete categories, which it appears they're not. In other words, PathLevelOne & Two are not actually about the person, like, not about their "path", but rather about aggergating at levels like, www.example.com/path1/page1, vs. /path2/page2. Hence, why path3 == only user profiles. But why in the hell then, path1 & path2 both give us different ns of search results, and that this is also different from general path, is confusing. Do some more research. 
 
