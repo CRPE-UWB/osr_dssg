@@ -22,6 +22,7 @@ Even simpler, the input for this markdown is a new CSV of summer programs and a 
 # First read in the new file of programs
 # replace "example_new_program_list.csv" with your own filename below, or try out this example to see how it works
 new_reschool_programs <- read.csv("example_new_program_list.csv")
+new_reschool_programs <- new_reschool_programs[,c("session_address_1",test_col)]
 
 # Then put your API key here (keep the quotation marks, just replace YOUR_KEY_HERE with the really long number that is your google api key)
 google_api_key <- "YOUR_KEY_HERE"
@@ -33,7 +34,7 @@ google_api_key <- "YOUR_KEY_HERE"
 block_distance <- read.csv("../data/shiny_tables/block_distance.csv")
 
 # Previous address of summer programs
-reschool_programs <- read.csv("../data/shiny_tables/reschool_programs.csv")
+reschool_programs <- read.csv("../data/shiny_tables/b4s_programs.csv")
 reschool_addresses <- reschool_programs[,c("session_address_1","lat","long")] #subset to what we need
 reschool_addresses <- unique(reschool_addresses) #just in case there's any duplicates
 rownames(reschool_addresses) <- NULL
@@ -79,6 +80,10 @@ write.csv(new_reschool_programs, "example_new_program_list.csv")
 ###Find New Programs
 We run a quick loop here to identify new programs so that we can compute new distances as needed. 
 ```{r}
+#then we aggregate to new addresses
+new_reschool_addresses <- new_reschool_programs[,c("session_address_1","lat","long")] #subset to what we need
+new_reschool_addresses <- unique(new_reschool_addresses)
+
 #Make empty vectors to store new addresses
 address_vector <- c()
 lat_vector <- c()
@@ -100,7 +105,12 @@ for (i in 1:nrow(new_reschool_addresses)){
 }
 
 #put new programs into a dataframe
-new_programs <- data.frame(address_vector,lat_vector,long_vector)
+if (is.null(new_programs)) {
+  print("No new programs to add!")
+  print("Please don't run any further chunks.")
+} else {
+  new_programs <- data.frame(address_vector,lat_vector,long_vector)
+}
 colnames(new_programs) <- c("session_address_1","lat","long")
 head(new_programs)
 ```
@@ -388,8 +398,8 @@ new_transit_index$AI_overall_free <- rowMeans(new_transit_index[,c("AI_has_natur
 ###Overwrite existing index
 ```{r}
 # then overwrite the old indices
-write.csv(new_driving_index,"../data/shiny_tables/access_indices/driving_index.csv")
-write.csv(new_transit_index,"../data/shiny_tables/access_indices/transit_index.csv")
+#write.csv(new_driving_index,"../data/shiny_tables/access_indices/driving_index.csv")
+#write.csv(new_transit_index,"../data/shiny_tables/access_indices/transit_index.csv")
 ```
 
 Finally, do the same thing for programs with disabilities. 
@@ -485,11 +495,11 @@ new_transit_index$AI_overall_free <- rowMeans(new_transit_index[,c("AI_has_natur
 And then save that:
 ```{r}
 # then overwrite the old indices
-write.csv(new_driving_index,"../data/shiny_tables/access_indices/driving_index_disability.csv")
-write.csv(new_transit_index,"../data/shiny_tables/access_indices/transit_index_disability.csv")
+#write.csv(new_driving_index,"../data/shiny_tables/access_indices/driving_index_disability.csv")
+#write.csv(new_transit_index,"../data/shiny_tables/access_indices/transit_index_disability.csv")
 ```
 
 Finally, update the block distances
 ```{r}
-write.csv(block_distance, "../data/shiny_tables/block_distance.csv")
+#write.csv(block_distance, "../data/shiny_tables/block_distance.csv")
 ```
