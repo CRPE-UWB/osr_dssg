@@ -21,8 +21,9 @@ Even simpler, the input for this markdown is a new CSV of summer programs and a 
 ```{r}
 # First read in the new file of programs
 # replace "example_new_program_list.csv" with your own filename below, or try out this example to see how it works
-new_reschool_programs <- read.csv("example_new_program_list.csv")
-new_reschool_programs <- new_reschool_programs[,c("session_address_1",test_col)]
+new_reschool_programs <- read.csv("../data/shiny_tables/b4s_programs.csv")
+#new_reschool_programs <- read.csv("example_new_program_list.csv")
+#new_reschool_programs <- new_reschool_programs[,c("session_address_1",test_col)]
 
 # Then put your API key here (keep the quotation marks, just replace YOUR_KEY_HERE with the really long number that is your google api key)
 google_api_key <- "YOUR_KEY_HERE"
