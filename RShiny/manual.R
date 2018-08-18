@@ -5,7 +5,18 @@ manual <- '
 <h3>About This Tool</h3>
 
 <p>
-Here we collect some basic information about the functionalities of this interactive web tool.
+Here we collect some basic information about the functionalities of this interactive web tool. 
+In addition to the detailed information in the sections below, some general highlights are:
+<ul>
+<li>All maps and most graphs are interactive! Hover your mouse over points for more information, 
+and zoom and pan on the images to see more details.</li>
+<li> You can also click on neighborhoods to add them to the "neighborhoods" list in the filter sidebar 
+on the left side of the screen (in addition to typing the neighborhood name into the sidebar).</li>
+<li>You can download maps and data tables using the "Download" buttons at the bottoms of the pages. 
+You can also download any interactive plot (hover over the top of the plot to see a menu pop up, 
+which has an option to save the plot as an image).</li>
+
+</ul>
 </p>
 
 <h4>Overlaying Demographics Information</h4>
@@ -14,13 +25,13 @@ Here we collect some basic information about the functionalities of this interac
 In the "B4S Programs" and "Other Resources" tabs, you can select a demographics variable
 and the concentration of that demographic group across the city will be visualized on the map 
 (along with the resources themselves). 
-Demographic data comes from two sources, the census  (general population data) or Denver 
+Demographic data comes from two sources, the Census  (general population data) or Denver 
 Public Schools (student data). Toggle between the two data sources in the left sidebar, 
-and then select a demographics variable to visualize.
+and then select a demographic variable to visualize.
 </p>
 <p>
 You can also obtain demographic information about a neighborhood by hovering your mouse
-over that neighborhood in the map. Whether census (general population) or student demographics 
+over that neighborhood in the map. Whether Census (general population) or student demographics 
 is displayed when hovering is dependent on the selection in the left sidebar.
 Note that the student demographic information comes from a <i>subset</i> of the students in 
 Denver Public Schools (for whom we have addresses, who represent the majority of students who 
@@ -28,10 +39,10 @@ participated in school choice); the number of students in the sample for a given
 is reported as the "sample size" in the hovering text.
 </p>
 <p>
-Demographic information for the census block groups in the "Access Index" tab can also be 
+Demographic information for the Census block groups in the "Access Index" tab can also be 
 seen by hovering over the block groups (similar to the neighborhoods in the first two tabs). 
-This demographic information is pulled from the census (general population) data. Student demographics 
-are not reported, since there are block groups with very small student samples.
+This demographic information is pulled from the Census (general population) data. Student demographics 
+are not reported since there are block groups with very small student samples.
 </p>
 
 <h4>B4S Programs Tab</h4>
@@ -100,7 +111,7 @@ Access Index:    <img src="ai_equation.png" alt="Access Index Equation" height="
 <p>
 The <i>overall</i> driving and transit access index refers 
 to the average score for each type of program, at any cost. Driving and transit access results 
-are shown on the same 0-100 scale; given that transit tiems are always longer than driving, transit access 
+are shown on the same 0-100 scale; given that transit times are always longer than driving, transit access 
 is categorically lower than driving access.
 </p>
 
