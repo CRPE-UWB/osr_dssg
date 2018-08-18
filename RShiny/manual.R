@@ -6,16 +6,25 @@ manual <- '
 
 <p>
 Here we collect some basic information about the functionalities of this interactive web tool. 
-In addition to the detailed information in the sections below, some general highlights are:
+It is designed to facilitate exploration of the distribution of summer programs and related 
+resources, as well as key demographic characteristics of the general population and student population,
+in the city of Denver. Summer programs are pulled from the 
+<a href="https://blueprint4summer.com/co/">Blueprint4Summer (B4S) Colorado</a> website. 
+In addition to the detailed information in the sections below, some general highlights 
+you should be aware of regarding this tool are:
 <ul>
-<li>All maps and most graphs are interactive! Hover your mouse over points for more information, 
-and zoom and pan on the images to see more details.</li>
-<li> You can also click on neighborhoods to add them to the "neighborhoods" list in the filter sidebar 
-on the left side of the screen (in addition to typing the neighborhood name into the sidebar).</li>
+<li> Within each of the main tabs (B4S Programs, Other Resources, etc.) there are sub-tabs. These include 
+"Map" tabs for map-based visualizations, "Data" tabs with data tables containing the information being plotted, 
+and "Summary Analysis" or "Visualization" tabs containing report-style visuals to aid in answering key analysis 
+questions.
+<li>All maps and most graphs are interactive! Hover your mouse over points or regions for more information, 
+and zoom and pan on the images to see closer details.</li>
+<li> In the B4S Programs and Other Resources tabs, you can click on neighborhoods to add them to the 
+"neighborhoods" list in the filter sidebar  on the left side of the screen. (This is in addition to typing the 
+neighborhood name into the sidebar).</li>
 <li>You can download maps and data tables using the "Download" buttons at the bottoms of the pages. 
-You can also download any interactive plot (hover over the top of the plot to see a menu pop up, 
-which has an option to save the plot as an image).</li>
-
+You can also download any interactive plot: hover over the top of the plot to see a pop-up menu, 
+which has an option to save the plot as an image.</li>
 </ul>
 </p>
 
@@ -80,24 +89,28 @@ You can filter the resources to those located in a specific set of neighborhoods
 <h4>B4S Searches Tab</h4>
 
 <p>
-
-The "Blueprint4summer" website was used by the families of students in order to search the programs of their choice. 
-This search data, which was collected using google analytics, is a proxy for the demand for programs. Meanwhile, the current programs 
-indicate the supply. The summary tab displays the number and percentage of searches based on the search specifications.
-The "visualization" tab has driving questions that help visialize the supply and demand relationship.   
-
+The Blueprint4Summer website was used by the families of students in order to search for programs of 
+their choice. This search data, which was collected using Google Analytics, is a proxy for the demand 
+for programs. Meanwhile, the current programs indicate the supply. The summary tab displays the number 
+and percentage of searches based on the search specifications. The "visualization" tab has driving 
+questions that help visualize the supply and demand relationship.   
 </p>
 
 <h4>Access Index Tab</h4>
 
 <p>
-The <strong>access index</strong> returns a score from 0-100 for every block group, and describes the 
-access from the centerpoint of that block group to summer program sessions in Denver. 
-Here 0 refers to the lowest access in Denver and 100 refers to the highest. Access 
-is based on the sum of travel times to all program locations, adjusted by the decay function, multiplied 
-by the number of sessions at each location. Separate indices have been calculated for each program type, 
-cost threshold, driving and transit times. You can specify in the left sidebar which types and 
-costs of programs to include for the visualized index. Here are the equations:
+The Access Index tab displays our <strong>access index</strong>, which  returns a score from 0-100 
+for every block group, and describes the access from the centerpoint of that block group to summer 
+program sessions in Denver. As in the B4S Programs tab, summer programs are also show as yellow dots, 
+to give additional context for the Access Index scores.
+</p>
+
+<p> In the Access Index, 0 refers to the lowest access in Denver and 100 refers to the highest. Access 
+is based on the sum of travel times to all program locations, adjusted by the decay function below, multiplied 
+by the number of sessions at each location. Separate indices have been calculated for each program type and 
+cost threshold, and distances have been calculated using both driving and transit times. 
+You can specify in the left sidebar which types and costs of programs to include for the visualized index. 
+Here are the equations for the Access Index:
 </p>
 
 <p>
@@ -127,7 +140,8 @@ having an access index score greater than 10.
 </p>
 
 <p>
-For more details about the calculation of the access index, please see the report that accompanies this dashboard. 
+For more details about the calculation of the access index, please see the report that accompanies 
+this dashboard. 
 </p>
 
 <h4>Credits and Contact Info</h4>
