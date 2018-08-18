@@ -38,11 +38,14 @@ shiny_df <- raw_to_shiny_b4s(raw_df)
 Specify where to save the Shiny data (don't change this or the Shiny app won't contain updated data!):
 
 ```{r output}
-shiny_file <- file.path( github_dir, "data", "shiny_tables", "b4s_programs.csv" )
+shiny_folder <- file.path( github_dir, "data", "shiny_tables")
 ```
 
 Save the Shiny data as a csv in the right location.
 
 ```{r save}
-write.csv(shiny_df, file = shiny_file, row.names = FALSE)
+#save the old one in a separate file
+file.rename(shiny_file, file.path( shiny_folder, "old_b4s_programs.csv"))
+#write the new one 
+write.csv(tmp_copy, file = file.path(shiny_folder, "b4s_programs.csv"), row.names = FALSE)
 ```
