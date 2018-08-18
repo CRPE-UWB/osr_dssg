@@ -21,7 +21,8 @@ Even simpler, the input for this markdown is a new CSV of summer programs and a 
 ```{r}
 # First read in the new file of programs
 # replace "example_new_program_list.csv" with your own filename below, or try out this example to see how it works
-new_reschool_programs <- read.csv("../data/shiny_tables/b4s_programs.csv")
+new_reschool_programs <- read.csv("../data/shiny_tables/b4s_programs.csv")#,
+                                  #stringsAsFactors=FALSE)
 #new_reschool_programs <- read.csv("example_new_program_list.csv")
 #new_reschool_programs <- new_reschool_programs[,c("session_address_1",test_col)]
 
@@ -35,7 +36,8 @@ google_api_key <- "YOUR_KEY_HERE"
 block_distance <- read.csv("../data/shiny_tables/block_distance.csv")
 
 # Previous address of summer programs
-reschool_programs <- read.csv("../data/shiny_tables/b4s_programs.csv")
+reschool_programs <- read.csv("../data/shiny_tables/b4s_programs.csv",
+                              stringsAsFactors=FALSE)
 reschool_addresses <- reschool_programs[,c("session_address_1","lat","long")] #subset to what we need
 reschool_addresses <- unique(reschool_addresses) #just in case there's any duplicates
 rownames(reschool_addresses) <- NULL
@@ -63,7 +65,7 @@ new_reschool_programs[nrow(new_reschool_programs),"session_address_1"] <- "50 S 
 new_reschool_programs[nrow(new_reschool_programs),"session_name"] <- "Test_Session"
 
 #here we delete five arbitary programs
-new_reschool_programs <- new_reschool_programs[-c(1,100,950,2,200),]
+new_reschool_programs <- new_reschool_programs[-c(1,1000,950,2,200),]
 
 #then we aggregate to new addresses
 new_reschool_addresses <- new_reschool_programs[,c("session_address_1","lat","long")] #subset to what we need
@@ -75,11 +77,11 @@ length(unique(reschool_addresses$session_address_1))
 nrow(new_reschool_programs)
 nrow(reschool_programs)
 
-write.csv(new_reschool_programs, "example_new_program_list.csv")
+#write.csv(new_reschool_programs, "example_new_program_list.csv")
 ```
 
 ###Find New Programs
-We run a quick loop here to identify new programs so that we can compute new distances as needed. 
+This is a bit of a process. If there are new addresses, it will take about 10 minutes
 ```{r}
 #aggregate to new addresses
 new_reschool_addresses <- new_reschool_programs[,c("session_address_1","lat","long")] #subset to what we need
@@ -274,7 +276,7 @@ Make_Subset <- function(dataframe,type=NULL,cost=NULL){
   dataframe$n <- 1
   if(is.null(type)){
     dataframe <- dataframe
-    }
+  }
   if(length(type)==1){
     dataframe <- dataframe[dataframe[,type],]
   }
@@ -283,10 +285,10 @@ Make_Subset <- function(dataframe,type=NULL,cost=NULL){
   }
   if(is.null(cost)){
     return(dataframe)
+  } else{
+     dataframe <- dataframe[dataframe[,cost],]
   }
-  else{
-     dataframe <- dataframe <- dataframe[dataframe[,cost],]
-  }
+  return(dataframe)
 }
 
 # Aggregates the data 

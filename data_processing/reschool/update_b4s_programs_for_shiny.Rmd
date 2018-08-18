@@ -25,7 +25,7 @@ Make sure the updated data is in the "PUT_RAW_B4S_PROGRAM_DATA_HERE" folder, and
 Load in the raw data to R, as a dataframe:
 
 ```{r load-in}
-raw_df <- read.csv(file = raw_file, na.strings = "")
+raw_df <- read.csv(file = raw_file, na.strings = "", stringsAsFactors = FALSE)
 ```
 
 Process the data, so that it's in the right format for the Shiny dashboard (note that this will take several minutes, as it needs to geocode the program addresses into latitudes and longitudes):
