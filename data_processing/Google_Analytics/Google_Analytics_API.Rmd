@@ -15,13 +15,13 @@ library(googleAnalyticsR)
 
 ###Functions we'll be using
 ```{r}
-source("Google_Analytics_Functions.R") #note this might not read the script directly, if you get an error just open the script and run the code from there
+source("Google_Analytics_Functions.R")
 ```
 
 
 ###Authenticate
 #VERY IMPORTANT:
-The "ga_auth()" command will prompt an internet dialogue to authenticate our access to google analytics. In this case, let's use the DSSG OSR one. You have to use the browser for this, at least with this packege. 
+The "ga_auth()" command will prompt an internet dialogue to authenticate our access to google analytics. In this case, let's use the DSSG OSR one. You have to use the browser for this, at least with this package.
 ```{r}
 ##Authenticate
 ga_auth()
