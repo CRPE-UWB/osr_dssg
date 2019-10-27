@@ -1,12 +1,12 @@
-# osr_dssg2018
-## Out of school resources project.
-Experiences outside of the school can be highly enriching to student academic and non-academic learning. For students living in disadvantaged communities, accessing organizations or institutions that provide out-of-school programs for arts, sports, and tutoring, or social services such as counseling, meals, or medical care can be challenging. And while we know that experiences outside of the school day can enhance student performance in learning, they remain elusive to the students who need them the most. Financial, time, accessibility, and safety constraints can all limit the feasibility of a student going from school or home to an enrichment program or service provider.  
+# OSR2019
 
-The Out-of-School Resources (OSR) Team as part of Data Science for Social Good (DSSG) Project, at University of Washington, is composed of five student fellows, two data scientist, and a domain expert. We worked closely with the Center for Reinventing Public Education (CRPE) and a non-profit organization ReSchool to analyze the gaps in students' accessibility to summer programs in Denver, Colarado. We hope to provide insights to bridge the gaps and inequalities in the distribution of enrichment programs. 
+This repository represents an update to work originally conducted during the 2018 edition of the UW eScience Institute's Data Science for Social Good Program, in collaboration with ReSchool Colorado and the Center on Reinventing Public Education.
 
-Our data sources include program information from ReSchool, Google Analytics search data from ReSchool Blueprint4Summer website, and demographics from census and Open Denver Catalog. Work presented here includes 1)an access index that measures ease of accessibily to out-of-school resources 2)data analysis on levels of access and student characteristics and 3)an interactive dashboard that hosts visualizations in R Shiny. Please refer to the respective folders for codes details. 
+If you are interested in updating with Shiny app with more recent data (or updating the data for your own analysis), see the PDF file named how_to_update.pdf in this folder.
 
-The OSR Team members include:  
+For the 2018 work, see: https://github.com/CRPE-UWB/osr_dssg2018
+
+The original OSR Team members are:  
 Sivan Tuchman, Project Lead (Center on Reinventing Public Education)  
 Jose Hernandez, Data Scientist (eScience Institute)  
 Karen Lavi, Data Scientist  
@@ -15,3 +15,5 @@ Sreekanth Krishnaiah, Student Fellow
 Kellie MacPhee, Student Fellow  
 Andrew Taylor, Student Fellow  
 Haowen Zheng, Student Fellow  
+
+These 2019 updates are the work of Sivan, Kellie, Andrew, and Haowen. Using updated data on summer programs available in 2019, we are repeating the same analyses from the previous year, and striving to make the results easier for CRPE, ReSchool, and other users to update each year.

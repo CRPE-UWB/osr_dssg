@@ -5,21 +5,20 @@ manual <- '
 <h3>About This Tool</h3>
 
 <p>
-Here we collect some basic information about the functionalities of this interactive web tool. 
-It is designed to facilitate exploration of the distribution of summer programs and related 
+This tool is designed to facilitate exploration of the distribution of summer programs and related 
 resources, as well as key demographic characteristics of the general population and student population,
 in the city of Denver. Summer programs are pulled from the 
 <a href="https://blueprint4summer.com/co/">Blueprint4Summer (B4S) Colorado</a> website. 
 In addition to the detailed information in the sections below, some general highlights 
 you should be aware of regarding this tool are:
 <ul>
-<li> Within each of the main tabs (B4S Programs, Other Resources, etc.) there are sub-tabs. These include 
+<li> Within each of the main tabs (Summer Programs, Public Resources, etc.) there are sub-tabs. These include 
 "Map" tabs for map-based visualizations, "Data" tabs with data tables containing the information being plotted, 
 and "Summary Analysis" or "Visualization" tabs containing report-style visuals to aid in answering key analysis 
 questions.
 <li>All maps and most graphs are interactive! Hover your mouse over points or regions for more information, 
 and zoom and pan on the images to see closer details.</li>
-<li> In the B4S Programs and Other Resources tabs, you can click on neighborhoods to add them to the 
+<li> In the Summer Programs and Public Resources tabs, you can click on neighborhoods to add them to the 
 "neighborhoods" list in the filter sidebar  on the left side of the screen. (This is in addition to typing the 
 neighborhood name into the sidebar).</li>
 <li>You can download maps and data tables using the "Download" buttons at the bottoms of the pages. 
@@ -28,36 +27,25 @@ which has an option to save the plot as an image.</li>
 </ul>
 </p>
 
-<h4>Overlaying Demographics Information</h4>
+<h4>Viewing Demographic Information</h4>
 
 <p>
-In the "B4S Programs" and "Other Resources" tabs, you can select a demographics variable
+In the "Summer Programs" and "Public Resources" tabs, you can select a demographic variable
 and the concentration of that demographic group across the city will be visualized on the map 
-(along with the resources themselves). 
-Demographic data comes from two sources, the Census  (general population data) or Denver 
-Public Schools (student data). Toggle between the two data sources in the left sidebar, 
-and then select a demographic variable to visualize.
+(along with the resources themselves). Select demographic variables in the left sidebar. 
+Demographic data comes from the American Community Survey from 2011-2015, 
+the most recent available data which is aggregated to the neighborhood level.
 </p>
 <p>
-You can also obtain demographic information about a neighborhood by hovering your mouse
-over that neighborhood in the map. Whether Census (general population) or student demographics 
-is displayed when hovering is dependent on the selection in the left sidebar.
-Note that the student demographic information comes from a <i>subset</i> of the students in 
-Denver Public Schools (for whom we have addresses, who represent the majority of students who 
-participated in school choice); the number of students in the sample for a given neighborhood 
-is reported as the "sample size" in the hovering text.
-</p>
-<p>
-Demographic information for the Census block groups in the "Access Index" tab can also be 
-seen by hovering over the block groups (similar to the neighborhoods in the first two tabs). 
-This demographic information is pulled from the Census (general population) data. Student demographics 
-are not reported since there are block groups with very small student samples.
+In all maps, you can also obtain demographic information about a neighborhood or census block group 
+by hovering your mouse over that region in the map. The census block groups only appear in the 
+"Access Index" tab.
 </p>
 
-<h4>B4S Programs Tab</h4>
+<h4>Summer Programs Tab</h4>
 
 <p>
-The "B4S Programs" tab shows all summer programs listed on the 
+The "Summer Programs" tab shows all summer programs listed on the 
 <a href="https://blueprint4summer.com/co/">Blueprint4Summer website</a>, 
 which catalogs summer programs in Denver.
 Programs appear as yellow dots in the "Map" sub-tab, and the left sidebar allows you to filter
@@ -71,26 +59,26 @@ neighborhoods on the map.
 Hovering over a yellow program dot will display information about that program. Since some programs occur 
 at the same location, all program locations have been slightly offset from their original, exact location 
 in order to prevent program dots from landing directly on top of one another. You may have to zoom in to see 
-the program dots not overlap, however.
+the program dots separate from one another, however.
 </p>
 
-<h4>Other Resources Tab</h4>
+<h4>Public Resources Tab</h4>
 
 <p>
-The "Other Resources" tab shows public resources in the city of Denver that students might 
-access during out-of-school time: parks, playgrounds, rec centers, libraries, museums, and athletic fields. 
-Museum locations were collected by hand using Google searches, all other data is from the 
+The "Public Resources" tab shows public resources in the city of Denver that students might 
+access during out-of-school time: parks, playgrounds, rec centers, libraries, athletic fields, and pools. 
+All data is sourced from the 
 <a href="https://denvergov.org/opendata">Denver Open Data Catalog</a>. 
 Resource names and (limited) characteristics appear if you hover over the dots in the map. 
 You can filter the resources to those located in a specific set of neighborhoods, precisely as in the 
-"B4S Programs" tab.
+"Summer Programs" tab.
 </p>
 
 <h4>B4S Searches Tab</h4>
 
 <p>
-The Blueprint4Summer website was used by the families of students in order to search for programs of 
-their choice. This search data, which was collected using Google Analytics, is a proxy for the demand 
+The Blueprint4Summer website has been used by the families of students and other users in order to search 
+for summer programs. This search data, which we obtained via Google Analytics, is a proxy for the demand 
 for programs. Meanwhile, the current programs indicate the supply. The summary tab displays the number 
 and percentage of searches based on the search specifications. The "visualization" tab has driving 
 questions that help visualize the supply and demand relationship.   
@@ -101,7 +89,7 @@ questions that help visualize the supply and demand relationship.
 <p>
 The Access Index tab displays our <strong>access index</strong>, which  returns a score from 0-100 
 for every block group, and describes the access from the centerpoint of that block group to summer 
-program sessions in Denver. As in the B4S Programs tab, summer programs are also show as yellow dots, 
+program sessions in Denver. As in the Summer Programs tab, summer programs are also shown as yellow dots, 
 to give additional context for the Access Index scores.
 </p>
 
@@ -130,12 +118,10 @@ is categorically lower than driving access.
 
 <p>
 As expected, access index scores reflect primarily the concentration of sessions in Denver, as well 
-the accessibility of highways and relatively quick driving travel to these sessions. Access index 
-scores are highest in the Southeast Central Washington Park area and in the central business district 
-area of downtown Denver. In contrast, access is lowest for the outer edges of Denver, specifically block 
-groups in the Northeast and Southwest. In addition to the transit index returning lower 
-scores overall than the driving index, transit access is also considerably more concentrated, 
-with only a handful of block groups being in close proximity to a large number of sessions and 
+the accessibility of highways and relatively quick driving travel to these sessions. In addition 
+to the transit index returning lower 
+scores overall than the driving index, transit access also tends to be more concentrated, 
+with fewer block groups being in close proximity to a large number of sessions and 
 having an access index score greater than 10.
 </p>
 
@@ -147,7 +133,7 @@ this dashboard.
 <h4>Credits and Contact Info</h4>
 
 <p> 
-This web-based interactive tool was created during the Summer 2018 
+This web-based interactive tool was originally created during the Summer 2018 
 <a href = "http://escience.washington.edu/dssg/">Data Science 
 for Social Good</a> program at the eScience Institute at the University of Washington. 
 The team members involved in creating it were:
@@ -161,9 +147,13 @@ The team members involved in creating it were:
 <li>Andrew Taylor, Student Fellow</li>
 <li>Haowen Zheng, Student Fellow</li>
 </ul>
+One year later, Sivan, Kellie, Andrew, and Haowen have updated the tool to reflect data current as of Summer 2019.
+</p>
+
+<p>
 This tool is built using R Shiny, and the code is available on 
 <a href="https://github.com/CRPE-UWB/osr_dssg2018">GitHub</a>. 
-After August 17th, 2018, Sivan Tuchman (stuchman@uw.edu) is the 
+Sivan Tuchman (stuchman@uw.edu) is the 
 primary contact for any questions related to the tool.
 </p>
 

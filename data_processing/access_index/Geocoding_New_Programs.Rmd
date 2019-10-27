@@ -1,0 +1,333 @@
+---
+title: "Geocoding_Full_Sessions"
+author: "Andrew Taylor"
+date: "8/5/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r set up}
+library(ggmap)
+#load complete addresses( see rbind data from precomputing markdown)
+#load block group distances and pray we can make this work
+reschool_programs <- read.csv("C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/B4Sprograms/geocoded_data/program_level_geocode.csv"
+                              ,header=TRUE
+                              ,stringsAsFactors = FALSE)
+
+
+reschool_programs_session_days <- read.csv("C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/B4Sprograms/geocoded_data/complete_geocoded_sessions.csv")
+```
+
+
+I am not sure what happened, but there is totally something wrong, with repeated lat/lon combos for different addresses, something happeneding. We need to redo this stat.
+
+Re geocode ALL unique program addresses
+```{r}
+#geocode EVERY unique address from the new file + the supplementary file
+complete_address <- unique(complete_programs[c("session_address_1","session_city","session_state")])
+complete_address <- complete_address[is.na(complete_address$session_address_1)==FALSE,]
+
+#geocode lat & lon
+complete_address$lat <- NA
+complete_address$long <- NA
+
+register_google(google_api_key)
+
+for(address in 1:nrow(complete_address)){
+  results <- geocode(
+    location = paste(complete_address$session_address_1[address],
+                     complete_address$session_city[address],
+                     complete_address$state[address]),
+    output = "latlon",
+    source = "google",
+    api_key = google_api_key
+  )
+  #sub in
+  complete_address$lat[address] <- results$lat
+  complete_address$long[address] <- results$lon
+  #validation
+  if((address %% 50)==0){
+    print(
+      paste(
+        address,"addresses reviewed"
+      )
+    )
+  }
+}
+
+#compare to wtf was happening before
+complete_address$lat_lon <- paste(complete_address$lat,complete_address$long)
+block_distance$lat_lon <- paste(block_distance$lat,block_distance$lon)
+
+#not goood, not good at all. These are far more likely to be accurate, and, frustratingly enough, are, way off
+#only five, of our unique lat lon combinations are correct
+#that is really bad
+summary(unique(complete_address$lat_lon) %in% block_distance$lat_lon)
+```
+
+Spot checks reveal some problems....lets hand fix them here. Ugh right. 
+```{r fix incorrect geocodes}
+complete_addresses <- unique(reschool_programs[c("session_address_1","lat","long","session_city",
+                                                 "session_state","session_zip","lat_lon")])
+
+incorrect_codes <- c(
+  "29.6075824 -98.5046998",
+  "37.0367095 -95.6376734",
+  "38.2526647 -85.7584557",
+  "39.4142688 -77.4105409",
+  "41.8916373 -87.8034012",
+  "41.5038599 -81.6873407"
+)
+
+complete_addresses$Bad_Geocode <- sapply(complete_addresses$lat_lon,
+                                        function(x){
+                                          ifelse(
+                                            x %in% incorrect_codes,
+                                            TRUE,
+                                            FALSE
+                                          )
+                                        })
+
+#make a subset without problmes
+temp_fix <- complete_addresses[which(complete_addresses$Bad_Geocode==FALSE),]
+temp_redux  <- complete_addresses[which(complete_addresses$Bad_Geocode==TRUE),]
+
+
+#fix problems
+temp_redux$lat <- NA
+temp_redux$long <- NA
+
+for(address in 1:nrow(temp_redux)){
+    results <- geocode(
+    location = paste(temp_redux$session_address_1[address],
+                     temp_redux$session_city[address],
+                     temp_redux$state[address]),
+    output = "latlon",
+    source = "google",
+    api_key = google_api_key) #sub in
+    temp_redux$lat[address] <- results$lat
+    temp_redux$long[address] <- results$lon
+} #continues to return the wrong values
+
+####FIx them by hand cus dear god this frustrating
+temp_redux$lat[1] <- c(39.7291165,-104.9612258)[1]
+temp_redux$long[1] <- c(39.7291165,-104.9612258)[2]
+temp_redux$lat_lon[1] <- c(39.7291165 -104.9612258)
+
+temp_redux$lat[2] <- c(40.0509244,-105.0771444)[1]
+temp_redux$long[2] <- c(40.0509244,-105.0771444)[2]
+temp_redux$lat_lon[2] <- c(40.0509244 -105.0771444)
+
+
+temp_redux$lat[3] <- c(40.1097472,-105.0320697)[1]
+temp_redux$long[3] <- c(40.1097472,-105.0320697)[2]
+temp_redux$lat_lon[3] <- c(40.1097472 -105.0320697)
+
+temp_redux$lat[4] <- c(39.968904,-105.1836934)[1]
+temp_redux$long[4] <- c(39.968904,-105.1836934)[2]
+temp_redux$lat_lon[4] <- c(39.968904 -105.1836934)
+
+temp_redux$lat[5] <- c(39.9355836,-105.1786195)[1]
+temp_redux$long[5] <- c(39.9355836,-105.1786195)[2]
+temp_redux$lat_lon[5] <- c(39.9355836-105.1786195)
+
+temp_redux$lat[6] <- NA #honest to god error addresss, just says TBD 
+temp_redux$long[6] <- NA
+temp_redux$lat_lon[6] <- NA 
+
+#bind back together
+complete_addresses <- rbind(temp_fix,temp_redux)
+complete_addresses$Bad_Geocode <- NULL
+
+
+#ONCE MORE
+complete_addresses$lat[which(complete_addresses$lat_lon=="41.8441098 -87.7245228")] <- 39.7547359
+complete_addresses$lon[which(complete_addresses$lat_lon=="41.8441098 -87.7245228")] <- -104.9056398
+complete_addresses$lat_lon[which(complete_addresses$lat_lon=="41.8441098 -87.7245228")] <- c(39.7547359,-104.9056398)
+```
+
+
+Merge back into reschool programs
+```{r merge back into reschool programs}
+complete_programs$lat <- NULL
+complete_programs$long <- NULL
+complete_programs$lat_lon <- NULL
+
+#merge in 
+geocoded_programs <- merge(complete_programs,
+                           complete_addresses,
+                           by=c("session_address_1","session_city","session_state",
+                                "session_zip"),
+                           all.x=TRUE)
+
+#validate
+length(unique(geocoded_programs$lat_lon))
+length(unique(complete_addresses$lat_lon))
+nrow(complete_programs)
+nrow(geocoded_programs)
+
+#at least now it's correct
+write.csv(geocoded_programs,"C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/B4Sprograms/geocoded_data/program_level_geocode.csv",
+          row.names = FALSE)
+```
+
+As above but session day level
+```{r as above but seession day level}
+complete_session_days <- reschool_programs_session_days
+
+complete_session_days$X <- NULL
+complete_session_days$lat <- NULL
+complete_session_days$long <- NULL
+complete_session_days$lat_lon <- NULL
+
+#merge
+complete_session_days <-  merge(
+  complete_session_days,
+  complete_addresses,
+  by=c("session_address_1","session_city","session_state",
+                                "session_zip"),
+  all.x=TRUE
+)
+
+nrow(complete_session_days)
+nrow(reschool_programs_session_days)
+
+write.csv(complete_session_days,"C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/B4Sprograms/geocoded_data/complete_geocoded_sessions.csv",
+          row.names = FALSE)
+```
+
+
+
+#Also Geocode Seperately the additional programs
+
+Why? Because that will make work easier for haowen in analysis THAT'S WHY
+
+We do the same thing for the program (NOT SESSION) level list as well
+```{r geocode speratley additional list}
+#read addittional
+additional_programs <- read.csv("C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/B4Sprograms/Additional Camp Export  (Autosaved).csv",
+                              header=TRUE,
+                              stringsAsFactors = FALSE)
+
+program_level <- read.csv("C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/B4Sprograms/2019DataExport_CO.csv",
+                          header=TRUE,
+                          stringsAsFactors = FALSE)
+
+geocoded_programs <- read.csv("C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/B4Sprograms/complete_geocoded_sessions.csv",
+                              header=TRUE,
+                              stringsAsFactors = FALSE)
+
+
+
+#merge lat lon?
+test <- aggregate(lat_lon~session_address_1+session_city+session_state,
+                  data = geocoded_programs,
+                  FUN=count_unique)
+
+geocoded_programs$session_address_1 <- trimws(geocoded_programs$session_address_1,which=c("both"))
+program_level$session_address_1 <- trimws(program_level$session_address_1,which=c("both"))
+additional_programs$session_address_1 <- trimws(additional_programs$session_address_1,which=c("both"))
+
+temp <- merge(program_level,unique(geocoded_programs[c("session_address_1","session_city","session_state","lat","long","lat_lon")]),
+              by=c("session_address_1","session_state","session_city"),
+              all.x=TRUE)
+#spot fix stupid ass spacing problems
+temp$lat_lon[temp$session_address_1=="10500 E. Hampden Ave"] <- "39.6529026 -104.8676769"
+temp$lat[temp$session_address_1=="10500 E. Hampden Ave"] <- "39.6529026"
+temp$long[temp$session_address_1=="10500 E. Hampden Ave"] <- "-104.8676769"
+
+temp$lat_lon[temp$session_address_1=="15920 W 10th ave"] <- "39.7321507 -105.178097"
+temp$lat[temp$session_address_1=="15920 W 10th ave"] <- "39.7321507"
+temp$long[temp$session_address_1=="15920 W 10th ave"] <- '-105.178097'
+
+temp$lat_lon[temp$session_address_1=="3501 S Colorado Blvd"] <- "39.6522939 -104.9416688"
+temp$lat[temp$session_address_1=="3501 S Colorado Blvd"] <- "39.6522939"
+temp$long[temp$session_address_1=="3501 S Colorado Blvd"] <- "-104.9416688"
+
+temp$lat_lon[temp$session_address_1=="åÊ401 South Pierce Street"] <- "39.709141 -105.072478"
+temp$lat[temp$session_address_1=="åÊ401 South Pierce Street"] <- "39.709141"
+temp$long[temp$session_address_1=="åÊ401 South Pierce Street"] <- "-105.072478"
+
+temp$lat_lon[temp$session_address_1=='Rodolfo Corky" Gonzales Library"'] <- "39.740052 -105.0295596"
+temp$lat[temp$session_address_1=='Rodolfo Corky" Gonzales Library"'] <- "39.740052"
+temp$long[temp$session_address_1=='Rodolfo Corky" Gonzales Library"'] <- "-105.0295596"
+
+temp$lat_lon[temp$session_address_1=='16831 W Alameda Parkway'] <- "39.6892398 -105.1903668"
+temp$lat[temp$session_address_1=='16831 W Alameda Parkway'] <- "39.6892398"
+temp$long[temp$session_address_1=='16831 W Alameda Parkway'] <- "-105.1903668"
+
+
+
+
+temp_additional_programs <- merge(additional_programs,unique(geocoded_programs[c("session_address_1","session_city","session_state","lat","long","lat_lon")]),
+                                  by=c("session_address_1","session_state","session_city"),
+                                  all.x=TRUE)
+
+write.csv(temp,"C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/B4Sprograms/geocoded_data/program_level_geocode.csv",row.names = FALSE)
+
+write.csv(temp_additional_programs,"C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/B4Sprograms/geocoded_data/additional_program_level_geocode.csv",row.names = FALSE)
+
+```
+
+
+###############Archive Below
+Below is more test code, sadly trying to figure out what the hell went wrong
+
+##To test from the precomputing that something went wrong
+Merge and geocode what we can...what happend here? 
+
+```{r}
+complete_programs <- rbind.fill(reschool_programs,additional_programs)
+
+
+complete_programs$lat <- sapply(complete_programs$session_address_1,
+                                function(address){
+                                target_lat <- unique(block_distance$lat[which(block_distance$session_address_1==address)])
+                                return(
+                                  unlist(
+                                    target_lat[1]))}) #[1] index is a weird R hack to get around returning a list even though there's NAs
+complete_programs$lon <- sapply(complete_programs$session_address_1,
+                                function(address){
+                                target_lon <- unique(block_distance$lon[which(block_distance$session_address_1==address)])
+                                return(
+                                  unlist(
+                                    target_lon[1]))})
+
+#validation
+validation_check <- unique(complete_programs[c("session_address_1","lat","lon")])
+validation_check$lat_lon <- paste(validation_check$lat,validation_check$lon)
+```
+
+###ARCHIVE
+#####Intro
+This markdown explores the differences in the originally geocoded sessions that we received from Selamwit at the start of this project in July, to the revised, much longer list as stored on the git account currently. 
+
+Two goals for this:
+
+1.) We measure how many unique addresses overlap to see if we need to adjust access index calculations. The hope is that it will be none, or very few. 
+
+2.) From there, we update the geocoded sessions csv to be the current list. 
+
+*PSYCHE* 2019TheDataExport_CO file is the legacy one lol.  
+
+
+```{r set up}
+library(lubridate)
+library(googleway)
+library(ggmap)
+legacy_programs <- read.csv("C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/osr_dssg2018-3/data/PUT_RAW_B4S_PROGRAM_DATA_HERE/Blueprint4Summer.csv")
+revised_list <- reschool_programs
+```
+
+Unique address comparisons
+```{r compare unique addresses}
+legacy_addresses <- unique(legacy_programs$session_address_1)
+revised_addresses <- unique(revised_list$session_address_1)
+length(legacy_addresses)
+length(revised_addresses)
+summary(legacy_addresses %in% revised_addresses)
+```
+

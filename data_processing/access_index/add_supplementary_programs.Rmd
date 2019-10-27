@@ -1,0 +1,135 @@
+---
+title: "Add_Supplementary_B4S_Programs"
+author: "Andrew Taylor"
+date: "7/9/2018"
+output: html_document
+---
+
+#1 load old data and shape files and libs
+```{r set up}
+library(ggmap)
+library(googleway)
+previous_distance <- read.csv("/Users/Andrew/Documents/Git/OSR2019/DATA/access_index/block_distance.csv",
+                              header=TRUE,
+                              stringsAsFactors = FALSE)
+new_programs <- read.csv("/Users/Andrew/Documents/Git/OSR2019/DATA/B4Sprograms/Additional Camp Export  (Autosaved).csv",
+                         header = TRUE,
+                         stringsAsFactors = FALSE)
+```
+
+
+#2 subset addresses for new programs NOT in old data. 
+Turns out to be kind of pointless, since all of thse are new addresses.
+```{r new distances to calculate}
+summary(new_programs$session_address_1 %in% previous_distance$session_address_1)
+```
+
+#3 geocode the missing
+Two things at work here. 1.) we make a dataframe with unique addresses, fortunatley there is only 9. 2.) we geocode them
+```{r new addresses and geocode}
+#new uniqu dataframe
+new_addresses <- data.frame(
+  session_address_1 = unique(new_programs$session_address_1),
+  lat = NA,
+  lon = NA
+)
+
+#geocode
+for(session in 1:nrow(new_addresses)){
+  #code it
+  geocode_result <- google_geocode(address = paste(new_addresses$session_address_1[session],",Denver","Colorado"),
+                                   key = google_api_key) #use google geocode cus easier to pass API key re: billing changes
+  #sub in
+  new_addresses$lat[session] <- geocode_result$results$geometry$location$lat #silly nested dataframes
+  new_addresses$lon[session] <- geocode_result$results$geometry$location$lng
+}
+```
+
+#4 run the distance calculator for missing over all blockgroups
+```{r distance calculator for new addresses}
+#make new dataframe for block distance out of previous distances
+block_distance <- previous_distance
+names(block_distance)[names(block_distance)=="long"] <- "lon" #fix an embaressing oversight lol
+names(block_distance)[names(block_distance)=="Id2"] <- "blockID" #really never should have changed this, causing silly problems now
+#add n of programs per address to make merge easier
+new_addresses$n <- sapply(new_addresses$session_address_1,
+                          function(address){ #lazy quick sapply way to count n of programs
+                            length(new_programs$session_address_1[which(new_programs$session_address_1==address)])
+                          })
+
+#re run loop
+system.time(for (blockgroup in 1:length(unique(census_centroids$blockID))){  
+  blockgroup.block <- census_centroids$blockID[blockgroup] #read arbitrary block ID
+  lat.block <- census_centroids$lat[blockgroup] #get coordinates
+  long.block <- census_centroids$long[blockgroup]
+  lat.long <- c(lat.block,long.block) #combine blockgroup coordinates for mapdist function
+  lat.long <- paste(lat.long,collapse=" ") #see above
+  #make empty distance dataframe for new addresses @ for the current blockgroup 
+  block_mover <- new_addresses
+  block_mover$driving_morning <- NA
+  block_mover$walking_morning <- NA
+  block_mover$transit_morning <- NA
+  block_mover$blockID <- blockgroup.block
+  #here we start the nested loop for all programs
+  for (program in 1:nrow(block_mover)){
+    lat.program <- block_mover$lat[program] #get coordinates for OSRs
+    long.program <- block_mover$lon[program] 
+    lat.long.program <- c(lat.program,long.program) #combine OSR coordinates for use in mapdist
+    lat.long.program <- paste(lat.long.program,collapse=" ")
+    
+    #distance calculations
+    distance.program <- google_distance(origin=c(lat.block,long.block),
+    destination = c(lat.program,long.program),
+    mode="driving",
+    key = google_api_key)
+    
+    distance_transit.program <- google_distance(origin=c(lat.block,long.block),
+    destination = c(lat.program,long.program),
+    mode="transit",
+    key = google_api_key)
+    
+    #grabbing our dataframe list items & merging into the dataframe
+    
+    #transit conditional merge
+    
+    distance_transit.program <- as.data.frame(distance_transit.program$rows$elements)
+    if(as.character(distance_transit.program$status)
+       !="ZERO_RESULTS"){ #transit conditional only if transit exists
+      block_mover$transit_morning[program] <- as.numeric(distance_transit.program$duration[2]/60) #add transit times, divided by 60 for mins
+    }
+    if(as.character(distance_transit.program$status)
+       =="ZERO_RESULTS"){
+      block_mover$transit_morning[program] <- NA #sub NA if no transit available
+    }
+    #driving merge
+    distance.program <- as.data.frame(distance.program$rows$elements)
+    block_mover$driving_morning[program] <- as.numeric(distance.program$duration[2]/60) #drive times
+    block_mover$kilometers[program] <- distance.program$distance[[1]]
+    #validation
+    #this is prone to crashing, so we print these to help us identify where the crash happens
+    if(program %% 9 == 0){
+      print(paste("working...",
+                  program,
+                  "distances calculated for blockgroup number",
+                  blockgroup)) 
+      #print first of all to note if things just stop working or are just slow
+    }
+}
+  block_distance <- rbind(block_distance,block_mover) #bind new distance into the base dataframe
+  })
+```
+
+#6 rerun access index script
+
+We don't do that here, but basically just requires loading the new and improved block group distances file and running as is.
+
+#7 write distannce file to share
+
+```{r write to csv}
+#world quickest validation, do the n of rows in new data set == nrows in old + 9 * n of block groups per the new programs?
+((9*481)+nrow(previous_distance))==nrow(block_distance)
+
+#yes it does so write it out
+write.csv(block_distance,"...../OSR2019/DATA/access_index/block_distance.csv",row.names=FALSE)
+```
+

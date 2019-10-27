@@ -1,0 +1,322 @@
+---
+title: "Update_analysis"
+author: "Haowen"
+date: "9/23/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library(tidyverse)
+library(tigris)
+library(rgdal)
+library(ggplot2)
+library(readxl)
+library(lubridate)
+library(leaflet)
+theme_set(theme_classic())
+library(lemon)
+library(janitor)
+library(writexl)
+knit_print.data.frame <- lemon_print
+```
+
+## Import data
+
+```{r}
+setwd('~/Desktop/OSR2019')
+
+# read in new index data
+drive_index <- read.csv("DATA/Access_index/driving_index.csv")
+  # AI_overall, Id2
+
+# read in demographics shapefile 
+acs_demographics <- read.csv("DATA/Census_demo/Denver_Demographics_BG_2017.csv")
+acs_shape <- readOGR("DATA/Census_demo/shape_census", layer = "shape_census")
+# read in student nbhd level info
+student_DPS_bg <- read.csv("DATA/DPS_student/aggregate_dps_student_nbhds.csv")
+# bg_nbhd relational data
+bg_nbhd <- read.csv("DATA/Census_demo/bg_nbhds.csv")
+
+# merge data
+moran.data <- geo_join(acs_shape, drive_index, by = "Id2")
+```
+
+## Is access proportional to the number of students? Like last year I did the illustration for driving index. 
+
+```{r}
+# aggregate driving index to nbhd level
+driving_index_subset <- drive_index %>% select(Id2, AI_overall)
+# merge driving index with bg_nbhd relational file
+colnames(bg_nbhd)[3] <- "Id2"
+driving_index_subset <- merge(bg_nbhd, driving_index_subset, by = "Id2")
+ # aggregate by nbhd 
+driving_index_a <- driving_index_subset %>% group_by(nbhd_name) %>% summarise(AI_score = mean(AI_overall))
+
+# merge nbhd level index with aggregated bg data to obtain number of students in each nbhd
+acs_demographics$student_age_n <- acs_demographics$Age_Less_18 - acs_demographics$Age_Less_5 # caculate how many students are in a bg
+analysis_subset <- merge(acs_demographics, bg_nbhd, by = "Id2") # merge in the relational file 
+aggregated <- analysis_subset %>% group_by(nbhd_name) %>% summarise(student_age_a = sum(student_age_n))
+
+# get the data for plotting
+nbhd_merged_AI  <- merge(driving_index_a, aggregated, by = "nbhd_name")
+
+# get the ranking variable for plotting
+nbhd_merged_AI_sn <-  nbhd_merged_AI %>% 
+  filter(student_age_a != 0) # filter out zero students to caculate a weighted score
+nbhd_merged_AI_sn$AI_weighted <- nbhd_merged_AI_sn$AI_score/nbhd_merged_AI_sn$student_age_a
+
+nbhd_merged_AI_sn <- nbhd_merged_AI_sn %>% 
+  arrange(-AI_score) %>% 
+  mutate(rank_AI = row_number()) %>% 
+  arrange(-student_age_a) %>% 
+  mutate(rank_student_n = row_number()) %>%
+  arrange(-AI_weighted) %>% 
+  mutate(rank_AI_weighted = row_number())
+
+# driving overall index
+ggplot(nbhd_merged_AI_sn, aes(student_age_a, AI_score)) +
+  geom_point(aes(color= rank_AI_weighted>66)) +
+  scale_color_manual(values = c("black", "red")) +
+  geom_text(aes(label=ifelse(rank_AI_weighted>66,as.character(nbhd_name),'')),hjust=0.7,vjust=1, size=3) +
+  xlab("Number of Students in Each Neighborhood") +
+  ylab("Access Score (Neighborhood)") +
+  theme_bw() +
+  theme(legend.position="none") +
+  ggtitle("Neighborhoods with Low Access and High Student Age Population")
+```
+
+### Identify the low and high areas 
+```{r}
+library(spdep)
+w <- poly2nb(moran.data, row.names=moran.data@data$Id2, queen=TRUE) #find adjacent polygons
+#We do this using the ‘Queen’s case’ setting, meaning that adjacent areas which share either a border or a corner are counted as neighbours.
+summary(w)
+ # convert it to a spatial weights matrix
+listw <-  nb2listw(w, style="W") 
+# calculate the local moran of the distribution of index score
+lmoran <- localmoran(moran.data@data$AI_overall, listw) #driving index for all programs
+summary(lmoran)
+# padronize the variable and save it to a new column
+moran.data@data$s_index <- scale(moran.data@data$AI_overall)  %>% as.vector()
+# create a spatially lagged variable and save it to a new column
+moran.data@data$lag_s_index <- lag.listw(listw, moran.data@data$s_index)
+# summary of variables, to inform the analysis
+summary(moran.data@data$s_index)
+summary(moran.data@data$lag_s_index)
+
+# create a new variable identifying the moran plot quadrant for each observation, dismissing the non-significant ones
+moran.data@data$SPATIAL_LAG_CAT <- 
+  ifelse(moran.data@data$s_index>0 & moran.data@data$lag_s_index>0, "High-High",
+       ifelse(moran.data@data$s_index>0 & moran.data@data$lag_s_index<0, "High-Low",
+              ifelse(moran.data@data$s_index<0 & moran.data@data$lag_s_index<0, "Low-Low",
+                     ifelse(moran.data@data$s_index<0 & moran.data@data$lag_s_index>0, "Low-High",
+       "Equivalent"))))
+# add Moran's I back into the shape file
+moran.data@data$lmoran_i <- lmoran[,1]
+moran.data@data$lmoran_p <-lmoran[,5]
+moran.data@data$lmoran_sig <-lmoran[,5]<0.05
+moran.data@data$id <- rownames(moran.data@data)
+# plotting the map
+df <- fortify(moran.data, region="id")
+df <- left_join(moran.data@data, df)
+df$SPATIAL_LAG_CAT <- 
+  factor(ifelse(df$lmoran_sig == TRUE, df$SPATIAL_LAG_CAT, "NotSig"
+      ))
+
+#filter out those which are significant
+df2 <- df %>% filter(lmoran_sig == TRUE)
+Id2_moran <- unique(df2$Id2) 
+
+ggplot() +
+#  geom_polygon(data=df, aes(long, lat, fill=lmoran_sig, group=id),fill="grey",col="white") +
+  geom_polygon(data=df, aes(long, lat, fill=SPATIAL_LAG_CAT, group=id), col="white") +
+  scale_fill_manual(values=c("red","blue","grey"), labels = c("High Access Clusters", "Low Access Clusters", "Not Clustered"), name="") +
+  coord_fixed() +
+  theme_void() +
+  ggtitle("High and Low Access Areas Identified by Local Moran's I", subtitle = "Significance Level: p < 0.05") +
+  theme(legend.position = c(0.2,0.9)) 
+```
+
+### Creating samples 
+```{r}
+# filter out the high areas and the low areas
+high_low <- moran.data@data %>%
+  filter(Id2 %in% Id2_moran) %>%
+  filter(SPATIAL_LAG_CAT == "High-High" |SPATIAL_LAG_CAT == "Low-Low")
+high_low <- merge(high_low, bg_nbhd, by = "Id2")
+
+# merge with student info from DPS
+high_low_students <- left_join(high_low, student_DPS_bg, by = "nbhd_name") # note for data security we only have nbhd level DPS data this year, thus joining by nbhd_name. This should not impact our analysis as we only look at percentages. 
+
+# create new function to aggregate the sample so we can plot them later 
+create_samples2 <- function(df) {
+sample_comparison = 
+  bind_rows(
+    df %>%
+    filter(SPATIAL_LAG_CAT == "High-High") %>%
+    summarise_at(vars(col),funs( mean = mean(.,na.rm=T))) %>%
+    mutate(sample = 'High Access Areas'),
+    
+    df %>%
+    filter(SPATIAL_LAG_CAT == "Low-Low") %>%
+    summarise_at(vars(col),funs( mean = mean(.,na.rm=T))) %>%
+    mutate(sample = 'Low Access Areas')
+)
+    return(sample_comparison)
+}
+
+# prepare the columns we need 
+# edu from census data
+high_low_students$PCT_College <- high_low_students$BACHELO*100/high_low_students$TTPOP_2
+high_low_students$PCT_L_HS <- high_low_students$LESS_TH*100/high_low_students$TTPOP_2
+high_low_students$PCT_HS <- high_low_students$HSGREAD*100/high_low_students$TTPOP_2
+high_low_students$PCT_SC <- high_low_students$SOMECOL*100/high_low_students$TTPOP_2
+# nativity from census
+high_low_students$PCT_nativity <- high_low_students$Native*100/high_low_students$TTL_ppl
+# English learner from DPS
+high_low_students$PCT_ELL <- high_low_students$perc_el
+
+col = c("perc_hispanic_students", "perc_black_students", "perc_white_students", "Mdn_HH_", "PCT_College", "PCT_L_HS", "PCT_HS", "PCT_SC", "PCT_nativity", "PCT_ELL")
+
+# prepare the datasets 
+moran_sample <- create_samples2(high_low_students)
+# sample for high access areas
+high <- high_low_students %>% filter(SPATIAL_LAG_CAT == "High-High")
+# sample for low access areas
+low <- high_low_students %>% filter(SPATIAL_LAG_CAT == "Low-Low")
+```
+
+## Race 
+```{r}
+plotdata <- moran_sample %>% 
+  select(sample, perc_black_students_mean, perc_hispanic_students_mean,
+         perc_white_students_mean) %>%
+  gather(Race, value, -sample) 
+plotdata$Race <- factor(plotdata$Race, 
+                        levels = c("perc_hispanic_students_mean", "perc_white_students_mean", "perc_black_students_mean"))
+
+# import combined-year data for new plotting
+data <- read.csv("REPORT/TABLES/Table_race_index.csv")
+data$Year <- as.factor(as.character(data$Year))
+data$Race <- factor(data$Race, levels = c("White", "Black", "Hispanic", "Others"))
+
+ggplot(data, aes(Race, Value, fill = Year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("") +
+  ylab("Percentages") +
+  facet_wrap(~Sample) +
+  ggtitle("Student Racial Compostion for High/Low Access Areas") +
+  scale_fill_discrete(name="Year") +
+  scale_fill_manual(labels = c("2018", "2019"), values=c("#2b8cbe", "#fb6a4a")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 13),
+        legend.text=element_text(size=10),
+        plot.title = element_text(size=20)) +
+  scale_y_continuous(expand = c(0,5))
+
+ggsave(file="race_year.png", dpi=300)
+```
+
+### T tests, but not sure if this is helpful 
+```{r}
+# white 
+t.test(high$perc_white_students, low$perc_white_students) #p< 0.001
+# Hispanic
+t.test(high$perc_hispanic_students, low$perc_hispanic_students) #p< 0.001
+# black
+t.test(high$perc_black_students, low$perc_black_students) #p< 0.001
+```
+
+### new bar graph from avarage scores
+```{r}
+# make nbhd level index and get the new scores
+# to do this we need to turn all percentages of races into raw numbers 
+DPS_race <- student_DPS_bg
+DPS_race$White <- DPS_race$total_students * DPS_race$perc_white_students * 0.01
+DPS_race$Black <- DPS_race$total_students * DPS_race$perc_black_students * 0.01
+DPS_race$Hispanic <- DPS_race$total_students * DPS_race$perc_hispanic_students * 0.01
+DPS_race$Others <- DPS_race$total_students - DPS_race$White - DPS_race$Black - DPS_race$Hispanic
+
+# aggregate indices to nbhd level
+drive_index_nbhd <- 
+  drive_index %>% 
+  merge(bg_nbhd, by = "Id2") %>% 
+  group_by(nbhd_name) %>%
+  summarise(Nature = mean(AI_has_nature_anycost), 
+            Sports = mean(AI_has_sports_anycost), 
+            Arts = mean(AI_art_anycost),
+            Academic = mean(AI_academic_anycost),
+            Overall = mean(AI_overall),
+            Free = mean(AI_overall_free))
+# merge the student demographics and indices together
+DPS_race <- merge(DPS_race, drive_index_nbhd, by = "nbhd_name")
+DPS_race <- DPS_race %>% filter(!is.na(White))
+indices_selected <- DPS_race[,32:37]
+# define function
+get_race_access_means <- function(access_inds){
+  race_col_names <- c("Hispanic","White","Black", "Others")
+  race_names <- c("Hispanic", "White", "Black", "Others")
+  race_access_list <- list()
+  for(i in 1:length(race_col_names)){
+    race_pops <- DPS_race[,race_col_names[i]]
+    tot_race_pop <- sum(DPS_race[,race_col_names[i]])
+    race_access_list[race_names[i]] <- sum(access_inds*(race_pops/tot_race_pop))
+  }
+  return(as.vector(race_access_list))
+}
+# caculate
+result <- sapply(indices_selected, get_race_access_means)
+
+# put them into the same data 
+# import data
+race_score <- read.csv("REPORT/TABLES/Race_score.csv")
+race_score$Year <- as.factor(as.character(race_score$Year))
+race_score$Race <- factor(race_score$Race, levels = c("White", "Black", "Hispanic", "Others"))
+
+# plot
+ggplot(race_score, aes(Race, Value, fill = Year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("") +
+  ylab("Access Score") +
+  facet_wrap(~Program) +
+  ggtitle("Access Scores by Race") +
+  scale_fill_discrete(name="Year") +
+  scale_fill_manual(labels = c("2018", "2019"), values=c("#2b8cbe", "#fb6a4a")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 9),
+        legend.text=element_text(size=10),
+        plot.title = element_text(size=20)) +
+  scale_y_continuous(expand = c(0,5))
+
+```
+
+## Ses
+Correlations
+```{r}
+drive_acs <- merge(drive_index, acs_demographics, by = "Id2")
+drive_acs$Median_HH_income <- as.numeric(drive_acs$Median_HH_income)
+cor.test(drive_acs$AI_overall, drive_acs$Median_HH_income,  method = "pearson") # -0.14 highly significant 
+cor.test(drive_acs$Median_HH_income, drive_acs$AI_overall_free, method = "pearson")  # not sig
+cor.test(drive_acs$Poverty_PCT_HH, drive_acs$AI_overall, method = "pearson") # not sig
+
+
+summary(high$Mdn_HH_) #83024
+summary(low$Mdn_HH_) #56307
+
+cor.test(drive_acs$AI_overall, drive_acs$BACHELORS_OR_HIGHER_EDU,  method = "pearson") # 0.16 highly significant 
+cor.test(drive_acs$AI_overall, drive_acs$LESS_THAN_HS_DIPLOMA,  method = "pearson") # -0.24 highly significant 
+```
+
+## Second language learners and nativity
+```{r}
+cor.test(drive_acs$AI_overall, drive_acs$Native,  method = "pearson") # weird negative correlation although weak 
+cor.test(DPS_race$perc_el, DPS_race$Overall,  method = "pearson") # not sig 
+
+```
+
+
+

@@ -2,12 +2,9 @@
 #   input: dataframe with lat, long columns
 #   ouput: new dataframe with block groups column appended
 
-coords_to_blockgroups <- function(df) {
+coords_to_blockgroups <- function(df, shape_census_location) {
   # get block group polygons
-  setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-  mypath <- getwd()
-  dataPath <- file.path(dirname(mypath), "data", "census_clean", "shape_census")
-  blockGroups <- readOGR(dsn = dataPath, 'shape_census')
+  blockGroups <- readOGR(dsn = shape_census_location, 'shape_census')
   
   # get the lat / long coordinates to code as spatial points
   coords <- data.frame(df$long, df$lat)

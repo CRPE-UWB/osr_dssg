@@ -1,0 +1,455 @@
+---
+title: "Report"
+output:
+  html_document: default
+  pdf_document: default
+  always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library(tidyverse)
+library(tigris)
+library(rgdal)
+library(ggplot2)
+library(readxl)
+library(lubridate)
+library(leaflet)
+theme_set(theme_classic())
+library(lemon)
+library(janitor)
+library(writexl)
+knit_print.data.frame <- lemon_print
+```
+
+## Import data
+
+```{r}
+setwd('~/Desktop/OSR2019')
+sessions <- read.csv("DATA/B4Sprograms/clean_summer_session_days.csv") #17,243 obs of 18 vars
+programs <- read.csv("DATA/B4Sprograms/clean_summer_programs.csv") #4,094 obs of 14 vars
+```
+
+## Analysis
+### 1. What is the distribution in the number of programs available across the summer?
+
+On what days there are summer program sessions? 
+(note: analysis unit: program session day)
+
+```{r}
+# just in case
+sessions$calendar_date <- as.POSIXct(sessions$calendar_date)
+
+g1 <- ggplot(sessions, aes(calendar_date)) +
+  geom_bar() + 
+  labs(title="Distribution of out-of-school summer programs", 
+       subtitle = "Session calendar days",
+       caption="Source: Blueprint4Summer",
+       x="Program session calendar date")
+
+g1
+```
+
+
+A table on hours in each week could be more helpful. 
+Resources https://cran.r-project.org/web/packages/aweek/aweek.pdf
+The following fuctions get us the week of the year as decimal number (01–53) as defined in ISO 8601.
+The ISO week-numbering year starts at the first day (Monday) of week 01 and ends at the Sunday before the new ISO year (hence without overlap or gap).
+ One thing is this does not make sense straightforwardly. One way is to make an excile and merge it into this. Probably the fast method. 
+
+```{r render=lemon_print}
+sessions$week <- strftime(sessions$calendar_date, format = "%V")
+# total hours in each week
+hours_in_week <- sessions %>% 
+  group_by(week) %>%
+  summarise(hours = sum(duration)) %>%
+  mutate(p = hours/sum(hours))
+hours_in_week$p <-round(hours_in_week$p, digits = 2)
+colnames(hours_in_week) <- c("Week", "Total hours", "Total hours percentage")
+
+# read in time-week relational data
+time_week <- read.csv("DATA/time.csv")
+# merge
+hours_in_week <- merge(hours_in_week, time_week, by = "Week")
+
+hours_in_week <- hours_in_week %>% 
+  arrange_at("Total hours", desc)
+
+hours_in_week
+
+# write this table to excel so we can hand fix the percentages that are smaller than 0.01
+# write_xlsx(hours_in_week, "REPORT/TABLES/Table1.xlsx")
+```
+
+### 2. What is difference in access to sessions with different program length (in hours)?
+
+#### Analysis unit: session day. 
+
+```{r}
+# summary statistics & top 3 freq
+sessions$duration <- as.numeric(sessions$duration)
+summary(sessions$duration)
+
+# graph to check the distribution
+g2 <- ggplot(sessions, aes(duration)) +
+  geom_bar() + 
+  labs(title="How long are program sessions per day?", 
+       subtitle = "Summer programs, session day",
+       caption="Source: Blueprint4Summer",
+       x="Session day duration(hours)")
+g2
+
+# more detailed numbers with high-low order on frequency
+duration_freq <- data.frame(tabyl(sessions$duration))
+colnames(duration_freq) <- c("Hours", "Counts", "Percent")
+duration_freq$Hours <- format(round(duration_freq$Hours, 2), nsmall = 2)
+duration_freq$Percent <- format(round(duration_freq$Percent, 2), nsmall = 2)
+duration_freq <- duration_freq %>% 
+  arrange_at("Counts", desc)
+duration_freq
+# take top three 
+duration_freq3 <- duration_freq[1:3,]
+
+duration_freq3
+```
+
+#### According to the duration of the program session days, we define three categories of program length as the following:
+
+1. half day: 4 hours and less than 4 hours
+2. partial day: more than 4 hours to 7 hours (does not include 7 hours)
+3. longer than one day: 7 hours and more
+
+```{r}
+sessions$day_length[sessions$duration <= 1] <- "One hour and less"
+sessions$day_length[sessions$duration <= 4 & sessions$duration > 1] <- "One to four hours"
+sessions$day_length[sessions$duration > 4 & sessions$duration < 7] <- "Four to seven hours"
+sessions$day_length[sessions$duration >= 7] <- "Seven hours and more"
+# set up factor levels 
+sessions$day_length <- factor(sessions$day_length, levels = c("One hour and less", "One to four hours", "Four to seven hours", "Seven hours and more"))
+
+day_freq_table <- data.frame(tabyl(sessions$day_length))
+colnames(day_freq_table)[1] <- "Duration"
+colnames(day_freq_table)[2] <- "Count"
+# day_freq_table # uncomment this if you want to see details on exact numbers
+
+g3 <- ggplot(day_freq_table, aes(x=reorder(Duration, percent), y=percent)) + 
+  geom_bar(stat = "identity", width=0.8, fill="#b2182b") + 
+  coord_flip() +
+  labs(title="Percentage of Program Session Days with Different Duration", 
+       caption="Source: Blueprint4Summer",
+       x="", y="")
+g3
+
+day_freq_table 
+```
+
+#### Does program session day length vary by program type?
+
+First create program categories for both level data
+```{r}
+#academic
+programs$Academic <- FALSE
+programs$Academic[
+  which(grepl("academic|stem",programs$session_categories))
+] <- TRUE
+
+#art
+programs$Art <- FALSE
+programs$Art[
+  which(grepl("art|cooking|dance|drama|music",programs$session_categories))
+] <- TRUE
+
+#has sports
+programs$Sports <- FALSE
+programs$Sports[
+  which(grepl("sports",programs$session_categories))
+] <- TRUE
+
+#has nature
+programs$Nature <- FALSE
+programs$Nature[which(
+  grepl("nature",programs$session_categories)
+)] <- TRUE
+
+#special needs
+programs$Special_needs_offerings <- FALSE
+programs$Special_needs_offerings[
+  grepl("specialNeeds",programs$session_categories,ignore.case = TRUE)
+] <- TRUE
+
+#for session days
+#academic
+sessions$Academic <- FALSE
+sessions$Academic[
+  which(grepl("academic|stem",sessions$session_categories))
+] <- TRUE
+
+#art
+sessions$Art <- FALSE
+sessions$Art[
+  which(grepl("art|cooking|dance|drama|music",sessions$session_categories))
+] <- TRUE
+
+#has sports
+sessions$Sports <- FALSE
+sessions$Sports[
+  which(grepl("sports",sessions$session_categories))
+] <- TRUE
+
+#has nature
+sessions$Nature <- FALSE
+sessions$Nature[which(
+  grepl("nature",sessions$session_categories)
+)] <- TRUE
+
+#special needs
+sessions$Special_needs_offerings <- FALSE
+sessions$Special_needs_offerings[
+  grepl("specialNeeds",sessions$session_categories,ignore.case = TRUE)
+] <- TRUE
+```
+
+Make a table that contains mean, median, min, max of duration by program type
+Note: we intentionally double count if there are overlap in categories. 
+```{r}
+academic <- sessions %>% filter(Academic == T)
+art <- sessions %>% filter(Art == T)
+sports <- sessions %>% filter(Sports == T)
+nature <- sessions %>% filter(Nature == T)
+special_needs <- sessions %>% filter(Special_needs_offerings == T)
+
+summary(special_needs$duration)
+```
+
+Make panels of day_length graph. (cannot do percentage because of double-counting)
+```{r}
+library(dplyr)
+temp <- sessions %>% 
+  gather(category, status, Academic:Special_needs_offerings) %>% 
+  filter(status == T)
+temp$category <- as.factor(temp$category)
+temp$category <- factor(temp$category, levels = c("Academic", "Art", "Nature", "Sports", "Special_needs_offerings"))
+
+temp2 <- temp %>% group_by(day_length, category) %>% summarise(count = n())
+  
+ggplot(temp2, aes( x = day_length, y = count)) + 
+      geom_bar( stat = "identity" ) + 
+      facet_wrap( ~ category ) + 
+      coord_flip() +
+      labs(title="Session Day Length by Program Type", 
+      caption="Source: Blueprint4Summer",
+       x="", y="")
+```
+
+
+### 3. What is the correlation between time and cost, specifically looking at cost/per hour?
+
+```{r}
+# cost per hour
+programs$cost_hour <- programs$session_cost/programs$total.duration
+programs$cost_hour <- as.numeric(programs$cost_hour)
+programs$cost_hour <- round(programs$cost_hour, digits = 0) # round up to whole number
+```
+
+First we do an age break down.
+3-5(only this age range, exclude);6-9;10-13;14-18
+```{r}
+head(programs)
+programs$session_min_age <- as.numeric(programs$session_min_age)
+programs$Age_range[programs$session_max_age <= 5] <- "3-5"
+programs$Age_range[programs$session_max_age <= 9 & programs$session_min_age > 5] <- "6-9"
+programs$Age_range[programs$session_max_age <= 13 & programs$session_max_age >= 10] <- "10-13"
+programs$Age_range[programs$session_max_age <= 18 & programs$session_max_age >= 14] <- "14-18"
+programs$Age_range[programs$session_max_age > 18] <- NA
+programs$Age_range <- factor(programs$Age_range, levels = c("3-5", "6-9", "10-13", "14-18"))
+
+library(dplyr)
+
+costbyage <- programs %>% 
+  group_by(Age_range) %>% 
+  summarize(mean = mean(cost_hour),
+            median = median(cost_hour),
+            min = min(cost_hour),
+            max = max(cost_hour)) #not sure why it does not throw out the second category
+
+d1 <- programs %>% filter(Age_range == "3-5") 
+summary(d1$cost_hour) # just for double check
+
+d2 <- programs %>% filter(Age_range == "6-9") # caculate for the second category
+summary(d2$cost_hour)
+```
+
+Then we drop all programs that only serve kids under 5 years old. 
+```{r}
+programs_age <- programs %>% filter(Age_range != "3-5" & !is.na(Age_range)) #3964
+
+str(programs_age)
+```
+
+```{r}
+freq_cost_hour <- data.frame(tabyl(programs_age$cost_hour)) 
+colnames(freq_cost_hour)[1] <- "Cost_per_hour" 
+freq_cost_hour <- freq_cost_hour %>% 
+  arrange_at("n", desc)
+
+summary(programs_age$cost_hour)
+summary(programs_age$session_cost)
+
+freq_cost_hour # 653 free program sessions
+
+ggplot(programs_age, aes(cost_hour)) +
+  geom_bar() + 
+  labs(title="Distribution of program session cost", 
+       subtitle = "Summer programs",
+       caption="Source: Blueprint4Summer",
+       x="Cost per hour")
+freq_cost_hour
+```
+
+```{r}
+g5 <- ggplot(programs_age, aes(total.duration, cost_hour)) +
+         geom_point(size = 0.7, col = "Dark Grey", alpha = 0.4) + 
+         labs(title="Correlation between time and cost", 
+              subtitle = "Summer programs in Denver",
+              caption="Source: Blueprint4Summer",
+              x="Program Length (Hours)",
+              y="Cost Per Hour ($)")
+
+g5
+
+# remove outliers (total duration > 100 hours)
+temp <- programs_age %>% filter(total.duration < 100)
+g9 <- ggplot(temp, aes(total.duration, cost_hour)) +
+         geom_point(size = 0.7, col = "Dark Grey", alpha = 0.4) + 
+         labs(title="Correlation between time and cost", 
+              subtitle = "Summer programs in Denver",
+              caption="Source: Blueprint4Summer",
+              x="Program Length (Hours)",
+              y="Cost Per Hour ($)")
+
+g9
+ 
+summary(programs_age$total.duration)
+```
+
+```{r}
+cor(programs_age$cost_hour, programs_age$total.duration, use="complete.obs")
+```
+
+See if cost per hour varies by program type 
+```{r}
+str(programs_age)
+
+temp <- programs_age %>% 
+  gather(category, status, Academic:Special_needs_offerings) %>% 
+  filter(status == T)
+temp$category <- as.factor(temp$category)
+temp$category <- factor(temp$category, levels = c("Academic", "Art", "Nature", "Sports", "Special_needs_offerings"))
+
+d1 <- temp %>% filter(category == "Academic") 
+summary(d1$cost_hour)
+
+d2 <- temp %>% filter(category == "Art") 
+summary(d2$cost_hour)
+                                                 
+d3 <- temp %>% filter(category == "Sports") 
+summary(d3$cost_hour)
+
+d4 <- temp %>% filter(category == "Nature") 
+summary(d4$cost_hour)
+
+d5 <- temp %>% filter(category == "Special_needs_offerings") 
+summary(d5$cost_hour)
+```
+
+
+### 4. How many hours are going into programming across the city rather than just number of programs?
+
+```{r}
+# read in the relational data file
+programs_nbhd <- read.csv("DATA/B4Sprograms/clean_summer_programs_nbhd.csv")
+# filter out the NAs in nbhd name
+programs_nbhd <- filter(programs_nbhd, !is.na(NBHD_Name)) #1980 rows 
+time <- programs_nbhd %>% group_by(NBHD_Name) %>% summarise(sum(total.duration))
+colnames(time) <- c("NBHD_NA", "Time")
+
+# import nbhd shape file 
+nbhd <- readOGR("DATA/nbhd_dem_shape", "nbhd_dem_shapes")
+# merge time into nbhd, prepare for plotting
+nbhd <- merge(nbhd, time, by = "NBHD_NA")
+
+# color 
+qpal <- colorQuantile("Blues", nbhd@data$Time, n = 5)
+
+leaflet(nbhd) %>%
+  addTiles() %>%
+  setView(lng = -104.901531, lat = 39.722043, zoom = 11) %>% 
+  addPolygons(stroke = FALSE, smoothFactor = 0.3,
+              opacity = 1.0, fillOpacity = 0.5, 
+              color = ~qpal(Time)) %>%
+  addLegend("bottomright", 
+              pal = qpal, 
+              values = nbhd@data$Time,
+              title = htmltools::HTML("Hours"),
+              opacity = 1) 
+
+
+summary(nbhd@data$Time)
+```
+
+### 5. Can we observe the variation in maximum capacity of programs by nbhd? 
+
+Analysis unit: program session. 
+```{r}
+sum(is.na(programs_nbhd$session_size))
+  # 1082 rows of missing data
+  # filter them out
+programs_temp <- programs_nbhd %>% 
+  filter(session_size != " ")
+  # this leaves us with 898 obs
+summary(programs_temp$session_size) 
+
+freq_size <- data.frame(tabyl(programs_temp$session_size)) 
+colnames(freq_size)[1] <- "Session_size" 
+freq_size <- freq_size %>% 
+  arrange_at("n", desc)
+freq_size 
+
+nbhd_capacity <- programs_temp %>%
+  group_by(NBHD_Name) %>%
+  summarise(capacity = sum(session_size))
+
+# create a new var with categories 
+programs_temp$session_size2[programs_temp$session_size <= 20] <- "20 and fewer" 
+programs_temp$session_size2[programs_temp$session_size > 20 & programs_temp$session_size < 100] <- "21 to 99" 
+programs_temp$session_size2[programs_temp$session_size >= 100] <- "100 and more" 
+tabyl(programs_temp$session_size2)
+
+ 
+# now merge the numbers into nbhd shape file 
+capacity <- programs_temp %>% group_by(NBHD_Name) %>% summarise(sum(session_size))
+colnames(capacity) <- c("NBHD_NA", "Slots")
+
+nbhd <- merge(nbhd, capacity, by = "NBHD_NA")
+
+# Mapping
+# color 
+qpal <- colorQuantile("Greens", nbhd@data$Slots, n = 5)
+
+leaflet(nbhd) %>%
+  addTiles() %>%
+  setView(lng = -104.901531, lat = 39.722043, zoom = 11) %>% 
+  addPolygons(stroke = FALSE, smoothFactor = 0.3,
+              opacity = 1.0, fillOpacity = 0.5, 
+              color = ~qpal(Slots)) %>%
+  addLegend("bottomright", 
+              pal = qpal, 
+              values = nbhd@data$Slots,
+              title = htmltools::HTML("Slots"),
+              opacity = 1) 
+```
+
+

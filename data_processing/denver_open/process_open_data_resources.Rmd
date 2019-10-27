@@ -7,7 +7,9 @@ output: md_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Set up the workspace.
+This file processes the Denver Open Data contained in the OSR RShiny app. Namely, the data in the "other resources" tab, on parks, playgrounds, rec centers, libraries, and athletic fields, pools, licensed child care. If you need to update the data in a subsequent year, you should be able to just run this file. If any of the structure in the Denver Open Data (link format, variable names in files, etc.) changes, though, some updates may be required.
+
+First, set up the workspace.
 
 ```{r}
 # Uncomment the line below if you're using RStudio to run the file
@@ -26,48 +28,9 @@ library(gsheet)  # only needed for the afterschool programs, to merge with annot
 source('open_data_functions.R')  # our functions
 ```
 
-### Afterschool Programs
-
-First we look at afterschool programs.
-
-```{r, results="hide"}
-afterSchool <- GetOpenData("afterschool_programs")
-```
-
-Merge the Denver Open Data with our manual annotations of program type (done in Google Sheets), which include the same categories as Blueprint4Summer (academic, arts, cooking, dance, drama, music, nature, sports, stem), as well as additional annotations (which we will ignore).
-
-```{r, google}
-# Get the data from the google sheet
-gurl <- construct_download_url('https://docs.google.com/spreadsheets/d/1nnz6fKMPNJSIjN8eSQ2axwORCt7JV-_w0tzbsg5NkJ0/edit?usp=sharing')
-gsheetData <- as.data.frame(gsheet2tbl(gurl))
-
-# Merge the annotations into the original data
-afterSchoolFull <- merge(x = afterSchool, y = gsheetData)
-
-# Replace NA's by 0's in annotated columns, then cast 1/0 as TRUE/FALSE.
-for (colnum in 14:29) {
-  afterSchoolFull@data[is.na(afterSchoolFull@data[,colnum]),colnum] <- 0
-  afterSchoolFull@data[,colnum] <- as.logical(afterSchoolFull@data[,colnum])
-}
-
-# Sanity checks about the results
-colSums(is.na(afterSchoolFull@data)) # check for any leftover NAs
-head(afterSchoolFull)
-```
-
-Next, subset to only the variables existing in the Blueprint4Summer data, and rewrite column names to be more understandable.
-
-```{r, ASfinal}
-afterSchoolFinal <- afterSchoolFull[, c('LOC_NAME', 'ORGANIZATI', 'mAcademic', 'mArts', 'mCooking', 'mDance', 'mDrama', 'mMusic', 'mNature', 'mSports', 'mStem', 'mGirls Program', 'DESCRIPTIO')]
-
-colnames(afterSchoolFinal@data) <- c('location', 'organization', 'has_academic', 'has_arts', 'has_cooking', 'has_dance', 'has_drama', 'has_music', 'has_nature', 'has_sports', 'has_stem', 'girls_only', 'description')
-
-head(afterSchoolFinal)
-```
-
 ### Rec Centers
 
-Next, we look at recreation centers.
+First, we look at recreation centers.
 
 ```{r, results="hide"}
 recCenters <- GetOpenData("recreation_centers")
@@ -107,13 +70,11 @@ recFinal@data$has_cardio <- pmax(recFinal@data$FACILITIES_Aerobics, recFinal@dat
 
 recFinal@data$has_weights <- recFinal@data$FACILITIES_Weight.Room
 
-# we won't use pools anymore, since there is a separate dataset about pools!
-# recFinal@data$has_pool <- pmax(recFinal@data$FACILITIES_Pool..Indoor., recFinal@data$FACILITIES_Pool..Outdoor.,recFinal@data$FACILITIES_Indoor.Kiddie.Pool)
-
 recFinal@data$has_gym <- pmax(recFinal@data$FACILITIES_Gym..Large., recFinal@data$FACILITIES_Gym..Reg..Size.,recFinal@data$FACILITIES_Gym..Small.)
 
-# Delete unnecessary columns
-recFinal@data[,8:35] <- NULL
+# Delete unnecessary/redundant facilities columns
+colnames(recFinal@data)
+recFinal@data <- recFinal@data[, -grep("FACILITIES", colnames(recFinal@data))]
 ```
 
 Similarly, split up the program categories into separate, binary columns.
@@ -125,7 +86,8 @@ colnames(recFinal@data)
 
 # Combine aquatics programs into one column
 recFinal@data$has_aquatics <- pmax(recFinal@data$PROGRAMS_Aquatics, recFinal@data$PROGRAMS_Aquatics..using.Wash.Park.Pool.)
-recFinal@data[,10:11] <- NULL
+recFinal@data[,"PROGRAMS_Aquatics"] <- NULL
+recFinal@data[,"PROGRAMS_Aquatics..using.Wash.Park.Pool."] <- NULL
 
 # Rename the rest of the binary columns
 colnames(recFinal@data)[10:17] <- c("has_arts_culture", "has_day_camps", "has_educ_programs", "has_fitness_health_programs", "has_senior_programs", "has_social_enrich_clubs", "has_special_events", "has_sports")
@@ -135,6 +97,9 @@ for (colnum in 7:18) {
   recFinal@data[,colnum] <- as.logical(recFinal@data[,colnum])
 }
 head(recFinal)
+
+# delete unnecessary/redundant columns
+colnames(recFinal@data)
 ```
 
 ### Athletic fields
@@ -186,51 +151,6 @@ levels(playgroundsSmall@data$year_rehab) <- gsub("2015 - partial upgrade", "2015
 playgroundsFinal <- playgroundsSmall
 ```
 
-### Skate Parks
-
-Next, look at skate parks. There are only 5 of them.
-
-```{r, results="hide"}
-skateParks <- GetOpenData("skate_parks")
-```
-
-Look at data and subset to useful values, then save.
-
-```{r}
-head(skateParks@data)
-
-skateParksFinal <- skateParks[,c(1,4)]
-colnames(skateParksFinal@data) <- c('location', 'size')
-levels(skateParksFinal@data$size) <- c("large", "small")
-head(skateParksFinal@data)
-```
-
-### Rec Court Surfaces
-
-Next look at recreational court surfaces. From the description on Denver Open Data, these are: "Polygon representation of recreational courts or other playing surfaces such as basketball, tennis, handball, bocce, sand volleyball, horseshoepits, and lawn bowling in parks, golf courses, and other areas maintained by the Department of Parks and Recreation in the City and County of Denver."
-
-```{r, results="hide"}
-courts <- GetOpenData("recreational_court_surfaces")
-```
-
-Look at data and subset to useful values, then save the result.
-
-```{r}
-head(courts@data)
-
-courtsSmall <- courts[,c(1,2,7,8)]
-colnames(courtsSmall@data) <- c('sport', 'location', 'year_built', 'year_resurfaced')
-
-# Some null entries are specified as <Null> for some reason - replace these with NAs
-levels(courtsSmall@data$year_resurfaced) <- gsub("<Null>", NA, levels(courtsSmall@data$year_resurfaced))
-
-# Also weirdly one year is labeled as 2014 - Patch... replace with 2014
-levels(courtsSmall@data$year_resurfaced) <- gsub("2014 - Patch", "2014", levels(courtsSmall@data$year_resurfaced))
-
-courtsFinal <- courtsSmall
-head(courtsFinal@data)
-```
-
 ### Libraries
 
 Next we look at libraries.
@@ -246,7 +166,7 @@ Look at the data, subset, retype columns, and then save result.
 ```{r}
 head(libraries)
 
-librariesFinal <- libraries[,c(1,9,10,11)]
+librariesFinal <- libraries[,c("LIBRARY_NA","DOOR_COUNT","CIRCULATIO","TOTAL_BLDG")]
 names(librariesFinal) <- c("name","patron_count","circulation_volume","sqft")
 
 # make sure the types are correct
@@ -269,7 +189,7 @@ pools <- GetOpenData("swimming_pools")
 Look at and subset the data.
 
 ```{r}
-poolsFinal <- pools[,c(1,3,11)]
+poolsFinal <- pools[,c("POOL_NAME","POOL_TYPE","PARK_LOCAT")]
 names(poolsFinal) <- c("name","type","location")
 head(poolsFinal)
 ```
@@ -287,7 +207,12 @@ Look at and subset data, then save.
 ```{r}
 summary(care)
 
-careFinal <- care[c(2,5)]
+# get rid of places whose license has expired (as of today)
+expired_rows <- which( as.Date(care@data$END_DATE) < Sys.Date() )
+
+summary(as.Date(care@data[-expired_rows,"END_DATE"]))
+
+careFinal <- care[-expired_rows,c("BUS_PROF_N","LIC_TYPE")]
 names(careFinal) <- c("name", "license_type")
 levels(careFinal@data$license_type) <- c("center", "home")
 
@@ -295,8 +220,6 @@ head(careFinal)
 ```
 
 ### Parks
-
-Finally, look at parks.
 
 ```{r, results="hide"}
 parks <- GetOpenData("parks")
@@ -306,13 +229,12 @@ Look at and subset parks data.
 
 ```{r}
 head(parks@data)
-
-parksFinal <- parks[c(2,5,23)]
+parksFinal <- parks[,c("FORMAL_NAM","PARK_CLASS","FACILITIES")]
 names(parksFinal) <- c("name","class","facilities")
 parksFinal[["name"]] <- as.character(parksFinal[["name"]])
 ```
 
-Split facilities lists into separate columns. Only keep 
+Split facilities lists into separate columns. Only keep some of the details.
 
 ```{r}
 parksFinal <- SplitCommas(parksFinal, "facilities")
@@ -343,7 +265,8 @@ colnames(parksFinal@data)[bikeBool]  # look at what columns you're getting
 parksFinal@data$has_biking <- apply(parksFinal@data[,bikeBool], 1, max)
 
 # delete the extra variables
-parksFinal@data[,3:194] <- NULL
+colnames(parksFinal@data)
+parksFinal@data <- parksFinal@data[, -grep("facilities", colnames(parksFinal@data))]
 
 # cast 0/1 as true/false
 for (colnum in 3:5){
@@ -353,51 +276,49 @@ for (colnum in 3:5){
 head(parksFinal@data)
 ```
 
-### Saving to csvs:
+### Saving to csv files:
 
 ```{r}
-SavePointsAsCSV(afterSchoolFinal, "afterschool.csv")
-SavePointsAsCSV(recFinal, "rec_centers.csv")
-SavePolygonsAsCSV(fieldsFinal, "fields.csv")
-SavePolygonsAsCSV(playgroundsFinal, "playgrounds.csv")
-SavePolygonsAsCSV(skateParksFinal, "skate_parks.csv")
-SavePolygonsAsCSV(courtsFinal, "rec_courts.csv")
-SavePointsAsCSV(librariesFinal, "libraries.csv")
-SavePointsAsCSV(poolsFinal, "pools.csv")
-SavePointsAsCSV(careFinal, "licensed_child_care.csv")
-SavePolygonsAsCSV(parksFinal, "parks.csv")
+preprefix <- dirname(dirname(getwd()))
+prefix <- file.path(preprefix, 'DATA', 'Open_Denver')
+
+SavePointsAsCSV(recFinal, prefix, "rec_centers.csv")
+SavePolygonsAsCSV(fieldsFinal, prefix, "fields.csv")
+SavePolygonsAsCSV(playgroundsFinal, prefix, "playgrounds.csv")
+SavePointsAsCSV(librariesFinal, prefix, "libraries.csv")
+SavePointsAsCSV(poolsFinal, prefix, "pools.csv")
+SavePointsAsCSV(careFinal, prefix, "licensed_child_care.csv")
+SavePolygonsAsCSV(parksFinal, prefix, "parks.csv")
 ```
 
-### Adding block groups to each dataset, from lat / longs, and uploading to RDS
+### Adding block groups to each dataset, from lat / longs
+
+Not doing this anymore. Neighborhood name no longer in data tab for other resources.
 
 ```{r}
 # Clear the environment
-rm(list=ls())
+#rm(list=ls())
 
-# Source the necessary files
-mypath <- getwd()
-source( file.path(mypath, "coords_to_blockgroups.R") )
-source( file.path( dirname(mypath), "update_rds.R") )
-
-filenameList <- c("afterschool.csv", "rec_centers.csv", "fields.csv", "playgrounds.csv", 
-                  "skate_parks.csv", "rec_courts.csv", "libraries.csv", "pools.csv", 
-                  "licensed_child_care.csv", "parks.csv")
-
-for (filename in filenameList) {
-  # load csv into workspace
-  file <- file.path("clean_data", filename)
-  df <- read.csv(file)
-  
-  # add the block groups
-  dfnew <- coords_to_blockgroups(df)
-  
-  # overwrite the csv 
-  write.csv(dfnew, file, row.names = FALSE, na = "")
-  
-  # upload to RDS
-  tableName <- sub('\\.csv$', '', filename)
-  update_rds(dfnew, "clean", tableName, overwrite = TRUE)
-}
+# # Source the necessary files
+# mypath <- getwd()
+# source( file.path(dirname(mypath), "nest_geo_areas", "coords_to_blockgroups.R") )
+# bgDataPath <- file.path(dirname(dirname(mypath)), "shape_census")
+# 
+# filenameList <- c("rec_centers.csv", "fields.csv", "playgrounds.csv", 
+#                   "libraries.csv", "pools.csv", 
+#                   "licensed_child_care.csv", "parks.csv")
+# 
+# for (filename in filenameList) {
+#   # load csv into workspace
+#   file <- file.path(prefix, filename)
+#   df <- read.csv(file)
+#   
+#   # add the block groups
+#   dfnew <- coords_to_blockgroups(df, bgDataPath)
+#   
+#   # overwrite the csv 
+#   write.csv(dfnew, file, row.names = FALSE, na = "")
+# }
 ```
 
 ## Make the codebook
@@ -405,16 +326,16 @@ for (filename in filenameList) {
 Build the codebook, i.e. get variable names for each csv saved above in clean_data. Save the results as a csv for easy referencing later.
 
 ```{r}
-filenameList <- c("afterschool.csv", "rec_centers.csv", "fields.csv", "playgrounds.csv", 
-                  "skate_parks.csv", "rec_courts.csv", "libraries.csv", "pools.csv", 
+filenameList <- c("rec_centers.csv", "fields.csv", "playgrounds.csv", 
+                  "libraries.csv", "pools.csv", 
                   "licensed_child_care.csv", "parks.csv")
 
-maxVars <- 50
+maxVars <- 25
 codebook <- data.frame(matrix(nrow=maxVars, ncol=0))
 
 for (filename in filenameList) {
   # load csv into workspace
-  file <- read.csv(file.path("clean_data",filename) )
+  file <- read.csv(file.path(prefix,filename) )
   
   vars <- rep(NA, maxVars)
   vars[1:length(names(file))] <- names(file)
@@ -423,17 +344,13 @@ for (filename in filenameList) {
   codebook[[filename]] <- vars
 }
 
-write.csv(codebook, file=file.path("clean_data","codebook_resources.csv"), row.names=FALSE)
+write.csv(codebook, file=file.path(prefix,"codebook.csv"), row.names=FALSE)
 ```
 
-Here is a function for getting the unique values in a column, too, which will be useful for the "values" section in the codebook (but only for the variables for which this is relevant: i.e. the factors). We'll use this on specified columns later, but I won't put it in the markdown because that seems excessive.
+## Get neighborhood level demographics (ACS data from Denver Open Data)
 
 ```{r}
-# Function to get codes from a particular column in a data frame
-#    input:   data frame, column name (string)
-#    output:  list of codes used in that column
-GetCodes <- function(df, colName) {
-  vals <- sort(unique(df[[colName]]))
-  print(vals)
-}
+spdf <- GetNbhdDemog()
+outputdir <- file.path(prefix, "nbhd_dem_shapes")
+writeOGR(spdf, outputdir, "nbhd_dem_shapes", driver="ESRI Shapefile")
 ```

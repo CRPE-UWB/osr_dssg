@@ -1,0 +1,17 @@
+﻿Sample,Year,Race,Value
+High ,2018,White,50.1
+Low,2018,White,16
+High ,2018,Black,4.4
+Low,2018,Black,11.8
+High ,2018,Hispanic,36.5
+Low,2018,Hispanic,63.2
+High ,2018,Others,9
+Low,2018,Others,9
+High ,2019,White,52.3
+Low,2019,White,12.7
+High ,2019,Black,9.1
+Low,2019,Black,9.5
+High ,2019,Hispanic,29.6
+Low,2019,Hispanic,69.5
+High ,2019,Others,9
+Low,2019,Others,8.3

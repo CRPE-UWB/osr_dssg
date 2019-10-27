@@ -1,0 +1,30 @@
+---
+title: "Census_API"
+output: html_document
+---
+
+```{r}
+library(tidycensus)
+library(censusapi)
+```
+
+### Set up API key for more reproducible purpose
+
+A key can be obtained from http://api.census.gov/data/key_signup.html.
+
+In R, 
+```{r echo=FALSE}
+census_api_key("apikey",install = TRUE)
+readRenviron("~/.Renviron")
+```
+
+### Pull the useful variables
+variable list: https://api.census.gov/data/2017/acs/acs5/variables.html
+
+eg.
+```{r}
+census <- getCensus(name = "acs/acs5", vintage = 2017,
+          vars = c("B00001_001E", "B01001_002E"),
+          region = "block group:*" ,
+          regionin = "state:08+country:031") #FIPS for Denver
+```

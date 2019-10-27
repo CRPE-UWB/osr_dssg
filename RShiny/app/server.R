@@ -13,9 +13,9 @@ library(DescTools)  # for computing the gini coefficient
 shinyServer(
   function(input, output, session) {
     
-    ############################################################################################################
+    ################################################################################################
     # Reschool Programs Tab
-    ############################################################################################################
+    ################################################################################################
     
     ####### RESCHOOL PROGRAMS SUBSETTING BY COST AND TYPE #######
     
@@ -28,7 +28,10 @@ shinyServer(
     })
     
     program_cost_and_type_data <- reactive({
-      return(subset_for_cost(program_category_data(),input$slider[1],input$slider[2]))
+      temp <- subset_for_cost(program_category_data(),input$slider[1],input$slider[2])
+      # also subset for # hours and days
+      temp2 <- subset_for_hours(temp, input$hours_slider[1], input$hours_slider[2])
+      return(subset_for_days(temp2, input$days_slider[1], input$days_slider[2]))
     })
     
     neighborhood_data <- reactive({
@@ -97,11 +100,11 @@ shinyServer(
     })
     
     nbhd_labels_reactive <- reactive({get_nbhd_census_labels(programs_per_nbhd())})
-    nbhd_labels_student_reactive <- reactive({get_nbhd_student_labels(programs_per_nbhd())})
+    #nbhd_labels_student_reactive <- reactive({get_nbhd_student_labels(programs_per_nbhd())})
     
     output$mymap <- renderLeaflet({
       nbhd_labels <- nbhd_labels_reactive() 
-      nbhd_labels_student <- nbhd_labels_student_reactive()
+      #nbhd_labels_student <- nbhd_labels_student_reactive()
       # Subset to data for only this neighborhood
       neighborhood_data1 <- neighborhood_data()
       
@@ -114,7 +117,7 @@ shinyServer(
       }
       
       ##### ACTUALLY DRAW THE RESCHOOL MAP #####
-      curr_map <- create_demographic_map(input$school_or_census, input$demographics, input$student_demographics,
+      curr_map <- create_demographic_map("census_dems", input$demographics, input$student_demographics,
                                          census_labels=nbhd_labels, student_labels=nbhd_labels_student)
       curr_map <- curr_map %>% add_circle_markers(neighborhood_data1, "program", myyellow, 
                                                   program_popup_text, weight = 0.7, opacity = 0.8)
@@ -233,55 +236,55 @@ shinyServer(
       
     })
     
-    output$nbhd_student_demog_summary <- renderUI({
-      # subset to the selected neighborhoods
-      if ("No neighborhood selected" %in% input$neighborhoods){
-        summary_data_student <- aggregate_dps_student_nbhds
-      }
-      else{
-        summary_data_student <- subset_for_neighborhoods(aggregate_dps_student_nbhds, input$neighborhoods)
-      }
-      
-      # aggregate the demographics over all selected neighborhoods
-      total_nbhd_students <- sum(summary_data_student$total_students, na.rm = TRUE)
-      
-      if (total_nbhd_students < 10){
-        summary_perc_el_students <- NA
-        summary_perc_disable_students <- NA
-        summary_perc_hispanic_students <- NA
-        summary_perc_white_students <- NA
-        summary_perc_black_students <- NA
-      }
-      else{
-        summary_perc_el_students <- sum(summary_data_student$perc_el_students * summary_data_student$total_students, 
-                                                na.rm = TRUE) / total_nbhd_students
-        summary_perc_disable_students <- sum(summary_data_student$perc_disable_students * summary_data_student$total_students, 
-                                             na.rm = TRUE) / total_nbhd_students
-        summary_perc_hispanic_students <- sum(summary_data_student$perc_hispanic_students * summary_data_student$total_students, 
-                                              na.rm = TRUE) / total_nbhd_students
-        summary_perc_white_students <- sum(summary_data_student$perc_white_students * summary_data_student$total_students, 
-                                           na.rm = TRUE) / total_nbhd_students
-        summary_perc_black_students <- sum(summary_data_student$perc_black_students * summary_data_student$total_students, 
-                                           na.rm = TRUE) / total_nbhd_students
-      }
-      
-      # Print it!
-      sprintf(
-        "<h4>Student Demographics</h4>
-        %% English student learners = %.1f%% <br>
-        %% Students with disability = %.1f%% <br>
-        %% Hispanic students = %.1f%% <br>
-        %% White students = %.1f%% <br>
-        %% Black students = %.1f%% <br><br>
-        <i>Sample size = %s students</i>",
-        summary_perc_el_students,
-        summary_perc_disable_students,
-        summary_perc_hispanic_students,
-        summary_perc_white_students,
-        summary_perc_black_students,
-        format(total_nbhd_students, big.mark = ",")
-      ) %>% lapply(htmltools::HTML)
-    })
+    # output$nbhd_student_demog_summary <- renderUI({
+    #   # subset to the selected neighborhoods
+    #   if ("No neighborhood selected" %in% input$neighborhoods){
+    #     summary_data_student <- aggregate_dps_student_nbhds
+    #   }
+    #   else{
+    #     summary_data_student <- subset_for_neighborhoods(aggregate_dps_student_nbhds, input$neighborhoods)
+    #   }
+    #   
+    #   # aggregate the demographics over all selected neighborhoods
+    #   total_nbhd_students <- sum(summary_data_student$total_students, na.rm = TRUE)
+    #   
+    #   if (total_nbhd_students < 10){
+    #     summary_perc_el_students <- NA
+    #     summary_perc_disable_students <- NA
+    #     summary_perc_hispanic_students <- NA
+    #     summary_perc_white_students <- NA
+    #     summary_perc_black_students <- NA
+    #   }
+    #   else{
+    #     summary_perc_el_students <- sum(summary_data_student$perc_el_students * summary_data_student$total_students, 
+    #                                             na.rm = TRUE) / total_nbhd_students
+    #     summary_perc_disable_students <- sum(summary_data_student$perc_disable_students * summary_data_student$total_students, 
+    #                                          na.rm = TRUE) / total_nbhd_students
+    #     summary_perc_hispanic_students <- sum(summary_data_student$perc_hispanic_students * summary_data_student$total_students, 
+    #                                           na.rm = TRUE) / total_nbhd_students
+    #     summary_perc_white_students <- sum(summary_data_student$perc_white_students * summary_data_student$total_students, 
+    #                                        na.rm = TRUE) / total_nbhd_students
+    #     summary_perc_black_students <- sum(summary_data_student$perc_black_students * summary_data_student$total_students, 
+    #                                        na.rm = TRUE) / total_nbhd_students
+    #   }
+    #   
+    #   # Print it!
+    #   sprintf(
+    #     "<h4>Student Demographics</h4>
+    #     %% English student learners = %.1f%% <br>
+    #     %% Students with disability = %.1f%% <br>
+    #     %% Hispanic students = %.1f%% <br>
+    #     %% White students = %.1f%% <br>
+    #     %% Black students = %.1f%% <br><br>
+    #     <i>Sample size = %s students</i>",
+    #     summary_perc_el_students,
+    #     summary_perc_disable_students,
+    #     summary_perc_hispanic_students,
+    #     summary_perc_white_students,
+    #     summary_perc_black_students,
+    #     format(total_nbhd_students, big.mark = ",")
+    #   ) %>% lapply(htmltools::HTML)
+    # })
     
     output$program_summary_plot <- renderPlotly({
       
@@ -336,31 +339,31 @@ shinyServer(
         
         # get the data
         nbhd_cost_data <- subset_for_neighborhoods(reschool_summer_program, input$neighborhoods)
-        nbhd_cost_data <- nbhd_cost_data[,"session_cost"]
+        nbhd_cost_data <- nbhd_cost_data[,"cost_per_hour"]
         
         # make the plot - if at least one not-free program
-        if (sum(nbhd_cost_data > 0) > 0 ){
+        if (sum(nbhd_cost_data > 0, na.rm = TRUE) > 0 ){
           plot_ly(x = ~nbhd_cost_data[nbhd_cost_data > 0],
                   type = "histogram",
                   name = "Not Free"
           ) %>%
-            layout(xaxis = list(title = "Total Cost ($)"), 
+            layout(xaxis = list(title = "Cost per Hour ($)"), 
                    yaxis = list(title = "No. Programs"), 
                    title = "Programs by Cost"
             ) %>%
             add_bars(x = 0,
-                     y = sum(nbhd_cost_data == 0),
+                     y = sum(nbhd_cost_data == 0, na.rm = TRUE),
                      name = "Free"
             )
         }
         # make the plot - if all programs are free
         else{
-          plot_ly(y = sum(nbhd_cost_data == 0),
+          plot_ly(y = sum(nbhd_cost_data == 0, na.rm = TRUE),
                   x = 0,
                   type = "bar",
                   color = "orange"
           ) %>%
-            layout(xaxis = list(title = "Total Cost ($)"), 
+            layout(xaxis = list(title = "Cost per Hour ($)"), 
                    yaxis = list(title = "No. Programs"), 
                    title = "Programs by Cost"
             )
@@ -375,7 +378,7 @@ shinyServer(
         dat <- subset_for_neighborhoods(reschool_summer_program, input$neighborhoods)
         relevant_colnames <- c("session_date_start", "session_date_end", "session_name")
         if (nrow(dat)==0) {
-          dat <- data.frame(as.Date("1993-06-16"), as.Date("1993-06-16"), "Not a Real Program")
+          dat <- data.frame(as.Date("2000-06-16"), as.Date("3000-06-16"), "Not a Real Program")
           names(dat) <- relevant_colnames
         } else {
           dat <- dat[,relevant_colnames]
@@ -409,19 +412,21 @@ shinyServer(
         
         # different kind of plot
         get_all_dates <- function(start_date, end_date) {
-          seq.Date(start_date, end_date, by = "days")
+          return(seq.Date(start_date, end_date, by = "days"))
         }
         
-        all_dates <- mapply(get_all_dates, dat$session_date_start, dat$session_date_end)
-        p2 <- plot_ly(x = all_dates, 
-                      type = "histogram", 
+        good_idxs <- ! (is.na(dat$session_date_start) | is.na(dat$session_date_end))
+        all_dates <- mapply(get_all_dates, dat$session_date_start[good_idxs], 
+                            dat$session_date_end[good_idxs])
+        p2 <- plot_ly(x = all_dates,
+                      type = "histogram",
                       name = "Total Programs<br>On This Day",
                       color = "grey") %>%
           layout(xaxis = list(title = ""),
                  yaxis = list(title = "No. Programs"),
                  title = "Number of Programs Happening Over Time"
                  )
-        
+
         output_plot <- subplot(p1, p2, nrows = 2, shareX = TRUE)
 
       }
@@ -430,52 +435,18 @@ shinyServer(
       
     })
     
-    # Data table for nbhd summary - deprecated
-    # output$nbhd_summary <- renderDataTable({
-    #   datatable(summary_data(), 
-    #                 options = list(pageLength = 3, 
-    #                                scrollX = TRUE,
-    #                                searching = FALSE,
-    #                                paging = FALSE,
-    #                                ordering = FALSE,
-    #                                lengthChange = FALSE,
-    #                                info = FALSE,
-    #                                initComplete = JS(
-    #                                  "function(settings, json) {",
-    #                                  "$(this.api().table().header()).css(
-    #                                   {'background-color': '#000', 'color': '#fff'}
-    #                                   );",
-    #                                  "}")),
-    #                 # caption = htmltools::tags$caption(
-    #                 #   style = 'caption-side: top; text-align: left; color: black ;',
-    #                 #   htmltools::h3("caption")
-    #                 # ),
-    #                 width = 300,
-    #                 style = "bootstrap",
-    #                 class = 'cell-border stripe',
-    #                 rownames = FALSE
-    #                 
-    #   ) %>%
-    #     formatStyle(colnames(summary_data),
-    #                 backgroundColor = '#c6dbef'
-    #     )
-    # 
-    # })
-    
-  
-    #### Other out of school resources tab ####
-    
-    #############################
+    ################################################################################################
     # Other Resources Tab
-    #############################
+    ################################################################################################
     
     # Create reactive elements for the subsetted datasets
     parks_data <- reactive({subset_for_neighborhoods(parks, input$neighborhoods_other)})
     libraries_data <- reactive({subset_for_neighborhoods(libraries, input$neighborhoods_other)})
     rec_centers_data <- reactive({subset_for_neighborhoods(rec_centers, input$neighborhoods_other)})
-    museums_data <- reactive({subset_for_neighborhoods(museums, input$neighborhoods_other)})
+    #museums_data <- reactive({subset_for_neighborhoods(museums, input$neighborhoods_other)})
     playgrounds_data <- reactive({subset_for_neighborhoods(playgrounds, input$neighborhoods_other)})
     fields_data <- reactive({subset_for_neighborhoods(fields, input$neighborhoods_other)})
+    pools_data <- reactive({subset_for_neighborhoods(pools, input$neighborhoods_other)})
     
     # Create the map
     other_mapdata <- reactiveValues(dat = 0)
@@ -489,13 +460,14 @@ shinyServer(
         parks_data1 <- parks_data()
         libraries_data1 <- libraries_data()
         rec_centers_data1 <- rec_centers_data()
-        museums_data1 <- museums_data()
+        #museums_data1 <- museums_data()
         playgrounds_data1 <- playgrounds_data()
         fields_data1 <- fields_data()
+        pools_data1 <- pools_data()
         
         ##### ACTUALLY DRAW THE OTHER RESOURCES MAP #####
         
-        open_resource_map <- create_demographic_map(input$school_or_census_other, input$demographics_other, input$student_demographics_other, 
+        open_resource_map <- create_demographic_map("census_dems", input$demographics_other, input$student_demographics_other, 
                                                     nbhd_labels_reactive_other(), nbhd_labels_student_reactive_other())
         
         # Loop over selected resources types, plotting the locations of each
@@ -576,15 +548,15 @@ shinyServer(
               add_resource_markers(playgrounds_data1, playgrounds_color, playgrounds_popup)
           }
           
-          if(col == "Museums"){
-            museums_popup <- sprintf(
-              "<b>%s</b>",
-              museums_data1$name
-            ) %>% lapply(htmltools::HTML)
-            
-            open_resource_map <- open_resource_map %>% 
-              add_resource_markers(museums_data1, museums_color, museums_popup)
-          }
+          # if(col == "Museums"){
+          #   museums_popup <- sprintf(
+          #     "<b>%s</b>",
+          #     museums_data1$name
+          #   ) %>% lapply(htmltools::HTML)
+          #   
+          #   open_resource_map <- open_resource_map %>% 
+          #     add_resource_markers(museums_data1, museums_color, museums_popup)
+          # }
           
           if(col == "Fields"){
             fields_popup <- sprintf(
@@ -596,6 +568,19 @@ shinyServer(
             
             open_resource_map <- open_resource_map %>% 
               add_resource_markers(fields_data1, fields_color, fields_popup)
+          }
+          
+          if(col == "Pools"){
+            pools_popup <- sprintf(
+              "<b>%s</b><br/>
+              %s Pool <br/> %s",
+              pools_data1$name,
+              pools_data1$type,
+              pools_data1$location
+            ) %>% lapply(htmltools::HTML)
+            
+            open_resource_map <- open_resource_map %>% 
+              add_resource_markers(pools_data1, museums_color, pools_popup)
           }
 
         }
@@ -617,8 +602,6 @@ shinyServer(
         updateSelectInput(session, "neighborhoods_other", selected = new_choices)
       }
     })
-    
-    
     
     # Make the download button for the other resources map
     output$other_map_down <- downloadHandler(
@@ -686,9 +669,9 @@ shinyServer(
         if(input$program_other[i] == "Parks"){
           output[[id]] <- DT::renderDataTable({
             dat <- data_table_function("Parks", 
-                                       parks_data()[, c(3,4,5,6,7,8,11)],
+                                       parks_data()[, c("name","class", "has_nature", "has_garden", "has_biking","sqft")],
                                        c("Park name", "Class", "Has nature", "Has garden", 
-                                         "Has biking", "Sqft", "Nbhd name")
+                                         "Has biking", "Sqft") #, "Nbhd name")
                                        )
             return(dat)    
           })
@@ -709,9 +692,9 @@ shinyServer(
         else if(input$program_other[i] == "Libraries"){
           output[[id]] <- DT::renderDataTable({
             dat <- data_table_function("Libraries", 
-                                       libraries_data()[, c(3,4,5,6,9)],
+                                       libraries_data()[, c("name","patron_count","circulation_volume","sqft")],
                                        c("Library name", "Patron Count", 
-                                         "Circulation Vol", "Sqft", "Nbhd name"))
+                                         "Circulation Vol", "Sqft")) #, "Nbhd name"))
             return(dat)    
           })
           
@@ -731,13 +714,17 @@ shinyServer(
        
         else if(input$program_other[i] == "Rec Centers"){
           output[[id]] <- DT::renderDataTable({
-            dat <- data_table_function("Rec Centers", rec_centers_data()[, c(3,4,9:20, 23)],
-                                       c("Rec Center name", "Type", "Has cardio", 
+            dat <- data_table_function("Rec Centers", rec_centers_data()[, c("name","type","has_cardio","has_weights",
+                                                                             "has_gym","has_arts_culture","has_day_camps",
+                                                                             "has_educ_programs","has_fitness_health_programs",
+                                                                             "has_senior_programs","has_social_enrich_clubs",
+                                                                             "has_special_events","has_sports","has_aquatics")],
+                                       c("Rec center name", "Type", "Has cardio", 
                                          "Has weights","Has gym", "Has arts culture",
                                          "Has day camps", "Has educ programs", 
                                          "Has fitness health programs", "Has senior programs",
                                          "Has social enrich clubs", "Has special events",
-                                         "Has sports","Has aquatics", "Nbhd name")
+                                         "Has sports","Has aquatics")
                                        )
             return(dat)    
           })
@@ -755,32 +742,32 @@ shinyServer(
           )
           
         }
-        else if(input$program_other[i] == "Museums"){
-          output[[id]] <- DT::renderDataTable({
-            dat <- data_table_function("Museums", museums_data()[, c(3,4,7)],
-                                       c("Museum name", "Address", "Nbhd name"))
-            return(dat)    
-          })
-          
-          output[[download_id]] <- downloadHandler(
-            filename = "museums.csv",
-            content = function(file) {
-              # temporarily switch to the temp dir, in case you do not have write
-              # permission to the current working directory
-              owd <- setwd(tempdir())
-              on.exit(setwd(owd))
-              
-              write.csv(museums_data(), file, row.names = FALSE)
-            }
-          )
-          
-        }
+        # else if(input$program_other[i] == "Museums"){
+        #   output[[id]] <- DT::renderDataTable({
+        #     dat <- data_table_function("Museums", museums_data()[, c(3,4,7)],
+        #                                c("Museum name", "Address", "Nbhd name"))
+        #     return(dat)    
+        #   })
+        #   
+        #   output[[download_id]] <- downloadHandler(
+        #     filename = "museums.csv",
+        #     content = function(file) {
+        #       # temporarily switch to the temp dir, in case you do not have write
+        #       # permission to the current working directory
+        #       owd <- setwd(tempdir())
+        #       on.exit(setwd(owd))
+        #       
+        #       write.csv(museums_data(), file, row.names = FALSE)
+        #     }
+        #   )
+        #   
+        # }
         else if(input$program_other[i] == "Fields"){
           output[[id]] <- DT::renderDataTable({
             dat <- data_table_function("Fields", 
-                                       fields_data()[, c(3,4,5,6,7, 10)],
+                                       fields_data()[, c("sport","location","tier","class","sqft")],
                                        c("Sport", "Location", "Tier", 
-                                         "Class", "Sqft", "Nbhd name"))
+                                         "Class", "Sqft")) #, "Nbhd name"))
             return(dat)    
           })
           
@@ -800,9 +787,9 @@ shinyServer(
         else if(input$program_other[i] == "Playgrounds"){
           output[[id]] <-DT::renderDataTable({
             dat <- data_table_function("Playgrounds", 
-                                       playgrounds_data()[, c(3,4,5,6,9)],
+                                       playgrounds_data()[, c("location","year_rehab","class","sqft")],
                                        c("Location", "Year rehabilitated", "Class", 
-                                         "Sqft", "Nbhd name"))
+                                         "Sqft")) #, "Nbhd name"))
             return(dat)    
           })
           
@@ -815,6 +802,27 @@ shinyServer(
               on.exit(setwd(owd))
               
               write.csv(playgrounds_data(), file, row.names = FALSE)
+            }
+          )
+          
+        }
+        else if(input$program_other[i] == "Pools"){
+          output[[id]] <-DT::renderDataTable({
+            dat <- data_table_function("Pools", 
+                                       pools_data()[, c("name","type","location")],
+                                       c("Pool name", "Pool type", "Location")) #, "Nbhd name"))
+            return(dat)    
+          })
+          
+          output[[download_id]] <- downloadHandler(
+            filename = "pools.csv",
+            content = function(file) {
+              # temporarily switch to the temp dir, in case you do not have write
+              # permission to the current working directory
+              owd <- setwd(tempdir())
+              on.exit(setwd(owd))
+              
+              write.csv(pools_data(), file, row.names = FALSE)
             }
           )
           
@@ -847,16 +855,17 @@ shinyServer(
       num_playgrounds <- nrow(playgrounds_data())
       num_rec_centers <- nrow(rec_centers_data())
       num_libraries <- nrow(libraries_data())
-      num_museums <- nrow(museums_data())
+      #num_museums <- nrow(museums_data())
+      num_pools <- nrow(pools_data())
       num_fields <- nrow(fields_data())
       
-      plot_ly(x = c("Parks", "Playgrounds", "Rec Centers", "Libraries", "Museums", "Fields"),
-              y = c(num_parks, num_playgrounds, num_rec_centers, num_libraries, num_museums, num_fields),
+      plot_ly(x = c("Parks", "Playgrounds", "Rec Centers", "Libraries", "Pools", "Fields"),
+              y = c(num_parks, num_playgrounds, num_rec_centers, num_libraries, num_pools, num_fields),
               type = "bar"
               ) %>%
         layout(xaxis = list(title = "Resource Type"),
                yaxis = list(title = "No. Resources"),
-               title = "Number of Other Resources by Type"
+               title = "Number of Public Resources by Type"
                )
       
     })
@@ -899,50 +908,50 @@ shinyServer(
       ) %>% lapply(htmltools::HTML)
     })
     
-    output$nbhd_student_demog_summary_other <- renderUI({
-      # subset to the selected neighborhoods
-      summary_data_student <- subset_for_neighborhoods(aggregate_dps_student_nbhds, input$neighborhoods_other)
-      
-      # aggregate the demographics over all selected neighborhoods
-      total_nbhd_students <- sum(summary_data_student$total_students)
-      
-      if (total_nbhd_students < 10){
-        summary_perc_el_students <- NA
-        summary_perc_disable_students <- NA
-        summary_perc_hispanic_students <- NA
-        summary_perc_white_students <- NA
-        summary_perc_black_students <- NA
-      }
-      else{
-        summary_perc_el_students <- sum(summary_data_student$perc_el_students * summary_data_student$total_students, 
-                                                na.rm = TRUE) / total_nbhd_students
-        summary_perc_disable_students <- sum(summary_data_student$perc_disable_students * summary_data_student$total_students, 
-                                             na.rm = TRUE) / total_nbhd_students
-        summary_perc_hispanic_students <- sum(summary_data_student$perc_hispanic_students * summary_data_student$total_students, 
-                                              na.rm = TRUE) / total_nbhd_students
-        summary_perc_white_students <- sum(summary_data_student$perc_white_students * summary_data_student$total_students, 
-                                           na.rm = TRUE) / total_nbhd_students
-        summary_perc_black_students <- sum(summary_data_student$perc_black_students * summary_data_student$total_students, 
-                                           na.rm = TRUE) / total_nbhd_students
-      }
-      
-      # Print it!
-      sprintf(
-        "<h4>Student Demographics</h4>
-        %% English student learners = %.1f%% <br>
-        %% Students with disability = %.1f%% <br>
-        %% Hispanic students = %.1f%% <br>
-        %% White students = %.1f%% <br>
-        %% Black students = %.1f%% <br><br>
-        <i>Sample size = %s students</i>",
-        summary_perc_el_students,
-        summary_perc_disable_students,
-        summary_perc_hispanic_students,
-        summary_perc_white_students,
-        summary_perc_black_students,
-        format(total_nbhd_students, big.mark = ",")
-      ) %>% lapply(htmltools::HTML)
-    })
+    # output$nbhd_student_demog_summary_other <- renderUI({
+    #   # subset to the selected neighborhoods
+    #   summary_data_student <- subset_for_neighborhoods(aggregate_dps_student_nbhds, input$neighborhoods_other)
+    #   
+    #   # aggregate the demographics over all selected neighborhoods
+    #   total_nbhd_students <- sum(summary_data_student$total_students)
+    #   
+    #   if (total_nbhd_students < 10){
+    #     summary_perc_el_students <- NA
+    #     summary_perc_disable_students <- NA
+    #     summary_perc_hispanic_students <- NA
+    #     summary_perc_white_students <- NA
+    #     summary_perc_black_students <- NA
+    #   }
+    #   else{
+    #     summary_perc_el_students <- sum(summary_data_student$perc_el_students * summary_data_student$total_students, 
+    #                                             na.rm = TRUE) / total_nbhd_students
+    #     summary_perc_disable_students <- sum(summary_data_student$perc_disable_students * summary_data_student$total_students, 
+    #                                          na.rm = TRUE) / total_nbhd_students
+    #     summary_perc_hispanic_students <- sum(summary_data_student$perc_hispanic_students * summary_data_student$total_students, 
+    #                                           na.rm = TRUE) / total_nbhd_students
+    #     summary_perc_white_students <- sum(summary_data_student$perc_white_students * summary_data_student$total_students, 
+    #                                        na.rm = TRUE) / total_nbhd_students
+    #     summary_perc_black_students <- sum(summary_data_student$perc_black_students * summary_data_student$total_students, 
+    #                                        na.rm = TRUE) / total_nbhd_students
+    #   }
+    #   
+    #   # Print it!
+    #   sprintf(
+    #     "<h4>Student Demographics</h4>
+    #     %% English student learners = %.1f%% <br>
+    #     %% Students with disability = %.1f%% <br>
+    #     %% Hispanic students = %.1f%% <br>
+    #     %% White students = %.1f%% <br>
+    #     %% Black students = %.1f%% <br><br>
+    #     <i>Sample size = %s students</i>",
+    #     summary_perc_el_students,
+    #     summary_perc_disable_students,
+    #     summary_perc_hispanic_students,
+    #     summary_perc_white_students,
+    #     summary_perc_black_students,
+    #     format(total_nbhd_students, big.mark = ",")
+    #   ) %>% lapply(htmltools::HTML)
+    # })
     
     output$med_income_summary_other <- renderPlotly({
       summary_data <- subset_for_neighborhoods(shape_census@data, input$neighborhoods_other)
@@ -969,9 +978,9 @@ shinyServer(
     })
     
     
-    ###################################################################################################################
+    ################################################################################################
     # Search Data Tab
-    ###################################################################################################################
+    ################################################################################################
     # Subset the search data depending on the slider input and the zipcode selected in the sidebar panel
     # Getting column numbers depending on the type of the program selected. 
     # (used to subset the data in the next step)
@@ -983,28 +992,32 @@ shinyServer(
     subset_search_data = reactive({
       
       if(input$minprice_search != ""){
-        mincost_search_data = google_analytics[which(google_analytics$mincost  >= as.numeric(input$minprice_search)),]
+        mincost_search_data = google_analytics[which(google_analytics$mincost >= 
+                                                       as.numeric(input$minprice_search)),]
       }
       else {
         mincost_search_data = google_analytics
       }
       
       if(input$maxprice_search != ""){
-        maxcost_search_data = mincost_search_data[which(mincost_search_data$maxcost  <= as.numeric(input$maxprice_search)),]
+        maxcost_search_data = mincost_search_data[which(mincost_search_data$maxcost <= 
+                                                          as.numeric(input$maxprice_search)),]
       }
       else {
         maxcost_search_data = mincost_search_data
       }
       
       if(input$minage_search != ""){
-        minage_search_data = maxcost_search_data[which(maxcost_search_data$minage  >= as.numeric(input$minage_search)),]
+        minage_search_data = maxcost_search_data[which(maxcost_search_data$minage >= 
+                                                         as.numeric(input$minage_search)),]
       }
       else{
         minage_search_data = maxcost_search_data
       }
       
       if(input$maxage_search != ""){
-        maxage_search_data = minage_search_data[which(minage_search_data$maxage  <= as.numeric(input$maxage_search)),]
+        maxage_search_data = minage_search_data[which(minage_search_data$maxage <= 
+                                                        as.numeric(input$maxage_search)),]
       }
       else{
         maxage_search_data = minage_search_data
@@ -1020,7 +1033,8 @@ shinyServer(
       
       if(input$sessiontimes_searchprog != "N/A" ) {
         sessiontime_search_data <- subset(zipcode_search_data, 
-                                          zipcode_search_data$sessiontimes == input$sessiontimes_searchprog)
+                                          zipcode_search_data$sessiontimes == 
+                                            input$sessiontimes_searchprog)
       }
       else {
         sessiontime_search_data <- zipcode_search_data
@@ -1029,7 +1043,8 @@ shinyServer(
       if(length(colm_search()) != 0){
         data_list = list()
         for(i in 1:length(colm_search())){
-          data_list[[i]] = sessiontime_search_data[which(sessiontime_search_data$category == colm_search()[i]),]
+          data_list[[i]] = sessiontime_search_data[which(sessiontime_search_data$category == 
+                                                           colm_search()[i]),]
         }
         category_search_data = as.data.frame(data.table::rbindlist(data_list))
       }
@@ -1062,7 +1077,7 @@ shinyServer(
       ) 
     })
   
-    # Display the total percentage of searches made with this combination selected in the side bar panel
+    # Display the total % of searches made with this combination selected in the side bar panel
     output$percentagesearches <- renderText({
       
       sprintf(
@@ -1111,7 +1126,7 @@ shinyServer(
     )
     
 
-    #################### Rendering plots for visualization tab in the search data tab #################################
+    ############## Rendering plots for visualization tab in the search data tab ###################
     # 'Sort by' variable graph
     output$search_sort_plot <- renderPlotly({
       validate(need(input$specific_search_questions=="What distances and session times do people search for, and how do they sort their results?", message=FALSE))
@@ -1154,7 +1169,7 @@ shinyServer(
       
     })
     
-    #Zipcode searches graph
+    # Zipcode searches graph
     output$search_zipcode_plot <- renderPlotly({
       validate(need(input$specific_search_questions=="What locations are people searching for? (Charts)", message=FALSE))
       
@@ -1172,7 +1187,7 @@ shinyServer(
       
     })
     
-    #Zipcode sessions graph
+    # Zipcode sessions graph
     output$search_programs_zipcode_plot <- renderPlotly({
       validate(need(input$specific_search_questions=="What locations are people searching for? (Charts)", message=FALSE))
       
@@ -1283,9 +1298,9 @@ shinyServer(
       }
     )
     
-    ###################################################################################################################
+    ################################################################################################
     # Access Index Tab
-    ###################################################################################################################
+    ################################################################################################
     
     # first calculate the aggregated access index based on user input
     index <- reactive({calculate_aggregated_index(input$drive_or_transit,input$type_access,input$cost_access, input$disability)})
@@ -1466,7 +1481,7 @@ shinyServer(
     
     output$lorenz <- renderPlot({
       tot_young_pop <- shape_census_block$Ag_L_18-shape_census_block$Ag_Ls_5
-      plot(Lc(index()*tot_young_pop, tot_young_pop),
+      plot(Lc(index()*tot_young_pop, tot_young_pop, na.rm=TRUE),
            col="darkred",lwd=2, 
            xlab = "Fraction of Students",
            ylab = "Cumulative Share of Access*"
@@ -1498,14 +1513,14 @@ shinyServer(
       
     })
     
-    output$access_scatter <- renderPlotly({
-      plot_ly(x = shape_census@data$AGE_5_T, y = index_nbhd(), text=shape_census@data$NBHD_NA, 
-              type='scatter', mode='markers') %>%
-        layout(title = "Neighborhoods with low access and high student age population",
-               xaxis = list(title="Number of students in each neighborhood"), #showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE),
-               yaxis = list(title = "Access Index score") #showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE)
-               )
-    })
+    # output$access_scatter <- renderPlotly({
+    #   plot_ly(x = shape_census@data$AGE_5_T, y = index_nbhd(), text=shape_census@data$NBHD_NA, 
+    #           type='scatter', mode='markers') %>%
+    #     layout(title = "Neighborhoods with low access and high student age population",
+    #            xaxis = list(title="Number of students in each neighborhood"), #showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE),
+    #            yaxis = list(title = "Access Index score") #showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE)
+    #            )
+    # })
     
     race_access_means <- reactive({get_race_access_means(index())})
 

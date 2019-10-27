@@ -28,12 +28,21 @@ shinyUI(
   
   includeCSS("style.css"),
   
-  navbarPage("Denver Out-of-School Resources",
-             selected = "B4S Programs",
+  navbarPage("Denver Out-of-School Resources 2019",
+             selected = "Summer Programs",
+             
+############################### Manual Tab ################################################
+                   tabPanel("About",
+                            fluidPage(
+
+                              HTML( manual )
+
+                            )
+                   ),
                    
 ########################## Blueprint4Summer Programs Tab ###########################################
 
-                   tabPanel("B4S Programs",
+                   tabPanel("Summer Programs",
                             fluidPage(
                               
                               # includeCSS("style.css"),
@@ -42,6 +51,13 @@ shinyUI(
                               
                                 # Sidebar panel for making selections about reschool programs
                                 sidebarPanel(
+                                  selectInput("neighborhoods", "Focus on neighborhoods:", 
+                                              choices = c("All neighborhoods", 
+                                                          neighborhoods_list
+                                              ),
+                                              multiple = TRUE,
+                                              selected = "All neighborhoods"
+                                  ),
                                   conditionalPanel(condition = "input.program_panel != 'Summary Analysis'",
                                     checkboxGroupInput("program", "Select one or more program types:", 
                                                        choiceNames = c("Academic", "Arts", 
@@ -71,7 +87,7 @@ shinyUI(
                                   )
                                 ),
                                   conditionalPanel(condition = "input.program_panel != 'Summary Analysis'",
-                                    sliderInput("slider", "Select a range for program cost:", 
+                                    sliderInput("slider", "Select a range for program cost per hour:", 
                                                 min = minprice_reschoolprograms, 
                                                 max = maxprice_reschoolprograms , 
                                                 value = c(minprice_reschoolprograms, 
@@ -79,14 +95,29 @@ shinyUI(
                                                 pre = "$"
                                                 )
                                     ),
+                                conditionalPanel(condition = "input.program_panel != 'Summary Analysis'",
+                                                 sliderInput("hours_slider", "Select a range for hours per day:", 
+                                                             min = 0, 
+                                                             max = maxlength_reschoolprograms, 
+                                                             value = c(0,maxlength_reschoolprograms),
+                                                             post = " hrs"
+                                                 )
+                                ),
+                                conditionalPanel(condition = "input.program_panel != 'Summary Analysis'",
+                                                 sliderInput("days_slider", "Select a range for total number of days:", 
+                                                             min = 0, 
+                                                             max = maxdays_reschoolprograms, 
+                                                             value = c(0,maxdays_reschoolprograms),
+                                                             post = " days"
+                                                 )
+                                ),
+                                  # conditionalPanel(condition = "input.program_panel == 'Map'",
+                                  #   radioButtons("school_or_census", "Select a data source for demographic data:",
+                                  #              choiceNames = c("Census (General Population)"), #,"DPS (Student Data)"),
+                                  #              choiceValues = c("census_dems"), #, "student_dems"),
+                                  #              selected = "census_dems")
+                                  #   ),
                                   conditionalPanel(condition = "input.program_panel == 'Map'",
-                                    radioButtons("school_or_census", "Select a data source for demographic data:",
-                                               choiceNames = c("Census (General Population)","DPS (Student Data)"),
-                                               choiceValues = c("census_dems", "student_dems"),
-                                               selected = "census_dems")
-                                    ),
-                                               
-                                  conditionalPanel(condition = "input.program_panel != 'Data' & input.program_panel != 'Summary Analysis' & input.school_or_census == 'census_dems'",
                                     radioButtons("demographics", 
                                                  "Select a demographics variable to visualize:", 
                                                  choiceNames = demog_names,
@@ -94,22 +125,16 @@ shinyUI(
                                                  selected = "none"
                                                  )
                                     ),
-                                  conditionalPanel(condition = "input.program_panel != 'Data' & input.program_panel != 'Summary Analysis' & input.school_or_census == 'student_dems'",
-                                                   radioButtons("student_demographics", 
-                                                                "Select a demographics variable to visualize:", 
-                                                                choiceNames = demog_student_names,
-                                                                choiceValues = demog_student_values,
-                                                                selected = "none"
-                                                    )
-                                                   ),
-                                  br(),
-                                  selectInput("neighborhoods", "Focus on neighborhoods:", 
-                                              choices = c("All neighborhoods", 
-                                                          neighborhoods_list
-                                                          ),
-                                              multiple = TRUE,
-                                              selected = "All neighborhoods"
-                                              ),
+                                  # conditionalPanel(condition = "input.program_panel != 'Data' & input.program_panel != 'Summary Analysis' & input.school_or_census == 'student_dems'",
+                                  #                  radioButtons("student_demographics", 
+                                  #                               "Select a demographics variable to visualize:", 
+                                  #                               choiceNames = demog_student_names,
+                                  #                               choiceValues = demog_student_values,
+                                  #                               selected = "none"
+                                  #                   )
+                                  #                  ),
+                                  #br(),
+                                  
                                   conditionalPanel(condition = "input.program_panel == 'Summary Analysis'",
                                                    radioButtons("program_analysis", 
                                                                 "In these neighborhoods, what is the distribution of program", 
@@ -167,55 +192,54 @@ shinyUI(
                    
 ####################### Other Resources / Open Data Tab - Parks, Libraries, etc. #######################
 
-                   tabPanel("Other Resources",
+                   tabPanel("Public Resources",
                             fluidPage(sidebarLayout(
-                              
+
                               sidebarPanel(
+                                selectInput("neighborhoods_other",
+                                            "Focus on neighborhoods:",
+                                            choices = c("All neighborhoods",
+                                                        neighborhoods_list
+                                            ),
+                                            multiple = TRUE,
+                                            selected = "All neighborhoods"
+                                ),
                                 conditionalPanel(condition = "input.program_other_panel != 'Summary Analysis'",
-                                                checkboxGroupInput("program_other", 
-                                                                   "Select one or more resource types:", 
-                                                                   choices = c("Parks", "Playgrounds", 
-                                                                               "Rec Centers", "Libraries", 
-                                                                               "Museums", "Fields"), 
-                                                                   selected = "Parks", 
+                                                checkboxGroupInput("program_other",
+                                                                   "Select one or more resource types:",
+                                                                   choices = c("Parks", "Playgrounds",
+                                                                               "Rec Centers", "Libraries",
+                                                                               "Fields", "Pools"),
+                                                                   selected = "Parks",
                                                                    inline = TRUE
                                                                    ),
                                                 br()
                                                 ),
+                                # conditionalPanel(condition = "input.program_other_panel == 'Map'",
+                                #                 radioButtons("school_or_census_other", "Select a data source for demographic data:",
+                                #                              choiceNames = c("Census (General Population)"), #,"DPS (Student Data)"),
+                                #                              choiceValues = c("census_dems"), #, "student_dems"),
+                                #                              selected = "census_dems"
+                                #                 )
+                                # ),
                                 conditionalPanel(condition = "input.program_other_panel == 'Map'",
-                                                radioButtons("school_or_census_other", "Select a data source for demographic data:",
-                                                             choiceNames = c("Census (General Population)","DPS (Student Data)"),
-                                                             choiceValues = c("census_dems", "student_dems"),
-                                                             selected = "census_dems"
-                                                )
-                                ),
-                                conditionalPanel(condition = "input.program_other_panel != 'Data' & input.program_other_panel != 'Summary Analysis' & input.school_or_census_other == 'census_dems'",
-                                                 radioButtons("demographics_other", 
-                                                              "Select a demographics variable to visualize:", 
+                                                 radioButtons("demographics_other",
+                                                              "Select a demographics variable to visualize:",
                                                               choiceNames = demog_names,
                                                               choiceValues = demog_values,
                                                               selected = "none"
                                                  )
-                                ),
-                                conditionalPanel(condition = "input.program_other_panel != 'Data' & input.program_other_panel != 'Summary Analysis' & input.school_or_census_other == 'student_dems'",
-                                                 radioButtons("student_demographics_other", 
-                                                              "Select a demographics variable to visualize:", 
-                                                              choiceNames = demog_student_names,
-                                                              choiceValues = demog_student_values,
-                                                              selected = "none"
-                                                 )
-                                ),
-                                selectInput("neighborhoods_other", 
-                                            "Focus on neighborhoods:", 
-                                            choices = c("All neighborhoods", 
-                                                            neighborhoods_list
-                                                        ),
-                                            multiple = TRUE,
-                                            selected = "All neighborhoods"
-                                ),
-                                br()
+                                )
+                                # conditionalPanel(condition = "input.program_other_panel != 'Data' & input.program_other_panel != 'Summary Analysis' & input.school_or_census_other == 'student_dems'",
+                                #                  radioButtons("student_demographics_other",
+                                #                               "Select a demographics variable to visualize:",
+                                #                               choiceNames = demog_student_names,
+                                #                               choiceValues = demog_student_values,
+                                #                               selected = "none"
+                                #                  )
+                                # ),
                               ),
-                              
+
                               mainPanel(
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
@@ -244,27 +268,27 @@ shinyUI(
                                             id = "program_other_panel"
                                 )
                               )  # end mainPanel of open data tab
-                              
+
                             ))
-                            
+
                    ),  # end open data tab
 
 ########################## Blueprint4Summer Search Data Tab ###########################################
 
                    tabPanel("B4S Searches",
-                      
+
                       fluidPage(sidebarLayout(
-                        
+
                         sidebarPanel(
-                          
+
                           conditionalPanel(condition = "input.conditionedPanels == 'Summary'",
-                          
+
                           #fluidRow(
-                          checkboxGroupInput("program_search", 
-                                             "Filter down to one or more program types:", 
-                                             choiceNames = c("Academic", "Arts", "Cooking", "Dance", "Drama", "Music", "Nature", "Sports", "STEM"),
-                                             choiceValues = sort(unique(google_analytics$category)), 
-                                             selected = character(0), 
+                          checkboxGroupInput("program_search",
+                                             "Filter down to one or more program types:",
+                                             choiceNames = c("Academic", "Art", "Arts", "Cooking", "Dance", "Drama", "Music", "Nature", "Sports", "STEM"),
+                                             choiceValues = c("academic", "art", "arts", "cooking", "dance", "drama", "music", "nature", "sports", "stem"), # sort(unique(google_analytics$category)),
+                                             selected = character(0),
                                              inline = TRUE
                           ),
                           # br(),
@@ -277,46 +301,46 @@ shinyUI(
                           column(6, textInput("minage_search", "Enter Min Age:","")),
                           column(6, textInput("maxage_search", "Enter Max Age:",""))
                                  ),
-                          
-                          selectInput("zipcode_searchprog", "Filter down to one zipcode:", 
-                                      choices = c("N/A", 
+
+                          selectInput("zipcode_searchprog", "Filter down to one zipcode:",
+                                      choices = c("N/A",
                                                   sort(zipcode_searchdata)
                                                   )
                                       ),
                           # br(),
-                          selectInput("sessiontimes_searchprog", "Filter down to one session time:", 
-                                      choices = c("N/A", 
+                          selectInput("sessiontimes_searchprog", "Filter down to one session time:",
+                                      choices = c("N/A",
                                                   sort(unique(google_analytics$sessiontimes))
                                                   )
-                                      ), 
+                                      ),
                           # br(),
-                          radioButtons("specialneeds_search", 
-                                       "Other filters:", 
+                          radioButtons("specialneeds_search",
+                                       "Other filters:",
                                        choices = c("Special needs students", "Scholarships available", "N/A"),
                                        selected = "N/A"
-                                     
+
 
                           )),
-                          
+
                           conditionalPanel(condition = "input.conditionedPanels == 'Visualization'",
-                                           radioButtons("specific_search_questions", "Choose a question about the Blueprint4Summer Search Data to investigate:", 
+                                           radioButtons("specific_search_questions", "Choose a question about the Blueprint4Summer Search Data to investigate:",
                                                        choices = c("What program categories do people search for the most?",
                                                                    "What distances and session times do people search for, and how do they sort their results?",
                                                                    "What locations are people searching for? (Charts)",
                                                                    "What locations are people searching for? (Map)")))
                           ),
 
-                        
+
                         mainPanel(
                           tabsetPanel(type = "tab",
                                       tabPanel("Summary",
                                                br(),
                                                fluidRow(
-                                                 column(6, uiOutput("totalsearches", 
-                                                                    style = "background-color:#c6dbef; 
+                                                 column(6, uiOutput("totalsearches",
+                                                                    style = "background-color:#c6dbef;
                                                                     height:100px; padding:20px;
                                                                     border:solid", align = "center")),
-                                                 column(6, uiOutput("percentagesearches", style = "background-color:#c6dbef; 
+                                                 column(6, uiOutput("percentagesearches", style = "background-color:#c6dbef;
                                                                     height:100px; padding:20px;
                                                                     border:solid", align = "center"))
                                                ),
@@ -327,12 +351,12 @@ shinyUI(
                                       ),
 
                                       tabPanel("Visualization",
-                                              
+
                                               conditionalPanel('input.specific_search_questions==
                                                                "What distances and session times do people search for, and how do they sort their results?"',
                                                           br(),
                                                           div(plotlyOutput("search_distance_plot", height = "250px")),
-                                                          HTML("<i>Note: Searches with distance set to 20 miles are excluded in this plot, 
+                                                          HTML("<i>Note: Searches with distance set to 20 miles are excluded in this plot,
                                                                as 20 miles was the default search distance and appeared abnormally often.</i>"),
                                                           br(),
                                                           br(),
@@ -341,20 +365,20 @@ shinyUI(
                                                                   column(6,div(plotlyOutput("search_sort_plot", height = "250px")))
                                                                   )
                                                           ),
-                                              
+
                                               conditionalPanel('input.specific_search_questions=="What program categories do people search for the most?"',
                                                                br(),
-                                                               div(plotlyOutput("search_prog_category", height = "250px")), 
+                                                               div(plotlyOutput("search_prog_category", height = "250px")),
                                                                br(),
                                                                div(plotlyOutput("search_compare_prog_category", height = "350px")),
                                                                br()
                                                                ) ,
                                               conditionalPanel('input.specific_search_questions=="What locations are people searching for? (Charts)"',
                                                                br(),
-                                                               div(plotlyOutput("search_zipcode_plot", height = "200px")), 
+                                                               div(plotlyOutput("search_zipcode_plot", height = "200px")),
                                                                br(),
                                                                div(plotlyOutput("search_programs_zipcode_plot", height = "200px"))
-                 
+
                                               ),
                                               conditionalPanel('input.specific_search_questions=="What locations are people searching for? (Map)"',
                                                                leafletOutput("search_mymap", height = 520),
@@ -366,11 +390,11 @@ shinyUI(
                                               )
                                               ),
                                       id = "conditionedPanels"
-                          ) 
+                          )
                         )#end of main panel
 
-                          ))  
-                        
+                          ))
+
 
                       ),  # end reschool search data tab
                    
@@ -378,27 +402,34 @@ shinyUI(
 
                    tabPanel("Access Index",
                             fluidPage(sidebarLayout(
-                              
+
                               sidebarPanel(
+                                conditionalPanel(condition = "input.access_panel == 'Map'",
+                                                 selectInput("neighborhoods_access", "Focus on neighborhoods:",
+                                                             choices = c("All neighborhoods",
+                                                                         neighborhoods_list),
+                                                             multiple = TRUE,
+                                                             selected = "All neighborhoods"
+                                                 )),
                                 conditionalPanel(condition = "input.access_panel == 'Summary Analysis'",
-                                                 radioButtons("specific_access_questions", "Choose a question to investigate about student access to Blueprint4Summer programs:", 
-                                                              choiceNames = c("How equally is access distributed among neighborhoods?",
-                                                                          "How do the number of programs correspond to the number of students in neighborhoods?",
+                                                 radioButtons("specific_access_questions", "Choose a question to investigate about student access to Blueprint4Summer programs:",
+                                                              choiceNames = c("How equally is access distributed geographically?",
+                                                                          # "How do the number of programs correspond to the number of students in neighborhoods?",
                                                                           "How does access differ among demographic groups?"),
-                                                              choiceValues = c("lorenz", "scatter", "demog"))
-                                                 # br(), 
+                                                              choiceValues = c("lorenz", "demog"))  # scatter
+                                                 # br(),
                                                  # br()
                                 ),
-                                checkboxGroupInput("type_access", 
-                                                   "Select one or more program types to include:", 
+                                checkboxGroupInput("type_access",
+                                                   "Select one or more program types to include:",
                                                    choiceNames = c("Academic", "Arts", "Athletic", "Nature"),
                                                    choiceValues = list("academic","art","sports","nature"),
                                                    inline = TRUE,
                                                    selected = c("academic","art","sports","nature")
                                                    ),
                                 #br(),
-                                radioButtons("cost_access", 
-                                             "Select a cost range for programs to include:", 
+                                radioButtons("cost_access",
+                                             "Select a cost range for programs to include:",
                                              choiceNames = list("Free", "Free to Low Cost", "All Programs"),
                                              choiceValues = list("free", "low", "any"),
                                              selected = "any"
@@ -414,17 +445,10 @@ shinyUI(
                                              "Choose whether to focus on programs that accommodate students with special needs:",
                                              choiceNames = c("Any student", "Students with special needs"),
                                              choiceValues = c(FALSE,TRUE),
-                                             selected = FALSE),
+                                             selected = FALSE)
                                 #br(),
-                                conditionalPanel(condition = "input.access_panel == 'Map'",
-                                  selectInput("neighborhoods_access", "Focus on neighborhoods:", 
-                                              choices = c("All neighborhoods", 
-                                                          neighborhoods_list),
-                                              multiple = TRUE,
-                                              selected = "All neighborhoods"
-                                  ))
                               ),  # end sidebarPanel for access index
-                              
+
                               mainPanel(
                                 tabsetPanel(type = "tab",
                                             tabPanel("Map",
@@ -437,10 +461,10 @@ shinyUI(
                                                      br(),
                                                      DT::dataTableOutput("datatable_access"),
                                                      downloadButton("download_access_data", "Download Blockgroup Data"),
-                                                     br(), br(),
-                                                     DT::dataTableOutput("datatable_access_nbhd"),
-                                                     downloadButton("download_access_data_nbhd", "Download Neighborhood Data"),
-                                                     br(), br()
+                                                     br(), br() #,
+                                                     #DT::dataTableOutput("datatable_access_nbhd"),
+                                                     #downloadButton("download_access_data_nbhd", "Download Neighborhood Data"),
+                                                     #br(), br()
                                             ),
                                             tabPanel("Summary Analysis",
                                                      conditionalPanel(condition = "input.specific_access_questions == 'lorenz'",
@@ -449,10 +473,10 @@ shinyUI(
                                                                       uiOutput("lorenz_text"),
                                                                       br()
                                                      ),
-                                                     conditionalPanel(condition = "input.specific_access_questions == 'scatter'",
-                                                                      br(),
-                                                                      plotlyOutput("access_scatter")
-                                                     ),
+                                                     # conditionalPanel(condition = "input.specific_access_questions == 'scatter'",
+                                                     #                  br(),
+                                                     #                  plotlyOutput("access_scatter")
+                                                     # ),
                                                      conditionalPanel(condition = "input.specific_access_questions == 'demog'",
                                                                       br(), plotlyOutput("access_demog")
                                                      )
@@ -460,18 +484,10 @@ shinyUI(
                                             id = "access_panel"
                                 )
                               )  # end main panel for access index
-                              
-                            ))  # end sidebar layout and access index fluidPage
-                  ),  # end access index tab
 
-############################### Manual Tab ################################################
-                  tabPanel("About this Tool",
-                           fluidPage( 
-                             
-                             HTML( manual )
-                             
-                           )
-                  )
+                            ))  # end sidebar layout and access index fluidPage
+                  )  # end access index tab
+
 
 ########################## Ending the Shiny UI ###########################################
 

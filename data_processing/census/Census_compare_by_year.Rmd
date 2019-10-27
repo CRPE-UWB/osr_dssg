@@ -1,0 +1,199 @@
+---
+title: "Census_compare"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+require(tidyverse)
+require(leaflet)
+require(rgdal)
+```
+
+```{r }
+setwd('~/Desktop/OSR2019')
+old_bg_shape <- readOGR("DATA/Archive/Cencus/old_shape_census", "shape_census")
+```
+
+## Compare racial distribution on bg level 
+
+```{r}
+# black
+# 2017
+colors5 <- c('#ffffb2','#fecc5c','#fd8d3c','#f03b20','#bd0026') 
+leaflet(bg_shape) %>%
+  addTiles() %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+              opacity = 1.0, fillOpacity = 0.5, 
+              fillColor = ~colorFactor(colors5, bg_shape@data$PCT_Afr)(bg_shape@data$PCT_Afr))
+```
+
+```{r}
+# 2016
+#black
+leaflet(old_bg_shape) %>%
+  addTiles() %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+              opacity = 1.0, fillOpacity = 0.5, 
+              fillColor = ~colorFactor(colors5, old_bg_shape@data$PCT_Afr)(old_bg_shape@data$PCT_Afr))
+```
+
+```{r}
+# white 2017
+colors5 <- c('#ffffb2','#fecc5c','#fd8d3c','#f03b20','#bd0026') 
+leaflet(bg_shape) %>%
+  addTiles() %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+              opacity = 1.0, fillOpacity = 0.5, 
+              fillColor = ~colorFactor(colors5, bg_shape@data$PCT_Wht)(bg_shape@data$PCT_Wht))
+```
+
+```{r}
+#white 2016
+leaflet(old_bg_shape) %>%
+  addTiles() %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+              opacity = 1.0, fillOpacity = 0.5, 
+      fillColor = ~colorFactor(colors5, old_bg_shape@data$PCT_Wht)(old_bg_shape@data$PCT_Wht))
+```
+
+
+```{r}
+#add popup
+info1 <- paste( "percentage:",bg_shape@data$PCT_Hsp,"<br/>",
+                "number:",bg_shape@data$Hispanc, "<br/>",
+                "total:", bg_shape@data$Total)
+info2 <- paste("percentage:", old_bg_shape@data$PCT_Hsp, "<br/>",
+               "number:", old_bg_shape@data$Hispanc,"<br/>",
+                "total:", old_bg_shape@data$TTL_ppl)
+```
+
+```{r}
+# hispanic 2017
+# colors5 <- c('#ffffb2','#fecc5c','#fd8d3c','#f03b20','#bd0026') 
+# fillColor = ~colorFactor(colors5, bg_shape@data$PCT_Hsp)(bg_shape@data$PCT_Hsp)
+
+pal <- colorNumeric(
+  palette = "YlGnBu",
+  domain =  bg_shape@data$PCT_Hsp
+)
+
+leaflet(bg_shape) %>%
+  addTiles() %>%
+  addPolygons(stroke = FALSE, smoothFactor = 0.5,
+              opacity = 1.0, fillOpacity = 0.5, 
+              color = ~pal(bg_shape@data$PCT_Hsp),
+              popup = info1) %>%
+  addLegend("bottomright", 
+              pal = pal, 
+              values = bg_shape@data$PCT_Hsp,
+              title = htmltools::HTML("Percentage"),
+              opacity = 1)
+```
+
+```{r}
+#hispanic 2016
+pal2 <- colorNumeric(
+  palette = "YlGnBu",
+  domain =  old_bg_shape@data$PCT_Hsp
+)
+
+
+leaflet(old_bg_shape) %>%
+  addTiles() %>%
+  addPolygons(stroke = FALSE, smoothFactor = 0.5,
+              opacity = 1.0, fillOpacity = 0.5, 
+              color = ~pal2(old_bg_shape@data$PCT_Hsp),
+              popup = info1) %>%
+    addLegend("bottomright", 
+              pal = pal, 
+              values = old_bg_shape@data$PCT_Hsp,
+              title = htmltools::HTML("Percentage"),
+              opacity = 1)
+```
+
+Well, actually no differences can be seen by eyes
+```{r}
+# create a new data set to compare changes
+hisp <- old_bg %>% select(id, ttl_population, hispanic, pct_hispanic) #2016
+colnames(hisp)[1] <- "Id"
+hispanic$total <- race$Estimate..Total.
+hisp2 <- merge(hisp, hispanic, by = "Id")
+
+hisp2$diff <- hisp2$pct_hispanic - hisp2$PCT_Hispanic #2016-2017
+summary(hisp2$diff)
+
+head(hisp2)
+
+hisp2$num_diff <- hisp2$hispanic - hisp2$Hispanic #2016-2017
+summary(hisp2$num_diff)
+```
+
+# In case there are errors reading in data, let me do this again
+```{r}
+setwd('~/Desktop')
+hist16 <- read.csv("16.csv", skip = 1)
+hist17 <- read.csv("17.csv", skip = 1)
+
+hist16 <- hist16[, c(1, 4, 8)]
+hist17 <- hist17[, c(1, 4, 8)]
+
+hist16$pct <- hist16$Estimate..Total....Hispanic.or.Latino/hist16$Estimate..Total.*100 
+hist17$pct2 <- hist17$Estimate..Total....Hispanic.or.Latino/hist17$Estimate..Total.*100 
+
+diff <- hist16$pct - hist17$pct2
+
+summary(diff)
+# we get the same summary statistics 
+```
+
+## Check median household income across years 
+```{r}
+# 2017
+bg_shape@data$Mdn_HH_ <- as.numeric(levels(bg_shape@data$Mdn_HH_))[bg_shape@data$Mdn_HH_]
+
+pal3 <- colorNumeric(
+  palette = "YlGnBu",
+  domain =  bg_shape@data$Mdn_HH_
+)
+
+
+leaflet(bg_shape) %>%
+  addTiles() %>%
+  addPolygons(stroke = FALSE, smoothFactor = 0.5,
+              opacity = 1.0, fillOpacity = 0.5, 
+              color = ~pal3(bg_shape@data$Mdn_HH_),
+              popup = info1) %>%
+    addLegend("bottomright", 
+              pal = pal3, 
+              values = bg_shape@data$Mdn_HH_,
+              title = htmltools::HTML("Median HH Income"),
+              opacity = 1)
+```
+
+```{r}
+# 2016
+pal4 <- colorNumeric(
+  palette = "YlGnBu",
+  domain =  old_bg_shape@data$Mdn_HH_
+)
+
+
+leaflet(old_bg_shape) %>%
+  addTiles() %>%
+  addPolygons(stroke = FALSE, smoothFactor = 0.5,
+              opacity = 1.0, fillOpacity = 0.5, 
+              color = ~pal4(old_bg_shape@data$Mdn_HH_),
+              popup = info1) %>%
+  addLegend("bottomright", 
+              pal = pal4, 
+              values = old_bg_shape@data$Mdn_HH_,
+              title = htmltools::HTML("Median HH Income"),
+              opacity = 1)
+```
+
+No difference at all. 

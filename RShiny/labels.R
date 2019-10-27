@@ -13,7 +13,7 @@ make_program_popups <- function(program_data) {
     <b>%s</b> 
     %s
     </p><p>
-    $%i per session<br>
+    Total Cost: $%i<br>
     Starts: %s, Ends: %s
     </p><p>
     <i>%s</i>
@@ -131,33 +131,32 @@ get_nbhd_census_labels <- function(val=NULL) {
   )
 }
 
-get_nbhd_student_labels <- function(val=NULL) {
-  if (is.null(val)) {
-    str_num_programs = ""
-  } else {
-    str_num_programs = paste("No. Program Sessions = ", val,"<br/>")
-  }
-  return(sprintf(
-    "<p><b>%s</b><br/>
-    %s </p>
-    <i>Student Level Data:</i><br/>
-    %% English Student Learners = %g%% <br/>
-    %% Students with Disability = %g%% <br/>
-    %% Hispanic Students = %g%% <br/>
-    %% White Students = %g%% <br/>
-    %% Black Students = %g%% <br/>
-    <i><font size=1>(Sample Size = %g)</font></i>",
-    shape_census@data$NBHD_NA,
-    str_num_programs,
-    shape_census@data$perc_el,
-    shape_census@data$perc_disable_students,
-    shape_census@data$perc_hispanic_students,
-    shape_census@data$perc_white_students,
-    shape_census@data$perc_black_students,
-    aggregate_dps_student_nbhds$total_students
-  ) %>% lapply(htmltools::HTML)
-  )
-}
+# get_nbhd_student_labels <- function(val=NULL) {
+#   if (is.null(val)) {
+#     str_num_programs = ""
+#   } else {
+#     str_num_programs = paste("No. Program Sessions = ", val,"<br/>")
+#   }
+#   return(sprintf(
+#     "<p><b>%s</b><br/>
+#     %s </p>
+#     <i>Student Level Data:</i><br/>
+#     %% English Student Learners = %g%% <br/>
+#     %% Students with Disability = %g%% <br/>
+#     %% Hispanic Students = %g%% <br/>
+#     %% White Students = %g%% <br/>
+#     %% Black Students = %g%% <br/>
+#     <i><font size=1>(Sample Size = %g)</font></i>",
+#     shape_census@data$NBHD_NA,
+#     str_num_programs,
+#     shape_census@data$perc_el,
+#     shape_census@data$perc_disable_students,
+#     shape_census@data$perc_hispanic_students,
+#     shape_census@data$perc_black_students,
+#     aggregate_dps_student_nbhds$total_students
+#   ) %>% lapply(htmltools::HTML)
+#   )
+# }
 
 get_block_census_labels <- function(val) {
   return(sprintf(
@@ -205,9 +204,9 @@ legend_titles_demographic <- list(MED_HH_ = "Median HH Income",
 demog_names <- list("None",
                     "Children 5-17 years old (#)",
                     "Median Household Income ($)", 
-                    "Less than High School Degree (% over 25 yrs old)",
-                    "College Graduates (% over 25 yrs old)",
-                    "Language Other than English Spoken (%)",
+                    "Adults with Less than High School Degree (% over 25 yrs)",
+                    "College Graduates (% over 25 yrs)",
+                    "Language Besides English Spoken at Home (%)",
                     # HTML("Language other than English spoken (%)
                     #      <br><br>
                     #      <i>Race/Ethnicity Variables</i>"
@@ -275,22 +274,22 @@ pal_list <- list(pal_age,
 names(pal_list) <- demog_values[demog_values!="none"]
 names(lab_format_list) <- demog_values[demog_values!="none"]
 
-pal_list_student <- list(pal_el,
-                         pal_disabled,
-                         pal_hispanic_student,
-                         pal_white_student,
-                         pal_black_student
-)
+# pal_list_student <- list(pal_el,
+#                          pal_disabled,
+#                          pal_hispanic_student,
+#                          pal_white_student,
+#                          pal_black_student
+# )
 
-lab_format_list_student <- list(labelFormat(prefix = " %"),
-                                labelFormat(suffix = " %"),
-                                labelFormat(suffix = " %"),
-                                labelFormat(suffix = " %"),
-                                labelFormat(suffix = " %")
-                                )
-
-names(pal_list_student) <- demog_student_values[demog_student_values!="none"]
-names(lab_format_list_student) <- demog_student_values[demog_student_values!="none"]
+# lab_format_list_student <- list(labelFormat(prefix = " %"),
+#                                 labelFormat(suffix = " %"),
+#                                 labelFormat(suffix = " %"),
+#                                 labelFormat(suffix = " %"),
+#                                 labelFormat(suffix = " %")
+#                                 )
+# 
+# names(pal_list_student) <- demog_student_values[demog_student_values!="none"]
+# names(lab_format_list_student) <- demog_student_values[demog_student_values!="none"]
 
 ############################## Demographic info for the ReSchool Summary Analysis Tab ##############################
 

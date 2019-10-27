@@ -1,0 +1,394 @@
+---
+title: "block_group_distance_updated_data"
+author: "Andrew Taylor"
+date: "August 24, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+########Intro
+
+This markdown updates the block_group_distances csv to be consistent with the current list of reschool programs. The block group distances csv is the distance from every block group centroid to every unique lat lon combination of reschool program addresses. This, multiplied by the number of sessions at each location, becomes the back bone of the access index. In the previous markdown "block_group_distances.RMD" we caluclated this using the original list provided. However, either due to an error on my (Andrew) part with attempting merge previously geocded results, or some errenous address values, we may have serious miscalculated the distances by only calculating distances to about 38/286 unique lat lon combinations. Here we explore the extent of that error and correct miscalculations.
+
+```{r set up}
+#libs
+library(rgeos)
+library(rgdal)
+library(raster)
+library(tidyverse)
+library(googleway)
+library(geosphere)
+
+#data
+census_shape <- readOGR("C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/Census_demo/shape_census") #reads the shapefile, NOTE: you need all shapefiles in the directory present
+
+reschool_programs <- read.csv("C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/B4Sprograms/geocoded_data/complete_geocoded_sessions.csv",
+                              header=TRUE,
+                              stringsAsFactors = FALSE)
+
+previous_block_group_distance <- read.csv("C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/access_index/block_distance.csv"
+                                          ,header=TRUE
+                                          ,stringsAsFactors = FALSE)
+
+census_centroids <- data.frame(
+  blockID = unique(census_shape@data$Id2),
+  lat = centroid(census_shape)[,2] #lat, why are they backwards?
+  ,lon = centroid(census_shape)[,1] #lon, who knows
+)
+
+
+```
+
+Find matching lat lon combinations from the current programs list and the old block group distances
+```{r match block distance and programs}
+#first we make a lat lon column in both dataframes to make matching easier
+previous_block_group_distance$lat_lon <- paste(previous_block_group_distance$lat,previous_block_group_distance$lon)
+
+#what do we got in the previous block distance?
+length(unique(previous_block_group_distance$lat_lon)) #we got 38. In other we got a big freaking problem.
+
+#what do we in the reschool programs?
+length(unique(reschool_programs$lat_lon)) #we got 289. YUP. Something went wrong in the distance calculation. 
+
+#how many match?
+summary(unique(reschool_programs$lat_lon) %in% unique(previous_block_group_distance$lat_lon)) #well that is especially concerning. Only 38 unique, and only five match?
+```
+
+Here do a visual check on matches. This could be a function of just how off the geocoding we did before was, or perhaps there are only minor variations in lat lon coordinates? Spot five duplicate lat lon combinations (with different addresses that were no spacing errors) from block group distances in google maps and compared to the reschool programs list. The block group distances are flat out off, some are straight up errors. Sadly, need to recalculate, quite a few at that. 
+```{r spot check differences}
+unique_distance_lat_lon <- unique(previous_block_group_distance[c("session_address_1","lat_lon")])
+unique_reschool_lat_lon <- unique(reschool_programs[c("session_address_1","lat_lon")])
+```
+
+
+Create a subset of matching lat lon combinations. These are the cases where we have already correctly calculated distance and do not need to recalculate.
+```{r subset previous block distances}
+pre_calculated <- previous_block_group_distance[which(
+  previous_block_group_distance$lat_lon %in% reschool_programs$lat_lon
+),]
+
+#validate to make sure we didn't lose anything
+summary(unique(pre_calculated$lat_lon) %in% unique(previous_block_group_distance$lat_lon))
+```
+
+Create a target list of distance calculations, which is unique addresses and lat lon combinations from reschool programs. Extract from this list the lat lon combinations which have already been calculated such that we can avoid redundant calculations.
+```{r target list}
+reschool_addresses <- unique(reschool_programs[c("lat","long","lat_lon")]) #create unique list of reshcool combinations
+reschool_addresses <- reschool_addresses[which((reschool_addresses$lat_lon %in% pre_calculated$lat_lon)==FALSE),] #drop precalculated lat lons
+reschool_addresses <- reschool_addresses[is.na(reschool_addresses$lat_lon)==FALSE,] #drop NA value (only 1)
+names(reschool_addresses)[names(reschool_addresses)=="long"] <- "lon" #fix this stupid naming error
+```
+
+Recalculate as needed
+```{r recalculate block group distances}
+google_api_key <- "<INSERT KEY HERE>" #assign the google api key to reference in queries
+block_distance <- reschool_addresses #the base of our frame is the unique addresses subset above\
+
+#for ease of testing, we start with 0 group assignment, to become a baseframe that has no results, but is easily copied for each blockgroup
+block_distance$blockID <- 0 #will be a list of 481 block groups (482 if you count 0)
+block_distance$driving_morning <- 0 #will become the driving time
+block_distance$transit_morning <- 0 #will become the transit time
+block_distance$kilometers <- 0 #will become kilometers, stored, but probably redundant
+
+#reread as needed
+#block_distance <- read.csv("C:/Users/ataylor/OneDrive - Vera Institute of #Justice/coding-files/OSR2019/DATA/access_index/working_block_distance.csv",header = TRUE,stringsAsFactors = FALSE)
+
+#the actual loop
+#note we record system time, because good god is it lon
+#the top layer is looping by blockgroup, the second layer loops for programs
+system.time(for (blockgroup in 263:267){  
+  blockgroup.block <- census_centroids$blockID[blockgroup] #read arbitrary block ID
+  lat.block <- census_centroids$lat[blockgroup] #get coordinates
+  lon.block <- census_centroids$lon[blockgroup]
+  lat.lon <- c(lat.block,lon.block) #combine blockgroup coordinates for mapdist function
+  lat.lon <- paste(lat.lon,collapse=" ") #see above
+  block_mover <- subset(block_distance,block_distance$blockID==0) #make a new subset that is original length, per the new block group
+  
+  #here we start the nested loop for all programs
+  for (program in 1:nrow(block_mover)){
+    block_mover$blockID <- blockgroup.block #assign current blockgroup ID to the subset
+    lat.program <- block_mover$lat[program] #get coordinates for OSRs
+    lon.program <- block_mover$lon[program] 
+    lat.lon.program <- c(lat.program,lon.program) #combine OSR coordinates for use in mapdist
+    lat.lon.program <- paste(lat.lon.program,collapse=" ")
+    
+    #distance calculations
+    distance.program <- google_distance(origin=c(lat.block,lon.block),
+    destination = c(lat.program,lon.program),
+    mode="driving",
+    key = google_api_key)
+    
+    distance_transit.program <- google_distance(origin=c(lat.block,lon.block),
+    destination = c(lat.program,lon.program),
+    mode="transit",
+    key = google_api_key)
+    
+    #grabbing our dataframe list items & merging into the dataframe
+    
+    #transit conditional merge
+    
+    distance_transit.program <- as.data.frame(distance_transit.program$rows$elements)
+    if(as.character(distance_transit.program$status)
+       !="ZERO_RESULTS"){ #transit conditional only if transit exists
+      block_mover$transit_morning[program] <- as.numeric(distance_transit.program$duration[2]/60) #add transit times, divided by 60 for mins
+    }
+    if(as.character(distance_transit.program$status)
+       =="ZERO_RESULTS"){
+      block_mover$transit_morning[program] <- NA #sub NA if no transit available
+    }
+    #driving merge
+    distance.program <- as.data.frame(distance.program$rows$elements)
+    block_mover$driving_morning[program] <- as.numeric(distance.program$duration[2]/60) #drive times
+    block_mover$kilometers[program] <- distance.program$distance[[1]]
+    #validation
+    #errors occured with incorrect lat lons for use in distance last time
+    #to be safe we remove all references to ensure we use the correct one 
+    rm(distance.program)
+    rm(distance_transit.program)
+    #this is prone to crashing, so we print these to help us identify where the crash happens
+    if(program %% 250 == 0){
+      print(paste("working...",
+                  program,
+                  "distances calculated for blockgroup number",
+                  blockgroup))
+      print(paste("test that lat longs didn't get messed up",
+                  length(unique(block_distance$lat_lon))))
+      #print first of all to note if things just stop working or are just slow
+    }
+}
+  block_distance <- rbind(block_distance,block_mover) #bind new distance into the base dataframe
+  
+  #overwrite/write csv each go through in the event of the loop crashing, we'll have a back up
+  write.csv(block_distance,
+            "C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/access_index/working_block_distance.csv",
+            row.names=FALSE)
+  })
+```
+
+Bind the previously calculated distances
+```{r clean and bind}
+#validate correct n of ids
+summary(block_distance$blockID[which(block_distance$blockID!=0)] %in% census_centroids$blockID) #perfect, missing 0s
+#get rid of accidental duplicates and our tracking 0 id
+block_distance_final <- unique(block_distance[which(block_distance$blockID!=0),])
+#check rows and lat lons per block group, should all be the same
+nrow(block_distance_final)
+validator <- aggregate(lat_lon~blockID,
+                       data=block_distance_final,
+                       FUN=function(x){length(unique(x))})
+unique(validator$lat_lon)
+#bind things in
+names(pre_calculated)[names(pre_calculated)=="Id2"] <- "blockID"
+block_distance_final <- rbind(block_distance_final,
+                              unique(pre_calculated[c("lat","lon","lat_lon",
+                                                      "blockID","driving_morning","transit_morning",
+                                                      "kilometers")]))
+#new validator
+block_distance_final <- unique(block_distance_final)
+nrow(block_distance_final)
+validator <- aggregate(lat_lon~blockID,
+                       data=block_distance_final,
+                       FUN=function(x){length(unique(x))})
+unique(validator$lat_lon)
+```
+
+Identified six geocoding errors, redux those and bind them in here.
+
+```{r redux geocoding errors}
+redux_addresses <- unique(reschool_programs[c("lat","lon","lat_lon")])
+redux_addresses <- redux_addresses[which((redux_addresses$lat_lon %in% block_distance$lat_lon)==FALSE),]
+
+block_distance_redux <- redux_addresses
+block_distance_redux$blockID <- 0 #will be a list of 481 block groups (482 if you count 0)
+block_distance_redux$driving_morning <- 0 #will become the driving time
+block_distance_redux$transit_morning <- 0 #will become the transit time
+block_distance_redux$kilometers <- 0 
+
+
+###loop
+system.time(for (blockgroup in 1:nrow(census_centroids)){  
+  blockgroup.block <- census_centroids$blockID[blockgroup] #read arbitrary block ID
+  lat.block <- census_centroids$lat[blockgroup] #get coordinates
+  lon.block <- census_centroids$lon[blockgroup]
+  lat.lon <- c(lat.block,lon.block) #combine blockgroup coordinates for mapdist function
+  lat.lon <- paste(lat.lon,collapse=" ") #see above
+  block_mover <- subset(block_distance_redux,block_distance_redux$blockID==0) #make a new subset that is original length, per the new block group
+  
+  #here we start the nested loop for all programs
+  for (program in 1:nrow(block_mover)){
+    block_mover$blockID <- blockgroup.block #assign current blockgroup ID to the subset
+    lat.program <- block_mover$lat[program] #get coordinates for OSRs
+    lon.program <- block_mover$lon[program] 
+    lat.lon.program <- c(lat.program,lon.program) #combine OSR coordinates for use in mapdist
+    lat.lon.program <- paste(lat.lon.program,collapse=" ")
+    
+    #distance calculations
+    distance.program <- google_distance(origin=c(lat.block,lon.block),
+    destination = c(lat.program,lon.program),
+    mode="driving",
+    key = google_api_key)
+    
+    distance_transit.program <- google_distance(origin=c(lat.block,lon.block),
+    destination = c(lat.program,lon.program),
+    mode="transit",
+    key = google_api_key)
+    
+    #grabbing our dataframe list items & merging into the dataframe
+    
+    #transit conditional merge
+    
+    distance_transit.program <- as.data.frame(distance_transit.program$rows$elements)
+    if(as.character(distance_transit.program$status)
+       !="ZERO_RESULTS"){ #transit conditional only if transit exists
+      block_mover$transit_morning[program] <- as.numeric(distance_transit.program$duration[2]/60) #add transit times, divided by 60 for mins
+    }
+    if(as.character(distance_transit.program$status)
+       =="ZERO_RESULTS"){
+      block_mover$transit_morning[program] <- NA #sub NA if no transit available
+    }
+    #driving merge
+    distance.program <- as.data.frame(distance.program$rows$elements)
+    block_mover$driving_morning[program] <- as.numeric(distance.program$duration[2]/60) #drive times
+    block_mover$kilometers[program] <- distance.program$distance[[1]]
+    #validation
+    #errors occured with incorrect lat lons for use in distance last time
+    #to be safe we remove all references to ensure we use the correct one 
+    rm(distance.program)
+    rm(distance_transit.program)
+    #this is prone to crashing, so we print these to help us identify where the crash happens
+    if(program %% 5 == 0){
+      print(paste("working...",
+                  program,
+                  "distances calculated for blockgroup number",
+                  blockgroup))
+      print(paste("test that lat longs didn't get messed up",
+                  length(unique(block_distance_redux$lat_lon))))
+      #print first of all to note if things just stop working or are just slow
+    }
+}
+  block_distance_redux <- rbind(block_distance_redux,block_mover) #bind new distance into the base dataframe
+  
+  #overwrite/write csv each go through in the event of the loop crashing, we'll have a back up
+  write.csv(block_distance_redux,
+            "C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/access_index/working_block_redux_distance.csv",
+            row.names=FALSE)
+  })
+```
+
+
+FIX REDUNDANT ROWS PER BLOCKGROUP
+```{r row per block group why what is happening}
+temp <- data.frame(
+  Id2 = unique(block_distance$Id2),
+  length = sapply(unique(block_distance$Id2),
+                  function(x){
+                    length(block_distance$Id2[which(block_distance$Id2==x)])
+                  })
+) #first we aggregate n of rows per id
+
+#then we pull a list of the ones we need
+#target_ids <- temp$Id2[which(temp$length>295)]
+
+target_ids <- unique(temp$Id2)
+
+#bugger the above
+#target_ids <- unique(census_blocks$Id2)
+
+#start it over and get this shit straight to what we need it to match to 
+clean_block_distance <- unique(reschool_programs[c("lat","long","lat_lon")])
+clean_block_distance <- clean_block_distance[is.na(clean_block_distance$lat)==FALSE,]
+clean_block_distance$Id2 <- 0
+clean_block_distance$driving_morning <- NA
+clean_block_distance$transit_morning <- NA
+clean_block_distance$kilometers <- NA
+
+for(blockgroup in 1:length(target_ids)){
+  #target
+  target_id <- target_ids[blockgroup]
+  #duplicate set
+  clean_block_distance_mover <- clean_block_distance[which(clean_block_distance$Id2==0),]
+  clean_block_distance_mover$Id2 <- target_id
+  #sapply what we need
+  clean_block_distance_mover$driving_morning <- sapply(
+    clean_block_distance_mover$lat_lon,
+    function(lat_lon){
+      #pull matches
+      results <- block_distance$driving_morning[which(
+        block_distance$Id2==target_id &
+          block_distance$lat_lon==lat_lon
+      )]
+      #if matches > 1, randomly return one
+      if(length(results)>1){
+        return(
+          sample(results)[1]
+        )
+      }
+      if(length(results)==1){
+        return(results)
+      }
+    }
+  )
+  #transit
+  clean_block_distance_mover$transit_morning <- sapply(
+    clean_block_distance_mover$lat_lon,
+    function(lat_lon){
+      #pull matches
+      results <- block_distance$transit_morning[which(
+        block_distance$Id2==target_id &
+          block_distance$lat_lon==lat_lon
+      )]
+      #if matches > 1, randomly return one
+      if(length(results)>1){
+        return(
+          sample(results)[1]
+        )
+      }
+      if(length(results)==1){
+        return(results)
+      }
+    }
+  )
+  #validation
+print(
+      paste(
+        "working...",
+        blockgroup,
+        "blockgroups reviewed"
+      )
+    )
+  #lol and bind
+  clean_block_distance <- rbind(
+    clean_block_distance,
+    clean_block_distance_mover
+  )
+}
+
+#drop 0s
+clean_block_distance <- clean_block_distance[which(clean_block_distance$Id2!=0),]
+```
+
+
+
+Oddly, got one address that always returned an NA? Accounts for about 5% of programs
+
+```{r drop NAs, perhaps more frustratingly }
+#block_distance_final <- block_distance[is.na(block_distance$lat)==FALSE,]
+#cross validator
+#validator_blocks <- aggregate(blockID~lat_lon,
+#                              data=block_distance_final,
+#                              FUN=function(x){length(unique(x))})
+#
+#validator_programs <- aggregate(lat_lon~blockID,
+ #                               data=block_distance_final,
+  #                              FUN=function(x){length(unique(x))})
+```
+
+
+Write to csv
+```{r write final}
+write.csv(clean_block_distance,"C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/access_index/block_distance.csv",row.names = FALSE)
+
+```

@@ -3,7 +3,7 @@ library(rgdal)  # for working with spatial data frames
 library(rgeos)  # for working with spatial data frames
 library(leaflet)  # for observational mapping
 
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))  # only works if running rstudio
+#setwd(dirname(rstudioapi::getActiveDocumentContext()$path))  # only works if running rstudio
 mypath <- getwd()
 
 ## get nbhd level demographics from denver open data

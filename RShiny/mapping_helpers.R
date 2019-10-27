@@ -102,7 +102,8 @@ make_demographic_map <- function(pal, col_name, labFormat=NULL, my_labels=nbhd_l
   }
 }
 
-create_demographic_map <- function(school_or_census, demographics, student_demographics, census_labels, student_labels) {
+create_demographic_map <- function(school_or_census, demographics, student_demographics, 
+                                   census_labels, student_labels) {
   if(school_or_census=="census_dems") {
     if(demographics=="none"){
       return(make_demographic_map(NULL, NULL, my_labels = census_labels))
@@ -115,7 +116,7 @@ create_demographic_map <- function(school_or_census, demographics, student_demog
       )
     }
     else {
-      return(make_demographic_map(pal_list[[demographics]], demographics, labFormat = lab_format_list[[demographics]],
+      return(make_demographic_map(pal_list[[demographics]], demographics, labFormat=lab_format_list[[demographics]],
                                   my_labels=census_labels))
     }
   }
@@ -124,7 +125,8 @@ create_demographic_map <- function(school_or_census, demographics, student_demog
     if(student_demographics == "none"){
       curr_map <- make_demographic_map(NULL,NULL, my_labels=student_labels)
     } else {
-      curr_map <- make_demographic_map(pal_list_student[[student_demographics]], student_demographics, labFormat = lab_format_list_student[[student_demographics]], 
+      curr_map <- make_demographic_map(pal_list_student[[student_demographics]], student_demographics, 
+                                       labFormat = lab_format_list_student[[student_demographics]], 
                                        my_labels=student_labels)
     }
   }
@@ -188,5 +190,5 @@ add_outline <- function(map, nbhd_list=NULL) {
     relevant_nbhds <- subset(shape_census, NBHD_NA %in% nbhd_list)
   }
   addPolygons(map, data = unionSpatialPolygons(relevant_nbhds, IDs=rep(0,nrow(relevant_nbhds))),
-              fill = FALSE, weight=4, color = "#777", opacity = 1)
+              fill = FALSE, weight=4, color = "#ff6666", opacity = 1)
 }

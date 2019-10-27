@@ -1,0 +1,81 @@
+---
+title: "Exploratory"
+author: "Haowen"
+date: "9/12/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+This file preserves codes that were used in analysis for exploratory reasons but not included in the final version. 
+
+1. Frequency table for more details. 
+NOT USED in report. 
+```{r}
+summer_day_freq <- data.frame(table(sessions$calendar_date))
+colnames(summer_day_freq)[1] <- "Time"
+
+summer_day_freq <- summer_day_freq %>% 
+  arrange_at("Freq", desc)
+
+summer_day_freq
+```
+
+
+Session days counts
+```{r}
+sessions$week <- strftime(sessions$calendar_date, format = "%V")
+
+summer_week_freq <- data.frame(tabyl(sessions$week, sort = TRUE))
+colnames(summer_week_freq) <- c("Week", "Session days counts", "Session days percentage")
+summer_week_freq$`Session days percentage` <- round(summer_week_freq$`Session days percentage`, digits = 2) 
+```
+
+boxplot 
+```{r}
+ggplot(sessions, aes(x = factor(1), y = duration)) +
+  geom_boxplot(width = 0.4, fill = "white") +
+  geom_jitter(width = 0.1, size = 0.1) +
+  labs(x = NULL)
+```
+
+#### 2.2 Analysis unit: program sessions
+
+How are programs distributed in terms of total durations (in hours)? 
+
+```{r}
+# detailed numbers with high-low order on frequency
+duration_freq2 <- data.frame(table(programs$total.duration))
+colnames(duration_freq2)[1] <- "Hours"
+duration_freq2$Hours <- as.numeric(levels(duration_freq2$Hours))[duration_freq2$Hours]
+duration_freq2$Hours <- format(round(duration_freq2$Hours, 2), nsmall = 2)
+duration_freq2 <- duration_freq2 %>% 
+  arrange_at("Freq", desc)
+duration_freq2
+ # We can see most are within 100 hours in total
+
+# graph to check the distribution
+g7 <- ggplot(programs, aes(total.duration)) +
+  geom_bar() + 
+  labs(title="Distribution of program sessions according to total duration", 
+       subtitle = "Summer programs",
+       caption="Source: Blueprint4Summer",
+       x="Program duration(hours)")
+
+g7
+ # get rid of the outliers to get a closer look (100 hours as the split point) 
+ # range could be changed, discuss with Sivan 
+temp <- programs %>% filter(total.duration < 100)
+g8 <- ggplot(temp, aes(total.duration)) +
+  geom_bar() + 
+  labs(title="Distribution of program sessions according to total duration", 
+       subtitle = "Summer programs within 100 hours",
+       caption="Source: Blueprint4Summer",
+       x="Program duration(hours)")
+g8
+```
+
+

@@ -1,5 +1,6 @@
 #
 # Misc. helpers for the shiny app
+# Mostly for subsetting and calculating aggregates
 #
 
 ############################################################################################
@@ -13,7 +14,7 @@ get_race_access_means <- function(access_inds){
   for(i in 1:length(race_col_names)){
     race_pops <- shape_census_block@data[,race_col_names[i]]
     tot_race_pop <- sum(shape_census_block@data[,race_col_names[i]])
-    race_access_list[race_names[i]] <- sum(access_inds*(race_pops/tot_race_pop))
+    race_access_list[race_names[i]] <- sum(access_inds*(race_pops/tot_race_pop), na.rm=TRUE)
   }
   return(race_access_list)
 }
@@ -67,9 +68,25 @@ subset_for_neighborhoods <- function(df, neighborhoods_list){
 }
 
 # Subsetting the data for cost
+# if cost unknown, won't be shown in the app
 subset_for_cost <- function(df, min_cost, max_cost) {
-  return(df[df$session_cost >= min_cost & 
-              df$session_cost  <= max_cost,])
+  idxs <- (df$cost_per_hour >= min_cost) & (df$cost_per_hour  <= max_cost)
+  idxs[is.na(idxs)] <- FALSE
+  return(df[idxs,])
+}
+
+# Subsetting the programs data for # hours per day
+subset_for_hours <- function(df, min_hrs, max_hrs) {
+  idxs <- (df$length >= min_hrs) & (df$length  <= max_hrs)
+  idxs[is.na(idxs)] <- FALSE
+  return(df[idxs,])
+}
+
+# Subsetting the programs data for total # days
+subset_for_days <- function(df, min_days, max_days) {
+  idxs <- (df$total_days >= min_days) & (df$total_days  <= max_days)
+  idxs[is.na(idxs)] <- FALSE
+  return(df[idxs,])
 }
 
 # Subsetting the data for the type of the program selected

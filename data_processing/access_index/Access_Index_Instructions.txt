@@ -1,0 +1,49 @@
+#########Intro
+##############
+##############
+
+This document provides a high level overview of the instructions for how to calculate the access index in this report, and descriptions of the files in this folder
+and their use in the analysis. This is distinct from the methods which detail why we used the particular gravity function we did and the sensivity analysis
+that supports this, which are detailed in our first report from 2018.
+
+
+##Calculating 
+##Access Index
+
+1.)  Geodcode Unique Sessions Address.
+	
+	All program locations must be geocoded with lat and lon coordinates. Here this considered a step of initial data processing.
+	If possible, we should match existing session addresses to lat and lon coordinates. However, be aware that small differences in coordiantes,
+	potentially reflecting a small margin of error with google maps geocoding API, can cause redundant joins from this method. So some trial and error
+	or else validation is advised if this method is pursued. 
+
+	Lat and lon coordinates are used over session addresses as passing session addresses, even with pasting city/state/zip info lead to incorrect
+	locations, at least documented with the googleaway packedge in the summer of 2018. These errors were not documented with the lat/lon coordinates.
+
+	See the "geocode_sessions" R markdown for code used here. 
+
+2.) Calculate block group centroid distance to all programs.
+	
+	This is the most time intensive step in the process. Here we use the "block_group_distance" markdown to calculate distances from every blockgroup
+	centroid to every unique session address. This provides the basis for our cacluation of the access index, with these driving & transit travel times
+	ultimatley become the measurement that becomes the index. 
+
+	Note, that in the summer of 2018 we tested differences in mean travel time using morning & evening arrival times. We found that the mean difference was
+	very small, and therefore in this rendering, this was not tested and arrival times were not used.
+
+	Note, this takes a very long time to run all the way through, and is prone to crashing on a personel wifi connection (for example, my house).
+	It may be possible to functionalize this code to reduce the calculation time, however- be aware there is a query per second limit, which may be
+	exceeded in some cases. Similarly, because this has a tendency to crash, the markdown "block_group_distance" makes a point of backing up the data
+	for every iteration of the loop. Loading a partially crashed loop has a tendency to create redundant calculations, which are filtered out in the
+	later half of the markdown. 
+
+3.) Access Index Precomputing
+	
+	This generates the dataframe of the actual index values, as well as precomputing them for a few filtered views (e.g, only art programs, or 
+	only free programs, etc). This provides the data used in the original shiny app, but note that is essential the block group distances were already
+	computed. This uses the markdown "Access_Index_PreComputing", which in turn references this functions created to calculate the index in
+	"Access_Index_Functions.R."
+
+	NOTE: In contrast to last year, and hopefully not simply overlooked last year, there's a handful of programs that list either a PO box, or, an address
+	that is clearly some kind of error, or a long text description describing pick up options. These correspond to 7.9% number of programs, and should be
+	given as a caveat for interpreting these findings.  

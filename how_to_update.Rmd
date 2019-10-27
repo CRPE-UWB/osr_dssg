@@ -1,0 +1,58 @@
+---
+title: "How to Update the Data"
+author: "Andrew, Haowen, Kellie"
+date: "Summer 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This file will walk you through the steps necessary to update the data being used in the Shiny app and elsewhere.
+
+## Geocoding the Summer Programs
+
+Load the current list of programs into Rstudio. Create a new dataframe that contains unique combinations program session addresses, including city, state, and street address. Check that there are no duplicates cause be redundant white space in the street adrresses, or otherwise redundant addresses caused by typos or inconsistencies in street address. Geocode addresses using the functions in ggmap packedge using your google api key. Add to this dataframe of unique addresses the lat and lon coordinates for each address as needed.
+
+Before merging back to the parent dataframe of reschool programs, validate that geocoding did not return any errors by plotting all addresses on a leaflet map. In particular, look for addresses defaulting to out of state and verify if these are correct, rerun geocodiing scripts as needed, and fix by hand as a last resort. Verify that if there are any NA coordinates in the database these correspond to truly incorrect addresses. Rerun geocoding function as needed and fix by hand if needed.
+
+## Updating the Access Index
+
+1.) Load census centroids, assuming no change to block group geography. These will serve as the starting point per each calculation to each addresss. Load the reschool programs data file with lat lon combinations and/or a dataframe of unique combiantions of program lat lon coordinates, as this is all that is needed.
+
+2.) After ensuring that centroids correctly shown lat lon coordinates and that the programs dataframe is correct, re run the acccess index loop in block_group_distances (or see the _update file here for a version that was used to deal with fixing errors) to calculate and store results of driving and transit travel times from the center of every blockgroup to every unique comibnation of lat and lon coordinates.
+
+3.) The loop tends to take a very long time to calculate and may crash in the process if something changes your internet connection. Therefore, monitor it periodically and restart from the break as needed.
+
+4.) Validate the results- sometimes with starting and stopping the loop we will end up with some duplciate travel time calculations. Frustratingly, these do not always appear as true duplicates, and sometimes vary by milliseconds of estimated travel time, which can make systematically removing them from the results using the <unique> function impossible. Be sure to check that the number of rows in the results is equal to the number of centoids * number of unique lat/lon combinations, and if it is over, diagnose with which block groups, and delete redundant entries as needed. 
+
+5.) Once you have a valid "block_distances" dataframe of travel times, run the data_processing/dAccess_Index_Precomputing markdown to calculate the access index for different categories, at different cost thresholds.
+
+## Updating Denver Open Data
+
+Go to DATA/Open_Denver and delete all files. Then go to data_processing/denver_open. Delete the raw_data folder, and open and run the process_open_data_resources.Rmd file in RStudio. This will repopulate the DATA/Open_Denver folder with appropriately processed data.
+
+Note that this updating process relies on the links to individual data sources in Denver Open Data staying the same. If a new data source is uploaded to the website under a different URL, then you will not be pulling data from this source unless you manually change the URL in process_open_data_resources.Rmd. In particular, if new neighborhood level census data is added to Denver Open Data, it will most likely be at a new URL.
+
+If you run into trouble with this step, it probably means that the format of something in the Denver Open Data has changed, which will require troubleshooting.
+
+## Updating Google Analytics Data
+
+Go to DATA/google_analytics. Delete the google analytics file, and rerun the CODES/date_processing/Google_Analytics_API_Redux markdown. Note that this markdown makes use of a number of string parsing functions defined in the Google_Analytics_Functions R script, as well as the Google Analytics API. To pull data from the API, the user will be prompted to confirm that they have access to the Google account in question through an automatic dialogue box prompted by the initial request. If the user has access, but the API continues to return null results, the adminstrator may have to add/remove the user from the approved list in order to complete the pull. Confirmation is only needed once. 
+
+From there, follow the steps in the markdown to parse the path level data retrieved from the API and aggregate this as much as possible to the user level. *Note* at the time of this writing, it does not seem possible to query the API to return data at the level of 1 row = 1 user, so be careful to aggregate to the level of users, and perform all calculations based on the n of users in the data, not the number of rows. 
+
+## Updating Shiny after all other data is updated
+
+Go to the SHINY folder and run the process_data_once.R file. This does all the preprocessing of the data that's required for the Shiny app, so that the app is quicker to load. You only need to do this preprocessing step once after updating the data sources described above (i.e not before every time you launch the app). It saves all the (updated) data needed for the app in a convenient format, which is then accessed when you open the app.
+
+Note that if you choose to move any of the data sources around (which is highly not recommended), then you will need to update their locations at the beginning of process_data_once.R.
+
+## Updating Census Data
+
+This is not necessary for the Shiny app, only for the analysis and report.
+
+Go to DATA/census_raw. Replace those datasets with new and updated raw data according to AmericanFactFinder (AFF) and file names in CODES/Census_update.Rmd. To do this, search for block group level data in Denver county on AFF (advanced search [link](https://factfinder.census.gov/faces/nav/jsf/pages/searchresults.xhtml?refresh=t), put "block group level" in Geographies, put table name(paste from CODES/Census_update.Rmd) in "topic or table name"). 
+
+Then go to CODES/Census_update.Rmd. File names remain the same, just update ACS year number (eg. the current time point is 2017). Update year number in file paths, then run the rmd file. Final output is Denver_Demographics_BG_XXXX.csv 

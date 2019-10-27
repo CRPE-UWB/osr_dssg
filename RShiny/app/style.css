@@ -1,46 +1,25 @@
-@import url("//fonts.googleapis.com/css?family=Lobster|Cabin:400,700");
-
-/*
-Sky Color Palette from W3 Schools
-grey: #bccad6
-blue grey: #8d9db6
-dark blue grey: #667292
-peach grey: #f1e3dd
-
-Blues from Color Brewer (light to dark):
-#f7fbff
-#deebf7
-#c6dbef
-#9ecae1
-#6baed6
-#4292c6
-#2171b5
-#08519c
-#08306b
-*/
+/*@import url("//fonts.googleapis.com/css?family=Roboto");*/
 
 /* styles for navigation bars (e.g. in the header) */
 nav {
-  /* font-family: 'Lobster', cursive; */
+  /* font-family: 'Roboto'; */
 }
-
-/*
-.navbar-inner {
-  background-color: blue;
-  font-family: 'Lobster', cursive;
-}
-*/
 
 .navbar-static-top {
-  background-color: #DEEBF7;
-  font-family: 'Lobster', cursive;
+  background-color: #b2b2b2;
+  /*font-family: 'Roboto';*/
+  color: #50394c;
+  font-weight: 800;
   width: 100%;
 }
 
+.navbar-default .navbar-brand {
+                         color: #50394c;}
+
 /* make slider color a nice blue */
-.js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar {
+/*.js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar {
   background: #6baed6;
-}
+}*/
 
 .irs-from, .irs-to, .irs-single { 
   background: #6baed6;

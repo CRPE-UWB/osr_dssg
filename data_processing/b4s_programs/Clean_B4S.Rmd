@@ -1,0 +1,158 @@
+---
+title: "Data_processing_for_report"
+output: html_document
+---
+
+
+```{r include=FALSE}
+library(tidyverse)
+library(tigris)
+library(rgdal)
+library(ggplot2)
+library(readxl)
+library(lubridate)
+library(leaflet)
+theme_set(theme_classic())
+```
+
+
+## Import Data 
+```{r message=FALSE, warning=FALSE, results='hide'}
+setwd('~/Desktop/OSR2019')
+# raw program data 
+programs1  <- read.csv("DATA/B4Sprograms/2019DataExport_CO.csv") # raw program data 
+programs_details <- read.csv("DATA/B4Sprograms/Colorado export with dates and times revised.csv") # raw session day data, 17,593
+additional_programs <- read.csv("DATA/B4Sprograms/Additional Camp Export  (Autosaved).csv") # additional raw session day data, 102
+
+# geocoded program data sets 
+session_address <- read.csv("DATA/B4Sprograms/geocoded_data/complete_geocoded_sessions.csv") # geocoded complete session days 
+geocode_additional <- read.csv("DATA/B4Sprograms/geocoded_data/additional_program_level_geocode.csv") # geocoded additional session days, used to aggregate to program level 
+geocode_programs <- read.csv("DATA/B4Sprograms/geocoded_data/combined_programs.csv")
+
+# demographic data
+bg <- read.csv("DATA/Census_demo/Denver_Demographics_BG_2017.csv")
+bg_shape <- readOGR("DATA/Census_demo/shape_census", "shape_census")
+```
+
+## Data processing
+
+### Clean new program data
+
+#### Data Processing on session day level data 
+
+```{r results="hide", warning=FALSE}
+# The program session day level data we use here are "programs_details" and "additional_programs". First select useful columns,
+programs <- programs_details %>% 
+  select(camp_id, session_id, camp_zip, camp_address_1, session_size, session_cost, session_date_start, session_date_end, session_categories, calendar_date, start.time.hours, end.time.hours, length, session_max_age, session_min_age) 
+programs_add <- additional_programs %>% 
+  select(session_id, camp_zip, camp_address_1, session_size,session_cost, session_date_start, session_date_end, session_categories, calendar.date, start.time.hours, end.time.hours, duration, session_max_age, session_min_age)
+# Formating column names
+colnames(programs_add)[9] <- "calendar_date"
+programs$calendar_date <- strptime(programs$calendar_date, format = "%Y-%m-%d", tz="CST6CDT")
+programs_add$calendar_date <- strptime(programs_add$calendar_date, format = "%m/%d/%y", tz = "CST6CDT")
+colnames(programs)[13] <- "duration"
+programs_add$camp_id <- NA # add a column in program_add to make the no. equal
+# Clean data 
+ # Correct "duration" column
+programs_add$duration <- gsub(" hours", "", programs_add$duration) 
+programs_add$duration <- as.numeric(as.character(programs_add$duration)) # turns numeric for processing
+my_data = subset(programs, duration == "5:30 PM") 
+programs$duration[programs$duration == "5:30 PM"] <- 0.75
+programs$duration <- as.numeric(as.character(programs$duration)) # change to numeric
+programs$duration[programs$duration == 16.33333333] <- 16.25 # fix error
+programs$duration <- format(round(programs$duration, 2), nsmall = 2) # round duration to two decimals 
+programs$duration <- as.numeric(as.character(programs$duration)) # turns to numeric again
+ # Fix year error in "calendat_date" column
+year(programs$calendar_date) <- 2019
+programs$calendar_date <- as.POSIXct(programs$calendar_date) # change to POSIXlt format for analysis
+
+# Paste the additional session days into the first detailed session day data sent out 
+programs_all <- rbind(programs, programs_add, factor.exclude = T) # 17,695 rows, 13 vars
+
+# Merge geocoded lat and lons into the data set
+session_latlon <- select(session_address, lat, lon, lat_lon) # 17,695 rows
+programs_all <- merge(programs_all, session_latlon, by=0) # merge by row, 17,695 rows, 17 vars
+# Note: 
+ # A "Row.names" column is automatically created due to merging, this column does not have any meaning in our analysis
+ # Check lat, lon: 276 unique lat_lon
+
+sum(is.na(programs_all$lat)) # 97 N.A. (Addresses missing in original data)
+# sum(is.na(programs_all$lon))
+
+# subset according to the time range for summer (May 31st to August 19)
+programs_all$calendar_date <- as.POSIXct(programs_all$calendar_date) # change to POSIXlt format for the next step
+summer_sessions <- programs_all %>% filter(date(programs_all$calendar_date) > "2019-05-30" & date(programs_all$calendar_date) < "2019-08-20")  # 17,248 obs
+
+# drop session days with 0 hours (5 of them)
+summer_sessions <- filter(summer_sessions, duration != 0)  # 17,243 obs, 17 vars
+```
+
+
+#### Clean program level data
+
+To do analysis on programs, instead of session day, we aggregate to program level. The aim is to get the total duration time for each program session (from session day data, so we could calculate cost/hour, etc.). 
+
+```{r}
+# Because the identifiers are different (more specifically, the added programs do not have unique session ids), we have to aggregate the two data sets seperately. 
+summer_programs.agg1 <- programs %>%  #17593 obs
+  filter(date(programs$calendar_date) > "2019-05-30" & date(programs$calendar_date) < "2019-08-20") %>% #subset to summer programs 
+  group_by(session_id) %>%
+  summarise(total.duration = sum(duration)) #4087 obs
+  
+ # merge total duration to the initial program data
+ programs1_merged <- merge(programs1, summer_programs.agg1, by = "session_id") #4087 obs
+ # merge lat, lon, lat_lon
+ lat_lon <- select(geocode_programs, session_id, lat, lon, lat_lon) #4101 obs
+ programs2_merged <- merge(programs1_merged, lat_lon, by = "session_id") #4086 obs (dropped the unmatched automatically, because the geocoded_programs has all program session, while programs2_merged does not have additional programs, and only have summer programs)
+ #sum(is.na(programs2_merged$lat)), 20, alright! 
+ 
+# Now aggregate and bind the new program sessions into the merged data 
+summer_programs.agg2 <- aggregate(duration~camp_zip+camp_address_1+session_date_start+session_date_end+session_max_age+session_min_age, programs_add, sum) # 9 unique program sessions
+ # merge lat and lon 
+geocode_additional <- geocode_additional %>% 
+  select(camp_address_1, lat, long)
+ordered_ga <- geocode_additional[order(geocode_additional$camp_address_1),]
+non_dupli <- ordered_ga[!duplicated(ordered_ga$camp_address_1),]
+summer_programs.agg2 <- merge(summer_programs.agg2, non_dupli, by = "camp_address_1")
+  
+ # merge the other important columns back 
+ ordered_pa <- programs_add[order(programs_add$camp_address_1),]
+ non_dupli <- ordered_pa[!duplicated(ordered_pa$camp_address_1),]
+ non_dupli <- select(non_dupli, c(session_id, camp_address_1, session_size, session_cost,  session_categories))
+ summer_programs.agg2 <- merge(summer_programs.agg2, non_dupli, by = "camp_address_1")
+ # change column name "duration" to "total.duration"
+colnames(summer_programs.agg2)[7] <- "total.duration"
+colnames(summer_programs.agg2)[9] <- "lon" #for the sake of merging
+
+ # bind into the big data set
+programs1_final <- rbind(programs2_merged[, names(summer_programs.agg2)], summer_programs.agg2, factor.exclude = T) #4095 obs, 11 var
+
+# clean the session_cost column 
+programs1_final$session_cost <- gsub("\\$", "", programs1_final$session_cost) 
+# 10 missing values
+programs1_final$session_cost <- as.numeric(programs1_final$session_cost)
+# just in case
+programs1_final$total.duration <- as.numeric(programs1_final$total.duration)
+# remove 0 
+programs1_final <- filter(programs1_final, total.duration != 0) # dropped one row
+
+# write the new, cleaned, detailed program session level data out to local drive 
+write.csv(programs1_final, file = "DATA/B4Sprograms/clean_summer_programs.csv")
+```
+
+
+There are 17,243 summer program session days in total. Save data to local drive. 
+
+```{r results="hide"}
+write.csv(programs_all, file = "DATA/B4Sprograms/clean_session_days.csv")
+write.csv(summer_sessions, file = "DATA/B4Sprograms/clean_summer_session_days.csv")
+```
+
+
+### Reformat census data as needed
+
+```{r}
+bg_shape@data$Mdn_HH_ <- as.numeric(levels(bg_shape@data$Mdn_HH_))[bg_shape@data$Mdn_HH_]
+```
+
+

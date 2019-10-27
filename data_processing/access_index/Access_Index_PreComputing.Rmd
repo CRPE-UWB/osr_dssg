@@ -1,0 +1,858 @@
+---
+title: "Pre_Computing_Access_Indecies"
+author: "Andrew Taylor"
+date: "7/27/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Here we turn the block group distances calculated into the actual access indecies, both overall for driving and transit, and precompute filtered views for programs at different cost thresholds and by type of program.  
+```{r set up}
+library(leaflet)
+library(RColorBrewer)
+library(googleway)
+library(rgdal)
+library(dplyr)
+#2019
+#session day level
+#BUT NOT- probably program level using session day access thresholds 
+#load pre defined AI functions
+source("C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/data_processing/access_index/Access_Index_Functions.R")
+
+#census blocks
+census_blocks <- readOGR("C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/Census_demo/shape_census")
+
+#centroids
+#census_centroids <- read.csv(".../Centroids_block_groups.csv",header=TRUE,stringsAsFactors = FALSE)
+
+#block distance
+block_distance <- read.csv("C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/access_index/block_distance.csv",header=TRUE,stringsAsFactors = FALSE)
+#names(block_distance)[names(block_distance)=="blockID"] <- "Id2"
+#block_distance <- block_distance[is.na(block_distance$lat)==FALSE,] #drop errors
+
+
+#reshool programs
+reschool_programs <- read.csv("C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/B4Sprograms/geocoded_data/combined_programs.csv"
+                              ,header=TRUE
+                              ,stringsAsFactors = FALSE)
+
+#reschool_programs$lat_lon <- paste(reschool_programs$lat,reschool_programs$long)
+
+#check merge abillity with block distance - summary(reschool_programs$lat_lon %in% block_distance$lat_lon)
+#check only on those which have valid information :)
+
+additional_programs <- read.csv(
+  "C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/B4Sprograms/geocoded_data/additional_program_level_geocode.csv",
+  header=TRUE,
+  stringsAsFactors = FALSE
+)
+
+summary(additional_programs$lat_lon %in% block_distance$lat_lon)
+
+legacy_block_distance <- read.csv("C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/access_index/back_up/block_distance_backup_9_2.csv",
+                                  header=TRUE,
+                                  stringsAsFactors = FALSE)
+
+summary(additional_programs$lat_lon %in% legacy_block_distance$lat_lon)
+
+
+#reschool programs - sessiond ays
+reschool_programs_session_days <- read.csv("C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/B4Sprograms/geocoded_data/complete_geocoded_sessions.csv")
+reschool_programs_session_days$lat_lon <- paste(reschool_programs_session_days$lat,
+                                                reschool_programs_session_days$long)
+```
+
+
+add additional programs as needed
+```{r add additional programs as needed, keeping with rest of id}
+#additional_programs_add <- unique(additional_programs[c("session_address_1",
+ #                                                       "session_id",
+  #                                                      "session_name",
+   #                                                     "lat",
+    #                                                    "long",
+     #                                                   "lat_lon")])
+#additional_programs_add$session_id <- rep(1:nrow(additional_programs_add)) #since we're now at the program level, add a placeholder for the useless 
+
+#merge
+#temp <- merge(reschool_programs,
+ #             additional_programs_add,
+  #            by=c(
+   #             "session_address_1",
+    #                                                    "session_id",
+     #                                                   "session_name",
+      #                                                  "lat",
+       #                                                 "long",
+        #                                                "lat_lon"
+         #     ),
+          #    all=TRUE) #do all to include a bunch of NAs as needed
+```
+
+
+
+
+```{r hour cost & duration}
+#average hours per program
+mean_program_hours <- aggregate(
+  duration_minutes~
+    session_id,
+  data=reschool_programs_session_days,
+  FUN=function(hours){
+    mean(hours)/60 #minutes to hours
+  }
+)
+
+#update names pre merge
+names(mean_program_hours) <- c("session_id","avg_session_hours")
+mean_program_hours$avg_session_hours[
+  which(mean_program_hours$avg_session_hours==0)
+] <- NA #turn 0 hour into NA, because, that doesn't make sense, and messes up our cost per hour metric
+
+#merge into program level
+
+nrow(reschool_programs)
+
+reschool_programs <- merge(
+  reschool_programs,
+  mean_program_hours,
+  by="session_id",
+  all.x=TRUE
+)
+
+nrow(reschool_programs)
+
+
+#create cost per hour variable
+reschool_programs$cost_per_hour <- reschool_programs$session_cost / reschool_programs$avg_session_hours
+
+#create categories for half day or shorter, partial day, full day
+reschool_programs$duration_category <- NA
+reschool_programs$duration_category[which(reschool_programs$avg_session_hours<4)] <- "Half Day or Shorter"
+reschool_programs$duration_category[which(between(reschool_programs$avg_session_hours,4,7))] <- "Partial Day"
+reschool_programs$duration_category[which(reschool_programs$avg_session_hours>7)] <- "Longer Than One Day"
+
+
+```
+
+
+Here we stablish cost thresholds and categories to measure, per our style in 2018, at those less than $50. Below are some archived notes from last  year, though I can't recall if we actually used these for anyting. #NEW COST THRESHOLDS
+#Free, $15/hour or less, <$15 per hour, overall, based on program level assessments
+
+```{r split categories & cost}
+#free
+reschool_programs$free <- FALSE
+reschool_programs$free[
+  which(reschool_programs$session_cost==0)
+] <- TRUE
+
+#low cost
+reschool_programs$lowcost <- FALSE
+reschool_programs$lowcost[
+  which(reschool_programs$session_cost<=50)
+] <- TRUE
+
+#any cost
+reschool_programs$anycost <- TRUE
+
+
+###Hourly
+reschool_programs$lowcost_hour <- FALSE
+reschool_programs$lowcost_hour[
+  which(reschool_programs$cost_per_hour<=15)
+] <- TRUE
+
+reschool_programs$anycost_hour <- FALSE
+reschool_programs$anycost_hour[
+  which(reschool_programs$cost_per_hour>15)
+] <- TRUE
+
+####
+####
+####
+
+#academic
+reschool_programs$academic <- FALSE
+reschool_programs$academic[
+  which(grepl("academic|stem",reschool_programs$session_categories))
+] <- TRUE
+
+#art
+reschool_programs$art <- FALSE
+reschool_programs$art[
+  which(grepl("art|cooking|dance|drama|music",reschool_programs$session_categories))
+] <- TRUE
+
+#has sports
+reschool_programs$has_sports <- FALSE
+reschool_programs$has_sports[
+  which(grepl("sports",reschool_programs$session_categories))
+] <- TRUE
+
+#has nature
+reschool_programs$has_nature <- FALSE
+reschool_programs$has_nature[which(
+  grepl("nature",reschool_programs$session_categories)
+)] <- TRUE
+
+#special needs
+reschool_programs$has_special_needs_offerings <- FALSE
+reschool_programs$has_special_needs_offerings[
+  grepl("specialNeeds",reschool_programs$session_categories,ignore.case = TRUE)
+] <- TRUE
+```
+
+Quick set up to add a n to our program level dataframe as well as our base frame for access index calculations
+```{r set up programs and baseframe}
+#reschool_programs$X <- NULL #row names writing error removed
+
+#establishing "1" per row for use in aggergation
+reschool_programs$n <- 1 
+
+#basic blockgroup id level dataframe to add AI calculations too
+base_frame <- data.frame(Id2 = unique(census_blocks$Id2))
+```
+
+Here we calculate the access index for driving times to all programs 
+```{r run the driving access index}
+#Create driving frame
+driving_index <- base_frame
+
+#Creating categories list for loop
+
+categories <- c("academic","art","has_sports","has_nature")
+
+#Creating cost list for loop
+costs <- c("free","lowcost","anycost")
+hourly_costs <- c("lowcost_hour","anycost_hour")
+durations <- c("Partial Day","Half Day or Shorter","Longer Than One Day")
+
+#Loop for all categories and costs
+for (category in 1:length(categories)){
+  type <- categories[category]
+  #overall
+  #last years cost thresholds
+  for (cost_threshold in 1:length(costs)){
+    cost <- costs[cost_threshold]
+    user_set <- Make_Subset(reschool_programs,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set(agg_set)
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive") 
+    summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) 
+    max_access <- max(summary_index_user$AccessIndex)
+    #update colnames for merge
+    summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_access)
+    colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",type,cost,sep = "_") #flexible name writing for loop
+    summary_index_user$Id2 <- as.numeric(summary_index_user$Id2) #matching str to baseframe 
+    driving_index <- merge(summary_index_user,driving_index,by=c("Id2"))
+  }
+  #hourly cost thresholds
+  for (cost_threshold in 1:length(hourly_costs)){
+    cost <- hourly_costs[cost_threshold]
+    user_set <- Make_Subset(reschool_programs,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set(agg_set)
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive") 
+    summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) 
+    max_access <- max(summary_index_user$AccessIndex)
+    #update colnames for merge
+    summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_access)
+    colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",type,cost,sep = "_")
+    summary_index_user$Id2 <- as.numeric(summary_index_user$Id2)
+    driving_index <- merge(summary_index_user,driving_index,by=c("Id2"))
+  }
+  
+  #subset by duration
+  for(duration in 1:length(durations)){
+    for(cost_threshold in 1:length(costs)){
+      target_duration <- durations[duration] #exactly the same as above but we get the target duration here
+      cost <- costs[cost_threshold]
+      user_set <- Make_Subset(reschool_programs[which(reschool_programs$duration_category==target_duration),], #and use it to subset the data prior to passing it
+                              type,cost)
+      agg_set <- Aggregate_Subset(user_set)
+      merged_set <- Merge_Set(agg_set)
+      merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive") 
+      summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) 
+      max_access <- max(summary_index_user$AccessIndex)
+      summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_access)
+      colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",target_duration,type,cost,sep = "_")
+      summary_index_user$Id2 <- as.numeric(summary_index_user$Id2)
+      driving_index <- merge(summary_index_user,driving_index,by=c("Id2"))
+    }
+      for (cost_threshold in 1:length(hourly_costs)){
+      target_duration <- durations[duration] #exactly the same as above but we get the target duration here
+      cost <- hourly_costs[cost_threshold]
+      user_set <- Make_Subset(reschool_programs[which(reschool_programs$duration_category==target_duration),],type,cost)
+      agg_set <- Aggregate_Subset(user_set)
+      merged_set <- Merge_Set(agg_set)
+      merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive") 
+      summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) 
+      max_access <- max(summary_index_user$AccessIndex)
+      summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_access)
+      colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",target_duration,type,cost,sep = "_")
+      summary_index_user$Id2 <- as.numeric(summary_index_user$Id2)
+      driving_index <- merge(summary_index_user,driving_index,by=c("Id2"))
+  }
+    
+  }
+  print(paste("working",category,"categories reviewed"))
+}
+
+#Create an overall average by category with no cost
+driving_index$AI_overall <- rowMeans(driving_index[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
+driving_index$AI_overall_free <- rowMeans(driving_index[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
+```
+
+
+
+Transit Dataframe.
+*NOTE* AS OF 8/2/2019- did not calculate this, over concerns about substituing in times re: walking. 
+```{r transit dataframe}
+#Create driving frame
+transit_index <- base_frame
+
+#Creating categories list for loop
+
+categories <- c("academic","art","has_sports","has_nature")
+
+#Creating cost list for loop
+
+costs <- c("free","lowcost","anycost")
+hourly_costs <- c("lowcost_hour","anycost_hour")
+durations <- c("Partial Day","Half Day or Shorter","Longer Than One Day")
+
+
+#Loop for all categories and costs
+
+for (category in 1:length(categories)){
+  type <- categories[category]
+  #for any duration
+  for (cost_threshold in 1:length(costs)){
+    cost <- costs[cost_threshold]
+    user_set <- Make_Subset(reschool_programs,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set(agg_set)
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"transit") 
+    merged_set$CarAccess <- decay_fxn_softGravity(merged_set,"drive")
+    summary_index_user_transit_graphic <- aggregate(CarAccess ~ Id2,data=merged_set,FUN=sum)
+    summary_index_user_transit <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+    #normalize, note here we make two columns, one to compare to driving, one for visual rep
+    max_access <- max(summary_index_user_transit_graphic$CarAccess)
+    summary_index_user_transit$AccessIndex <- normalize(summary_index_user_transit$AccessIndex,max_access)
+    #update colnames for merge
+    colnames(summary_index_user_transit)[colnames(summary_index_user_transit)=="AccessIndex"] <- paste("AI",type,cost,sep = "_") #flexible name writing for loop
+    summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2) #matching str to baseframe 
+    transit_index <- merge(summary_index_user_transit,transit_index,by=c("Id2"))
+  }
+  for (cost_threshold in 1:length(hourly_costs)){
+    cost <- hourly_costs[cost_threshold]
+    user_set <- Make_Subset(reschool_programs,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set(agg_set)
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"transit") 
+    merged_set$CarAccess <- decay_fxn_softGravity(merged_set,"drive") #for use in visual representation
+    summary_index_user_transit_graphic <- aggregate(CarAccess ~ Id2,data=merged_set,FUN=sum)
+    summary_index_user_transit <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+    #normalize, note here we make two columns, one to compare to driving, one for visual rep
+    max_access <- max(summary_index_user_transit_graphic$CarAccess)
+    summary_index_user_transit$AccessIndex <- normalize(summary_index_user_transit$AccessIndex,max_access)
+    #update colnames for merge
+    colnames(summary_index_user_transit)[colnames(summary_index_user_transit)=="AccessIndex"] <- paste("AI",type,cost,sep = "_") #flexible name writing for loop
+    summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2) #matching str to baseframe 
+    transit_index <- merge(summary_index_user_transit,transit_index,by=c("Id2"))
+  }
+  #subset by duration
+  for(duration in 1:length(durations)){
+    target_duration <- durations[duration]
+    reschool_programs_durations <- reschool_programs[which(reschool_programs$duration_category==target_duration),]
+    for (cost_threshold in 1:length(costs)){
+      cost <- costs[cost_threshold]
+      user_set <- Make_Subset(reschool_programs_durations,type,cost)
+      agg_set <- Aggregate_Subset(user_set)
+      merged_set <- Merge_Set(agg_set)
+      merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"transit") 
+      merged_set$CarAccess <- decay_fxn_softGravity(merged_set,"drive")
+      summary_index_user_transit_graphic <- aggregate(CarAccess ~ Id2,data=merged_set,FUN=sum)
+      summary_index_user_transit <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+      #normalize, note here we make two columns, one to compare to driving, one for visual rep
+      max_access <- max(summary_index_user_transit_graphic$CarAccess)
+      summary_index_user_transit$AccessIndex <- normalize(summary_index_user_transit$AccessIndex,max_access)
+      #update colnames for merge
+      colnames(summary_index_user_transit)[colnames(summary_index_user_transit)=="AccessIndex"] <- paste("AI",target_duration,type,cost,sep = "_") #flexible name writing for loop
+      summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2) #matching str to baseframe 
+      transit_index <- merge(summary_index_user_transit,transit_index,by=c("Id2"))
+  }
+    for (cost_threshold in 1:length(hourly_costs)){
+      cost <- hourly_costs[cost_threshold]
+      user_set <- Make_Subset(reschool_programs_durations,type,cost)
+      agg_set <- Aggregate_Subset(user_set)
+      merged_set <- Merge_Set(agg_set)
+      merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"transit") 
+      merged_set$CarAccess <- decay_fxn_softGravity(merged_set,"drive") #for use in visual representation
+      summary_index_user_transit_graphic <- aggregate(CarAccess ~ Id2,data=merged_set,FUN=sum)
+      summary_index_user_transit <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+      #normalize, note here we make two columns, one to compare to driving, one for visual rep
+      max_access <- max(summary_index_user_transit_graphic$CarAccess)
+      summary_index_user_transit$AccessIndex <- normalize(summary_index_user_transit$AccessIndex,max_access)
+      #update colnames for merge
+      colnames(summary_index_user_transit)[colnames(summary_index_user_transit)=="AccessIndex"] <- paste("AI",target_duration,type,cost,sep = "_") #flexible name writing for loop
+      summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2) #matching str to baseframe 
+      transit_index <- merge(summary_index_user_transit,transit_index,by=c("Id2"))
+    }
+    }
+  #validation
+  print(paste(category,"working"))
+}
+
+#Create an overall average by category with no cost
+
+transit_index$AI_overall <- rowMeans(transit_index[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
+transit_index$AI_overall_free <- rowMeans(transit_index[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
+```
+
+Calculate per combination of disabillity and non
+```{r Driving Disabillity Dataframe}
+#Create driving frame & subset for disability
+driving_index_disabillity <- base_frame
+programs_disabillity <- reschool_programs[which(reschool_programs$has_special_needs_offerings==TRUE),]
+
+#Creating categories list for loop
+
+categories <- c("academic","art","has_sports","has_nature")
+
+#Creating cost list for loop
+costs <- c("free","lowcost","anycost")
+hourly_costs <- c("lowcost_hour","anycost_hour")
+
+#Creating categories list for loop
+
+categories <- c("academic","art","has_sports","has_nature")
+
+#Creating cost list for loop
+costs <- c("free","lowcost","anycost")
+hourly_costs <- c("lowcost_hour","anycost_hour")
+durations <- c("Partial Day","Half Day or Shorter","Longer Than One Day")
+
+#Loop for all categories and costs
+for (category in 1:length(categories)){
+  type <- categories[category]
+  #overall
+  #last years cost thresholds
+  for (cost_threshold in 1:length(costs)){
+    cost <- costs[cost_threshold]
+    user_set <- Make_Subset(programs_disabillity,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set(agg_set)
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive") 
+    summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) 
+    max_access <- max(summary_index_user$AccessIndex)
+    #update colnames for merge
+    summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_access)
+    colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",type,cost,sep = "_") #flexible name writing for loop
+    summary_index_user$Id2 <- as.numeric(summary_index_user$Id2) #matching str to baseframe 
+    driving_index_disabillity <- merge(summary_index_user,driving_index_disabillity,by=c("Id2"))
+  }
+  #hourly cost thresholds
+  for (cost_threshold in 1:length(hourly_costs)){
+    cost <- hourly_costs[cost_threshold]
+    user_set <- Make_Subset(programs_disabillity,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set(agg_set)
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive") 
+    summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) 
+    max_access <- max(summary_index_user$AccessIndex)
+    #update colnames for merge
+    summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_access)
+    colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",type,cost,sep = "_")
+    summary_index_user$Id2 <- as.numeric(summary_index_user$Id2)
+    driving_index_disabillity <- merge(summary_index_user,driving_index_disabillity,by=c("Id2"))
+  }
+  
+  #subset by duration
+  for(duration in 1:length(durations)){
+    for(cost_threshold in 1:length(costs)){
+      target_duration <- durations[duration] #exactly the same as above but we get the target duration here
+      cost <- costs[cost_threshold]
+      user_set <- Make_Subset(programs_disabillity[which(programs_disabillity$duration_category==target_duration),], #and use it to subset the data prior to passing it
+                              type,cost)
+      if(nrow(user_set)>0){ #frustrating thing to fix
+        agg_set <- Aggregate_Subset(user_set)
+        merged_set <- Merge_Set(agg_set)
+        merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive") 
+        summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) 
+        max_access <- max(summary_index_user$AccessIndex)
+        summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_access)
+        colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",target_duration,type,cost,sep = "_")
+        summary_index_user$Id2 <- as.numeric(summary_index_user$Id2)
+        driving_index_disabillity <- merge(summary_index_user,driving_index_disabillity,by=c("Id2"))}
+      if(nrow(user_set)==0){ #in the event of literally no programs per this combinations
+        summary_index_user <- data.frame( #make a dataframe of all 0 access
+          Id2 = unique(driving_index_disabillity$Id2),
+          AccessIndex = 0
+        )
+        #update names and merge as before
+        colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",target_duration,type,cost,sep = "_")
+        summary_index_user$Id2 <- as.numeric(summary_index_user$Id2)
+        driving_index_disabillity <- merge(summary_index_user,driving_index_disabillity,by=c("Id2"))
+      }
+    }
+      for (cost_threshold in 1:length(hourly_costs)){
+      target_duration <- durations[duration] #exactly the same as above but we get the target duration here
+      cost <- hourly_costs[cost_threshold]
+      user_set <- Make_Subset(programs_disabillity[which(programs_disabillity$duration_category==target_duration),],type,cost)
+      if(nrow(user_set)>0){
+        agg_set <- Aggregate_Subset(user_set)
+        merged_set <- Merge_Set(agg_set)
+        merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"drive") 
+        summary_index_user <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum) 
+        max_access <- max(summary_index_user$AccessIndex)
+        summary_index_user$AccessIndex <- normalize(summary_index_user$AccessIndex,max_access)
+        colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",target_duration,type,cost,sep = "_")
+        summary_index_user$Id2 <- as.numeric(summary_index_user$Id2)
+        driving_index_disabillity <- merge(summary_index_user,driving_index_disabillity,by=c("Id2"))}
+      if(nrow(user_set)==0){
+                summary_index_user <- data.frame( #make a dataframe of all 0 access
+          Id2 = unique(driving_index_disabillity$Id2),
+          AccessIndex = 0
+        )
+        #update names and merge as before
+        colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",target_duration,type,cost,sep = "_")
+        summary_index_user$Id2 <- as.numeric(summary_index_user$Id2)
+        driving_index_disabillity <- merge(summary_index_user,driving_index_disabillity,by=c("Id2"))
+      }
+  }
+  }
+  print(paste("working",category,"categories reviewed"))
+}
+
+#Create an overall average by category with no cost
+driving_index_disabillity$AI_overall <- rowMeans(driving_index_disabillity[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
+driving_index_disabillity$AI_overall_free <- rowMeans(driving_index_disabillity[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
+```
+
+Transit Disabillity dataframe. As with the previous transit frame, see notes about how we no longer repalce NA transit values with walking values, as we did last year. 
+```{r Transit Disabillity dataframe}
+#Create driving frame
+transit_index_disabillity <- base_frame
+programs_disabillity <- reschool_programs[which(reschool_programs$has_special_needs_offerings==TRUE),]
+
+#Creating categories list for loop
+
+categories <- c("academic","art","has_sports","has_nature")
+
+#Creating cost list for loop
+
+costs <- c("free","lowcost","anycost")
+hourly_costs <- c("lowcost_hour","anycost_hour")
+durations <- c("Partial Day","Half Day or Shorter","Longer Than One Day")
+
+
+#Loop for all categories and costs
+
+for (category in 1:length(categories)){
+  type <- categories[category]
+  #for any duration
+  for (cost_threshold in 1:length(costs)){
+    cost <- costs[cost_threshold]
+    user_set <- Make_Subset(reschool_programs,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set(agg_set)
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"transit") 
+    merged_set$CarAccess <- decay_fxn_softGravity(merged_set,"drive")
+    summary_index_user_transit_graphic <- aggregate(CarAccess ~ Id2,data=merged_set,FUN=sum)
+    summary_index_user_transit <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+    #normalize, note here we make two columns, one to compare to driving, one for visual rep
+    max_access <- max(summary_index_user_transit_graphic$CarAccess)
+    summary_index_user_transit$AccessIndex <- normalize(summary_index_user_transit$AccessIndex,max_access)
+    #update colnames for merge
+    colnames(summary_index_user_transit)[colnames(summary_index_user_transit)=="AccessIndex"] <- paste("AI",type,cost,sep = "_") #flexible name writing for loop
+    summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2) #matching str to baseframe 
+    transit_index_disabillity <- merge(summary_index_user_transit,transit_index_disabillity,by=c("Id2"))
+  }
+  for (cost_threshold in 1:length(hourly_costs)){
+    cost <- hourly_costs[cost_threshold]
+    user_set <- Make_Subset(reschool_programs,type,cost)
+    agg_set <- Aggregate_Subset(user_set)
+    merged_set <- Merge_Set(agg_set)
+    merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"transit") 
+    merged_set$CarAccess <- decay_fxn_softGravity(merged_set,"drive") #for use in visual representation
+    summary_index_user_transit_graphic <- aggregate(CarAccess ~ Id2,data=merged_set,FUN=sum)
+    summary_index_user_transit <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+    #normalize, note here we make two columns, one to compare to driving, one for visual rep
+    max_access <- max(summary_index_user_transit_graphic$CarAccess)
+    summary_index_user_transit$AccessIndex <- normalize(summary_index_user_transit$AccessIndex,max_access)
+    #update colnames for merge
+    colnames(summary_index_user_transit)[colnames(summary_index_user_transit)=="AccessIndex"] <- paste("AI",type,cost,sep = "_") #flexible name writing for loop
+    summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2) #matching str to baseframe 
+    transit_index_disabillity <- merge(summary_index_user_transit,transit_index_disabillity,by=c("Id2"))
+  }
+  #subset by duration
+  for(duration in 1:length(durations)){
+    target_duration <- durations[duration]
+    reschool_programs_durations <- reschool_programs[which(reschool_programs$duration_category==target_duration),]
+    for (cost_threshold in 1:length(costs)){
+      cost <- costs[cost_threshold]
+      user_set <- Make_Subset(reschool_programs_durations,type,cost)
+      if(nrow(user_set)!=0){
+        agg_set <- Aggregate_Subset(user_set)
+        merged_set <- Merge_Set(agg_set)
+        merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"transit") 
+        merged_set$CarAccess <- decay_fxn_softGravity(merged_set,"drive")
+        summary_index_user_transit_graphic <- aggregate(CarAccess ~ Id2,data=merged_set,FUN=sum)
+        summary_index_user_transit <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+        #normalize, note here we make two columns, one to compare to driving, one for visual rep
+        max_access <- max(summary_index_user_transit_graphic$CarAccess)
+        summary_index_user_transit$AccessIndex <- normalize(summary_index_user_transit$AccessIndex,max_access)
+        #update colnames for merge
+        colnames(summary_index_user_transit)[colnames(summary_index_user_transit)=="AccessIndex"] <- paste("AI",target_duration,type,cost,sep = "_") #flexible name writing for loop
+        summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2) #matching str to baseframe 
+        transit_index_disabillity <- merge(summary_index_user_transit,transit_index_disabillity,by=c("Id2"))}
+      if(nrow(user_set)==0){ #in the event of literally no programs per this combinations
+        summary_index_user <- data.frame( #make a dataframe of all 0 access
+          Id2 = unique(driving_index_disabillity$Id2),
+          AccessIndex = 0
+        )
+        #update names and merge as before
+        colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",target_duration,type,cost,sep = "_")
+        summary_index_user$Id2 <- as.numeric(summary_index_user$Id2)
+        transit_index_disabillity <- merge(summary_index_user,transit_index_disabillity,by=c("Id2"))
+      }
+  }
+    for (cost_threshold in 1:length(hourly_costs)){
+      cost <- hourly_costs[cost_threshold]
+      user_set <- Make_Subset(reschool_programs_durations,type,cost)
+      if(nrow(user_set)!=0){
+        agg_set <- Aggregate_Subset(user_set)
+        merged_set <- Merge_Set(agg_set)
+        merged_set$AccessIndex <- decay_fxn_softGravity(merged_set,"transit") 
+        merged_set$CarAccess <- decay_fxn_softGravity(merged_set,"drive") #for use in visual representation
+        summary_index_user_transit_graphic <- aggregate(CarAccess ~ Id2,data=merged_set,FUN=sum)
+        summary_index_user_transit <- aggregate(AccessIndex ~ Id2,data=merged_set,FUN=sum)
+        #normalize, note here we make two columns, one to compare to driving, one for visual rep
+        max_access <- max(summary_index_user_transit_graphic$CarAccess)
+        summary_index_user_transit$AccessIndex <- normalize(summary_index_user_transit$AccessIndex,max_access)
+        #update colnames for merge
+        colnames(summary_index_user_transit)[colnames(summary_index_user_transit)=="AccessIndex"] <- paste("AI",target_duration,type,cost,sep = "_") #flexible name writing for loop
+        summary_index_user_transit$Id2 <- as.numeric(summary_index_user_transit$Id2) #matching str to baseframe 
+        transit_index_disabillity <- merge(summary_index_user_transit,transit_index_disabillity,by=c("Id2"))}
+      if(nrow(user_set)==0){
+        summary_index_user <- data.frame( #make a dataframe of all 0 access
+          Id2 = unique(driving_index_disabillity$Id2),
+          AccessIndex = 0
+        )
+        #update names and merge as before
+        colnames(summary_index_user)[colnames(summary_index_user)=="AccessIndex"] <- paste("AI",target_duration,type,cost,sep = "_")
+        summary_index_user$Id2 <- as.numeric(summary_index_user$Id2)
+        transit_index_disabillity <- merge(summary_index_user,transit_index_disabillity,by=c("Id2"))
+      }
+    }
+    }
+  #validation
+  print(paste(category,"working"))
+}
+
+#Create an overall average by category with no cost
+
+transit_index_disabillity$AI_overall <- rowMeans(transit_index_disabillity[,c("AI_has_nature_anycost",'AI_has_sports_anycost','AI_art_anycost','AI_academic_anycost')])
+transit_index_disabillity$AI_overall_free <- rowMeans(transit_index_disabillity[,c("AI_has_nature_free","AI_has_sports_free","AI_art_free","AI_academic_free")])
+```
+
+
+Visual Check - first go we spotted SOME SERIOUS ERRORS- both in geocoding (few addresses coded in wrong states, thanks google), and with duplicates in the block distances code, leading to drastic over estimates in access (thanks ME and bad wifi starts and stops).
+
+Looks MUCH better now, good call. 
+```{r plot index for visual check}
+#order
+driving_index <- driving_index[order(driving_index$Id2),]
+census_blocks <- census_blocks[order(census_blocks$Id2),]
+
+#programs per lat lon
+agg_programs <- aggregate(n ~ lat+lon,
+                          data = reschool_programs,
+                          FUN = sum)
+
+#pal def
+index_pal <- colorNumeric(palette = "Blues",
+                          domain = driving_index$AI_overall)
+
+leaflet(census_blocks) %>%
+  addProviderTiles(providers$OpenStreetMap.BlackAndWhite) %>%
+  addPolygons(color = "Grey",
+              weight = 1,
+              smoothFactor = 0.5,
+              opacity = 1,
+              fillOpacity = 0.8,
+              fillColor = ~index_pal(driving_index$AI_overall),
+              highlightOptions = highlightOptions(color="white",weight=2),
+              popup = paste(
+                "BlockGroup: ",
+                driving_index$Id2,
+                "Access Index Score: ",
+                driving_index$AI_overall,
+                "Validate Blockgroup Order: ",
+                census_blocks$Id2
+              )) %>%
+  addCircleMarkers(
+    lng = agg_programs$lon,
+    lat = agg_programs$lat,
+    color = "red",
+    popup = paste("n of programs =",
+                  agg_programs$n,
+                  "coords = ",
+                  agg_programs$lat,
+                  agg_programs$long),
+    radius = 5
+  ) %>%
+  addLegend(
+    pal = index_pal,
+    values = driving_index$AI_overall,
+    title = "Access Index Driving, All Programs, 2019"
+  )
+```
+
+Validate transit
+```{r}
+#order
+transit_index <- transit_index[order(transit_index$Id2),]
+census_blocks <- census_blocks[order(census_blocks$Id2),]
+
+#programs per lat lon
+agg_programs <- aggregate(n ~ lat+lon,
+                          data = reschool_programs,
+                          FUN = sum)
+
+#pal def
+index_pal <- colorNumeric(palette = "Greens",
+                          domain = transit_index$AI_overall)
+
+leaflet(census_blocks) %>%
+  addProviderTiles(providers$OpenStreetMap.BlackAndWhite) %>%
+  addPolygons(color = "Grey",
+              weight = 1,
+              smoothFactor = 0.5,
+              opacity = 1,
+              fillOpacity = 0.8,
+              fillColor = ~index_pal(transit_index$AI_overall),
+              highlightOptions = highlightOptions(color="white",weight=2),
+              popup = paste(
+                "BlockGroup: ",
+                transit_index$Id2,
+                "Access Index Score: ",
+                transit_index$AI_overall,
+                "Validate Blockgroup Order: ",
+                census_blocks$Id2
+              )) %>%
+  addCircleMarkers(
+    lng = agg_programs$lon,
+    lat = agg_programs$lat,
+    color = "red",
+    popup = paste("n of programs =",
+                  agg_programs$n,
+                  "coords = ",
+                  agg_programs$lat,
+                  agg_programs$long),
+    radius = 5
+  ) %>%
+  addLegend(
+    pal = index_pal,
+    values = transit_index$AI_overall,
+    title = "Access Index transit, All Programs, 2019"
+  )
+```
+
+Reasonable question here, pull mean travel times at different index scores.
+```{r how do access index scores correspond to real travel time?}
+index_mean_time <- unique(
+  driving_index[c("Id2","AI_overall")]
+) #set up AI reference style dataframe
+names(index_mean_time)[2] <- "score"
+
+
+#merge programs and travel times
+block_distance_programs <- merge(block_distance,
+                                 reschool_programs[c("n","lat_lon")],
+                                 by="lat_lon")
+block_distance_programs <- aggregate(n~lat_lon+Id2+driving_morning,
+                                     data=block_distance_programs,
+                                     FUN=sum) #initially multiple n per lat lon because multiple programs with multiple ssession at the same spot. Here we flatten. 
+
+
+index_mean_time$Mean_Time_driving <- sapply(
+  index_mean_time$score,
+  function(score){
+    #subset driving index per relevant id2presence
+    sub_id <- driving_index$Id2[which(
+      driving_index$AI_overall==score
+    )]
+    #get vector of those ids
+    #pass that to block_group_distances
+    #return mean
+    total_time<- sum(
+      block_distance_programs$driving_morning[which(block_distance_programs$Id2 %in% sub_id)] *      block_distance_programs$n[which(block_distance_programs$Id2 %in% sub_id)]
+    ,na.rm=TRUE)
+    total_programs <- sum(
+      block_distance_programs$n[which(block_distance_programs$Id2 %in% sub_id)]
+    ,na.rm=TRUE)
+    return(total_time/total_programs)
+  }
+)
+
+
+#also, how many within x minutes?
+index_mean_time$Programs_within_five <- 
+  sapply(index_mean_time$score,
+         function(score){
+               sub_id <- driving_index$Id2[which(
+      driving_index$AI_overall==score
+    )]
+               sum(block_distance_programs$n[which(
+                 block_distance_programs$Id2 %in%sub_id &
+                   block_distance_programs$driving_morning<=5
+               )],na.rm=TRUE)
+               
+         })
+
+index_mean_time$Programs_within_ten <- 
+  sapply(index_mean_time$score,
+         function(score){
+               sub_id <- driving_index$Id2[which(
+      driving_index$AI_overall==score
+    )]
+               sum(block_distance_programs$n[which(
+                 block_distance_programs$Id2 %in%sub_id &
+                   block_distance_programs$driving_morning<=10
+               )],na.rm=TRUE)
+               
+         })
+
+index_mean_time$Programs_over_30 <- 
+  sapply(index_mean_time$score,
+         function(score){
+               sub_id <- driving_index$Id2[which(
+      driving_index$AI_overall==score
+    )]
+               sum(block_distance_programs$n[which(
+                 block_distance_programs$Id2 %in%sub_id &
+                   block_distance_programs$driving_morning>30
+               )],na.rm=TRUE)
+               
+         })
+
+```
+
+Write csvs to share - including updating complete programs to keep the category designations and cost per hour calculations
+
+```{r write csvs}
+#updated complete program 
+write.csv(reschool_programs,"C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/B4Sprograms/geocoded_data/combined_programs.csv",
+          row.names = FALSE)
+#driving
+write.csv(driving_index,"C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/access_index/driving_index.csv",row.names=FALSE)
+write.csv(driving_index_disabillity,"C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/access_index/driving_index_disabillity.csv",row.names=FALSE)
+#transit
+write.csv(transit_index,"C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/access_index/transit_index.csv",row.names=FALSE)
+write.csv(transit_index_disabillity,"C:/Users/ataylor/OneDrive - Vera Institute of Justice/coding-files/OSR2019/DATA/access_index/transit_index_disabillity.csv",row.names=FALSE)
+```
+

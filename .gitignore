@@ -3,8 +3,9 @@
 *.zip
 
 # History files
-.Rhistory
+*.Rhistory
 .Rapp.history
+*.DS_Store
 
 # Session Data files
 .RData

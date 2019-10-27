@@ -1,0 +1,146 @@
+---
+title: "Google Analytics API"
+author: "Andrew Taylor"
+date: "6/29/2018"
+output: html_document
+---
+
+###API Codebook
+Metrics and Dimensions codebook: https://developers.google.com/analytics/devguides/reporting/core/dimsmets
+
+Load in libraries
+```{r}
+library(googleAnalyticsR)
+```
+
+###Functions we'll be using
+```{r}
+source("/Users/Andrew/osr_dssg2018-3/data_processing/Google_Analytics/Google_Analytics_Functions.R")
+```
+
+
+###Authenticate
+#VERY IMPORTANT:
+The "ga_auth()" command will prompt an internet dialogue to authenticate our access to google analytics. In this case, let's use the DSSG OSR one. You have to use the browser for this, at least with this package.
+```{r}
+##Authenticate
+ga_auth()
+
+##Get accounts
+account_list <- ga_account_list()
+
+##Every account has a view ID
+account_list$viewId
+
+##Here we extract the view ID we want. One seems to be the homepage and two seems to be the search engine.
+ga_id_one <- account_list$viewId[1]
+ga_id_two <- account_list$viewId[2]
+```
+
+###Understanding "PathLevel" Dimension 
+Of all the dimensions we could have picked why PathLevel? Why not something more for number of searches or search traffic data? 
+
+In short- because the former two return primarily null values because they are not correctly specified for the internal search engine on the site. Or so the internet tells me. "PathLevel" is the only metric that returns details related to user searches (in this case at the user level, though we could perform "session" analysis with say, page views), in the form of the url which contains the search features.
+
+PagePath is a "Page Level" dimensions, e.g PathLevel by "Level" risks double counting if not "Paths" are discrete categories, which it appears they're not. In other words, PathLevelOne & Two are not actually about the person, like, not about their "path", but rather about aggergating at levels like, www.example.com/path1/page1, vs. /path2/page2. Hence, why path3 == only user profiles. But why in the hell then, path1 & path2 both give us different ns of search results, and that this is also different from general path, is confusing. Do some more research. 
+
+See the following links for more explanation:
+
+https://www.quora.com/In-Google-analytics-custom-Reporting-what-is-Page-path-level-definition
+
+https://analyticscanvas.com/session-vs-page-level-dimensions-google-analytics/
+
+https://www.optimizesmart.com/complete-guide-to-dimensions-and-metrics-in-google-analytics/
+
+###Pulling Path Level Data
+```{r}
+todays_date <- as.character(Sys.Date())
+
+#By Path
+PathLevel <- google_analytics(
+  ga_id_two, 
+  date_range=c("2018-01-01",(todays_date)),
+  metrics=c('Users','timeOnPage','pageviews','uniquePageviews'),
+  dimensions =c('Latitude','Longitude',"PagePath","dateHourMinute"),
+  max=500000) #tbh do we even need max? Controls max rows returned, persumably to constrain size PRN, but like why?
+```
+
+###Parsing the Clean Paths
+Using our functions to fill out categories
+```{r}
+library(stringr)
+library(lubridate)
+
+PathLevel$CleanPath <- ParsePath(PathLevel$PagePath) #critical first stage, standardizes the different features of the html hash
+
+PathLevel$gender <- sapply(PathLevel$CleanPath,ReturnGender)
+PathLevel$distance <- sapply(PathLevel$CleanPath,ReturnDistance)
+PathLevel$category <- sapply(PathLevel$CleanPath,ReturnCategory)
+PathLevel$mincost <- sapply(PathLevel$CleanPath,ReturnMinCost)
+PathLevel$maxcost <- sapply(PathLevel$CleanPath,ReturnMaxCost)
+PathLevel$sessiontimes <- sapply(PathLevel$Clean,ReturnTime)
+PathLevel$maxage <- sapply(PathLevel$CleanPath,ReturnMaxAge)
+PathLevel$minage <- sapply(PathLevel$CleanPath,ReturnMinAge)
+PathLevel$sort <- sapply(PathLevel$CleanPath,ReturnSort)
+PathLevel$location <- sapply(PathLevel$CleanPath,ReturnLocation)
+PathLevel$scholarships <- sapply(PathLevel$CleanPath,Returnscholarships)
+PathLevel$specialneeds <- sapply(PathLevel$CleanPath,ReturnspecialNeeds)
+PathLevel$beforeaftercare <- sapply(PathLevel$CleanPath,ReturnBeforeCare)
+PathLevel$gifted <- sapply(PathLevel$CleanPath,ReturnGifted)
+PathLevel$keywords <- sapply(PathLevel$CleanPath,ReturnKeyWords)
+
+####and date
+####since we now need this to compare specific dates and all
+PathLevel$Date <- sapply(PathLevel$dateHourMinute,
+                         function(date){
+                           year <- substr(date,1,4)
+                           month <- substr(date,5,6)
+                           day <- substr(date,7,8)
+                           hour <- substr(date,9,10)
+                           minute <- substr(date,11,12)
+                           #get real date
+                           real_date <- paste0(year,"-",month,"-",day)
+                           #return it
+                           return(real_date)
+                         })
+PathLevel$Date <- as.Date(PathLevel$Date)
+```
+
+Clean the above, now that it's parsed. Really we should make these one function probably.
+```{r}
+PathLevel$gender <- sapply(PathLevel$gender,CleanHash)
+PathLevel$distance <-sapply(PathLevel$distance,CleanHash)
+PathLevel$category <- sapply(PathLevel$category,CleanHash)
+PathLevel$mincost <- sapply(PathLevel$mincost,CleanHash)
+PathLevel$maxcost <- sapply(PathLevel$maxcost,CleanHash)
+PathLevel$sessiontimes <- sapply(PathLevel$sessiontimes,CleanHash)
+PathLevel$minage <- sapply(PathLevel$minage,CleanHash)
+PathLevel$maxage <- sapply(PathLevel$maxage,CleanHash)
+PathLevel$sort <- sapply(PathLevel$sort,CleanHash)
+PathLevel$location <- sapply(PathLevel$location,CleanHash)
+PathLevel$scholarships <- sapply(PathLevel$scholarships,CleanHash)
+PathLevel$specialneeds <- sapply(PathLevel$specialneeds,CleanHash)
+PathLevel$beforeaftercare <- sapply(PathLevel$beforeaftercare,CleanHash)
+PathLevel$gifted <- sapply(PathLevel$gifted,CleanHash)
+PathLevel$keywords <- sapply(PathLevel$keywords,CleanHash)
+```
+
+Aggregate Path Level to Users. Note this is a "user level" dataset, in that one row != one user. Rather, this creates a pretty strange dataset, at the level of users per search criteria and dates. So, for general use in searches changing around dates, need to perform some additional aggregation, as is the case for any specific category. Not that hard, but, still something that we need to make sure to note. 
+
+```{r create user level dataset}
+UserLevel <- aggregate(Users~
+                         Date+gender+distance+category+mincost+maxcost+sessiontimes+
+                         maxage+minage+sort+location+scholarships+specialneeds+
+                         beforeaftercare+gifted+keywords,
+                       data=PathLevel,
+                       FUN=sum)
+```
+
+
+share
+```{r}
+write.csv(UserLevel,
+          "....OSR2019/DATA/google_analytics_clean.csv",
+          row.names = FALSE)
+```
+
