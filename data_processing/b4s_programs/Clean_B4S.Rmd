@@ -82,6 +82,7 @@ sum(is.na(programs_all$lat)) # 97 N.A. (Addresses missing in original data)
 # subset according to the time range for summer (May 31st to August 19)
 programs_all$calendar_date <- as.POSIXct(programs_all$calendar_date) # change to POSIXlt format for the next step
 summer_sessions <- programs_all %>% filter(date(programs_all$calendar_date) > "2019-05-30" & date(programs_all$calendar_date) < "2019-08-20")  # 17,248 obs
+summer_sessions2 <- programs_all %>% filter(date(programs_all$calendar_date) > "2019-04-30" & date(programs_all$calendar_date) < "2019-08-20")
 
 # drop session days with 0 hours (5 of them)
 summer_sessions <- filter(summer_sessions, duration != 0)  # 17,243 obs, 17 vars

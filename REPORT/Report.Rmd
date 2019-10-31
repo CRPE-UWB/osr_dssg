@@ -452,4 +452,114 @@ leaflet(nbhd) %>%
               opacity = 1) 
 ```
 
+## Additional questions 
+
+### Can we get a breakdown of how many programs are in each category (art, STEM, sports, etc)?  If you can do a bar chart showing the difference in offerings from last year to this year, that would be great.
+
+read in old program data and filter it to summer programs, and create category variables 
+```{r}
+old_programs <- read.csv("DATA/Archive/B4S_PROGRAM_DATA/Blueprint4Summer.csv")
+
+old_programs$first_session_date <- as.POSIXct(old_programs$first_session_date, tryFormats = "%m/%d/%Y") 
+old_programs$last_session_date  <- as.POSIXct(old_programs$last_session_date , tryFormats = "%m/%d/%Y") # change to POSIXlt format 
+
+old_summer_programs <- old_programs %>% filter(date(old_programs$first_session_date) > "2018-05-30" & date(old_programs$last_session_date) < "2018-08-20")  #3074 obs
+
+#academic
+old_programs$Academic <- FALSE
+old_programs$Academic[
+  which(grepl("academic|stem",old_programs$session_categories))
+] <- TRUE
+
+#art
+old_programs$Art <- FALSE
+old_programs$Art[
+  which(grepl("art|cooking|dance|drama|music",old_programs$session_categories))
+] <- TRUE
+
+#has sports
+old_programs$Sports <- FALSE
+old_programs$Sports[
+  which(grepl("sports",old_programs$session_categories))
+] <- TRUE
+
+#has nature
+old_programs$Nature <- FALSE
+old_programs$Nature[which(
+  grepl("nature",old_programs$session_categories)
+)] <- TRUE
+
+#special needs
+old_programs$Special_needs_offerings <- FALSE
+old_programs$Special_needs_offerings[
+  grepl("specialNeeds",old_programs$session_categories,ignore.case = TRUE)
+] <- TRUE
+```
+
+creat year variable and bind old and new data 
+```{r}
+programs$year <- "2019"
+old_programs$year <- "2018"
+
+# select common columns from old_programs for the sake of binding
+old_programs1 <- old_programs[, names(old_programs) %in% names(programs)]
+programs1 <-programs[, names(programs) %in% names(old_programs1)]
+
+all_programs <- rbind(old_programs1, programs1)
+
+count(all_programs, year == "2018", Academic == TRUE)
+count(all_programs, year == "2018", Art == TRUE)
+count(all_programs, year == "2018", Sports == TRUE)
+count(all_programs, year == "2018", Nature == TRUE)
+count(all_programs, year == "2018", Special_needs_offerings == TRUE)
+
+plot_data <- read.csv("REPORT/TABLES/category_by_year.csv")  
+plot_data <- plot_data %>% gather(category, number, -Year)
+plot_data$Year <- as.factor(plot_data$Year)
+  
+ggplot(plot_data, aes(category, number, fill = Year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("") +
+  ylab("Number of programs") +
+  ggtitle("Program by category and year") +
+  scale_fill_discrete(name="Year") +
+  scale_fill_manual(labels = c("2018", "2019"), values=c("#2b8cbe", "#fb6a4a")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 13),
+        legend.text=element_text(size=10),
+        plot.title = element_text(size=20))
+```
+
+
+### Can we expand the the date range for summer to include May when we show the weeks that programs are offered? 
+To do this, run the first chunk data cleaning codes in Clean_B4S.Rmd, and change the last two lines of codes as the following: 
+```{r}
+summer_sessions2 <- programs_all %>% filter(date(programs_all$calendar_date) > "2019-04-30" & date(programs_all$calendar_date) < "2019-08-20")
+sessions <- filter(summer_sessions2, duration != 0)  # 17,425 obs
+```
+
+Then rerun the week part. 
+```{r}
+sessions$week <- strftime(sessions$calendar_date, format = "%V")
+# total hours in each week
+hours_in_week <- sessions %>% 
+  group_by(week) %>%
+  summarise(hours = sum(duration)) %>%
+  mutate(p = hours/sum(hours))
+hours_in_week$p <-round(hours_in_week$p, digits = 2)
+colnames(hours_in_week) <- c("Week", "Total hours", "Total hours percentage")
+
+# read in time-week relational data
+time_week <- read.csv("DATA/time2.csv")
+# merge
+hours_in_week <- merge(hours_in_week, time_week, by = "Week")
+
+hours_in_week <- hours_in_week %>% 
+  arrange_at("Total hours", desc)
+
+hours_in_week
+
+# write this table to excel so we can hand fix the percentages that are smaller than 0.01
+write_xlsx(hours_in_week, "REPORT/TABLES/Table1_time2.xlsx")
+```
 
